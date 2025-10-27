@@ -163,8 +163,8 @@ MonoBehaviour:
   planeObject: {fileID: 549470090}
   restPosition: {fileID: 1267772364}
   bandSegments: 10
-  bandSag: 0.1
-  relaxedWidth: 0.1
+  bandSag: 0.01
+  relaxedWidth: 0.01
   stretchedWidth: 0.05
   maxStretchDistance: 5
   relaxedColor: {r: 0.8, g: 0.2, b: 0.2, a: 0.8}
@@ -240,8 +240,8 @@ LineRenderer:
       serializedVersion: 2
       m_Curve:
       - serializedVersion: 3
-        time: 0
-        value: 1
+        time: 0.0029895334
+        value: 0.017543852
         inSlope: 0
         outSlope: 0
         tangentMode: 0
@@ -674,6 +674,7 @@ MonoBehaviour:
   invertJoystickVertical: 0
   autoLevelWhenNoInput: 1
   autoLevelSpeed: 1
+  disableAutoLevelWhenDragging: 1
   directionAlignmentStrength: 5
   minSpeedForAlignment: 2
   groundDragFactor: 0.98

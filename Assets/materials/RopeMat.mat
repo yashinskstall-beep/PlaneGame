@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: RopeMat
-  m_Shader: {fileID: 4800000, guid: 933532a4fcc9baf4fa0491de14d08ed7, type: 3}
+  m_Shader: {fileID: 4800000, guid: c2b06d15a6aafb6488a4bfaac294e375, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -17,17 +17,16 @@ Material:
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
-  stringTagMap:
-    RenderType: Opaque
+  stringTagMap: {}
   disabledShaderPasses: []
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: 83471df407f54274fbc84f6afe852472, type: 3}
+        m_Texture: {fileID: 2800000, guid: aa0b80cb823c80644b1ddc8c0b1aa85e, type: 3}
         m_Scale: {x: 3.12, y: 2.68}
-        m_Offset: {x: 0, y: 0}
+        m_Offset: {x: 2.67, y: 26.55}
     - _BumpMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -110,6 +109,7 @@ Material:
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
     - _Surface: 0
+    - _Tiling: 4
     - _WorkflowMode: 1
     - _ZWrite: 1
     m_Colors:

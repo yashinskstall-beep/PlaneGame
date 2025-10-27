@@ -17,8 +17,11 @@ public class RubberBandVisual : MonoBehaviour
     public int bandSegments = 10;   // Number of segments in the band (higher = smoother)
     [Range(0.01f, 1f)]
     public float bandSag = 0.1f;    // How much the band sags when stretched
-    public float relaxedWidth = 0.1f;      // Width when not stretched
-    public float stretchedWidth = 0.05f;   // Width when fully stretched
+    [Range(0.01f, 0.2f)]
+    public float relaxedWidth = 0.05f;      // Width when not stretched
+    [Range(0.005f, 0.1f)]
+    public float stretchedWidth = 0.025f;   // Width when fully stretched
+    [Range(1f, 10f)]
     public float maxStretchDistance = 5f;  // Distance considered "fully stretched"
     
     [Header("Colors")]
