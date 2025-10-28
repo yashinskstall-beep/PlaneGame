@@ -1,8 +1,12 @@
 using UnityEngine;
+using System.Collections;
+
+
 
 /// <summary>
 /// Controls the plane's handling (turning, banking, pitching) after it exits a ramp.
 /// Attach this script to the plane GameObject (which has the Rigidbody).
+/// Handles boost particles A and B 
 /// </summary>
 public class PlaneController : MonoBehaviour
 {
@@ -10,6 +14,8 @@ public class PlaneController : MonoBehaviour
     public PlaneRampAligner rampAligner;  // Reference to the ramp aligner script
     public CollisionMarker collisionMarker;  // Reference to the collision marker script
     public JoystickController joystick;  // Reference to the joystick controller
+    public ParticleSystem boostA; // particle A
+    public ParticleSystem boostB; // particle B
 
     [Header("Handling Settings")]
     public float turnSpeed = 3f;
@@ -47,11 +53,19 @@ public class PlaneController : MonoBehaviour
 
     // Private variables
     private Rigidbody rb;
-    private bool isControlling = false;
+    public bool isControlling = false;
     private bool wasOnRamp = false;
     private bool exitedRamp = false;
     private bool isGrounded = false;
     private bool isBeingDragged = false;
+    
+    // Boost variables
+    private Vector3 preBoostVelocity;
+    private bool isBoosting = false;
+    [Header("Boost Settings")]
+    public float boostAmount = 10f;
+    public float boostDuration = 1.5f;
+    public float returnToNormalSpeed = 2f;
 
     private float smoothHorizontalInput = 0f;
     private float smoothVerticalInput = 0f;
@@ -351,5 +365,51 @@ public class PlaneController : MonoBehaviour
             Destroy(marker, collisionMarker.markerLifetime);
 
         Debug.Log($"Marker placed at: {position}");
+    }
+
+    public void BoostButton()
+    {
+        if (!isBoosting && rb != null)
+        {
+            // Store the current velocity before boosting
+            preBoostVelocity = rb.velocity;
+            
+            // Apply the boost
+            rb.AddForce(transform.forward * boostAmount, ForceMode.Impulse);
+            boostA.Play();
+            boostB.Play();
+            
+            
+            // Start the coroutine to return to normal speed
+            StartCoroutine(ReturnToNormalSpeed());
+        }
+    }
+    
+    private IEnumerator ReturnToNormalSpeed()
+    {
+        isBoosting = true;
+        
+        // Wait for the boost duration
+        yield return new WaitForSeconds(boostDuration);
+        
+        // Gradually return to the pre-boost velocity
+        float elapsedTime = 0f;
+        Vector3 currentVelocity = rb.velocity;
+        float returnDuration = 1f / returnToNormalSpeed;
+        
+        while (elapsedTime < returnDuration)
+        {
+            // Interpolate between current boosted velocity and pre-boost velocity
+            rb.velocity = Vector3.Lerp(currentVelocity, preBoostVelocity, elapsedTime / returnDuration);
+            
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+        
+        // Ensure we exactly match the pre-boost velocity at the end
+        rb.velocity = preBoostVelocity;
+        isBoosting = false;
+        boostA.Stop();
+        boostB.Stop();
     }
 }
