@@ -3,12 +3,16 @@ using UnityEngine;
 public class SimpleCameraFollow : MonoBehaviour
 {
     [Header("References")]
-    public Transform target;          // The cube or plane to follow
+    public Transform airplaneTarget;  // The airplane to follow initially
+    private Transform target;         // The current target (can be airplane or marker)
+    private bool markerSpawned = false; // Flag to check if marker is spawned
 
     [Header("Camera Settings")]
     public Vector3 offset = new Vector3(0f, 3f, -6f); // How far behind/above the target
     public float followSpeed = 5f;                    // How quickly the camera catches up
     public float rotationSmoothness = 5f;             // How smoothly the camera rotates
+    public float frozenZoomAmount = 5f;               // How much to zoom out when camera freezes
+    public float zoomSmoothness = 2f;                 // How smoothly to zoom out
     
     [Header("Landing Camera Settings")]
     public float speedThresholdForSlowdown = 5.0f;     // Speed at which camera starts to slow down
@@ -19,26 +23,152 @@ public class SimpleCameraFollow : MonoBehaviour
     public SimpleDragLauncher dragLauncher;
     
     // Private variables
-    private Vector3 cameraVelocity = Vector3.zero;      // For smooth damp
+    private Vector3 cameraVelocity = Vector3.zero;     // For smooth damp
     private Vector3 lastGoodCameraPosition;            // Last position when plane was moving well
     private Quaternion lastGoodCameraRotation;         // Last rotation when plane was moving well
     private float maxPlaneSpeed = 0f;                  // Track the max speed the plane reached
     private bool hasStartedFollowing = false;          // Whether we've started following the plane
     private bool hasFrozenCamera = false;              // Whether we've frozen the camera position
+    private bool isPositionFrozen = false;             // A flag to lock the camera's position on command
+    private bool isPlaneControlling = false;           // Whether the plane is in controlling mode
+    private Vector3 fixedOffset;                       // Fixed offset to maintain during controlling
+    
+    // Marker transition variables
+    private bool isTransitioningToMarker = false;      // Whether we're transitioning to marker
+    private Vector3 markerTransitionStartPos;          // Starting position for transition
+    private float markerTransitionProgress = 0f;       // Progress of transition (0 to 1)
+    public float markerTransitionDuration = 2f;        // Duration of transition in seconds
+    public float markerZoomOutDistance = 15f;          // How far to zoom out when viewing marker
+    public Vector3 markerCameraOffset = new Vector3(0f, 10f, -12f); // Camera offset when viewing marker
     
     void Start()
     {
+        // Start by following the airplane
+        target = airplaneTarget;
+
         if (target != null)
         {
             // Initialize with the default offset
             lastGoodCameraPosition = target.position + offset;
             lastGoodCameraRotation = Quaternion.LookRotation(target.position - lastGoodCameraPosition);
+            fixedOffset = offset; // Initialize fixed offset
         }
+        else
+        {
+            Debug.LogError("Airplane Target is not assigned in the CameraFollow script!");
+        }
+    }
+
+    /// <summary>
+    /// Call this method from another script when the marker is spawned.
+    /// </summary>
+    /// <param name="markerTarget">The transform of the spawned marker.</param>
+    public void TransitionToMarker(Transform markerTarget)
+    {
+        if (markerTarget == null)
+        {
+            Debug.LogWarning("TransitionToMarker called with a null target.");
+            return;
+        }
+
+        target = markerTarget;
+        markerSpawned = true;
+        Debug.Log($"Camera target switched to: {markerTarget.name}");
+        Debug.Log("Initiating camera transition to marker.");
+        
+        // Initiate smooth transition to the marker
+        isTransitioningToMarker = true;
+        markerTransitionStartPos = transform.position;
+        markerTransitionProgress = 0f;
+        isPositionFrozen = false; // Unfreeze to allow the transition to happen
+    }
+
+    public void FreezePosition()
+    {
+        isPositionFrozen = true;
+        Debug.Log("Camera position has been frozen.");
     }
 
     void FixedUpdate()
     {
-        if (!target || dragLauncher == null) return;
+        if (markerSpawned)
+        {
+            HandleMarkerCamera();
+        }
+        else
+        {
+            HandleAirplaneCamera();
+        }
+    }
+
+    private void HandleMarkerCamera()
+    {
+        if (target == null) return;
+
+        // Handle marker transition
+        if (isTransitioningToMarker)
+        {
+            markerTransitionProgress += Time.fixedDeltaTime / markerTransitionDuration;
+
+            if (markerTransitionProgress >= 1f)
+            {
+                markerTransitionProgress = 1f;
+                isTransitioningToMarker = false;
+                isPositionFrozen = true; // Freeze after transition completes
+            }
+
+            // Calculate target position for camera (above and behind marker)
+            Vector3 targetCameraPos = target.position + markerCameraOffset;
+
+            // Smooth transition using easing
+            float easedProgress = Mathf.SmoothStep(0f, 1f, markerTransitionProgress);
+            transform.position = Vector3.Lerp(markerTransitionStartPos, targetCameraPos, easedProgress);
+
+            // Look at the marker
+            transform.LookAt(target);
+        }
+        // If the position is frozen, just look at the current target and do nothing else.
+        else if (isPositionFrozen)
+        {
+            transform.LookAt(target);
+        }
+    }
+
+    private void HandleAirplaneCamera()
+    {
+        if (airplaneTarget == null) return;
+        target = airplaneTarget;
+
+        if (target == null) return;
+
+        // If the position is frozen, just look at the current target and do nothing else.
+        if (isPositionFrozen)
+        {
+            transform.LookAt(target);
+            return;
+        }
+        
+        // Check if the plane is in controlling mode
+        PlaneController planeController = target.GetComponent<PlaneController>();
+        if (planeController != null)
+        {
+            // Update the controlling state
+            if (!isPlaneControlling && planeController.isControlling)
+            {
+                // Plane just started controlling - capture the current offset
+                isPlaneControlling = true;
+                fixedOffset = transform.position - target.position;
+                Debug.Log("Camera fixed offset set: " + fixedOffset);
+            }
+            else if (isPlaneControlling && !planeController.isControlling)
+            {
+                // Plane stopped controlling (hit ground or tree)
+                isPlaneControlling = false;
+                Debug.Log("Camera fixed offset released");
+            }
+        }
+
+        if (dragLauncher == null) return;
 
         if (dragLauncher.released)
         {
@@ -57,8 +187,28 @@ public class SimpleCameraFollow : MonoBehaviour
             // Calculate what percentage of max speed we're at
             float speedRatio = maxPlaneSpeed > 0 ? currentSpeed / maxPlaneSpeed : 0;
             
-            // If plane is moving well, update the good camera position and rotation
-            if (currentSpeed > speedThresholdForSlowdown && hasStartedFollowing)
+            // If the plane is in controlling mode, maintain a fixed distance
+            if (isPlaneControlling)
+            {
+                // Use the fixed offset captured when controlling started
+                Vector3 targetPosition = target.position + fixedOffset;
+                
+                // Use smooth damp for more controlled camera movement
+                float smoothTime = 0.1f; // Lower value = faster response
+                transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref cameraVelocity, smoothTime);
+                
+                // Look at target
+                transform.LookAt(target);
+                
+                // Store this good position and rotation
+                lastGoodCameraPosition = transform.position;
+                lastGoodCameraRotation = transform.rotation;
+                
+                // Reset frozen flag if we're moving again
+                hasFrozenCamera = false;
+            }
+            // If plane is moving well and not in controlling mode, update the good camera position and rotation
+            else if (currentSpeed > speedThresholdForSlowdown && hasStartedFollowing)
             {
                 // Normal camera following
                 Vector3 targetPosition = target.position + offset;
@@ -110,16 +260,20 @@ public class SimpleCameraFollow : MonoBehaviour
                 Debug.Log("Camera frozen at final position");
             }
             
-            // If camera is frozen, maintain the same relative position to the target
+            // If camera is frozen, zoom out
             if (hasFrozenCamera)
             {
-                // Keep the same relative position to the target
-                Vector3 directionToTarget = (target.position - lastGoodCameraPosition).normalized;
-                float distanceToTarget = Vector3.Distance(lastGoodCameraPosition, target.position);
-                
-                // Position camera at the same distance and angle from target
-                transform.position = target.position - directionToTarget * distanceToTarget;
-                // Keep looking at target
+                // Calculate the direction from the target to the last good camera position
+                Vector3 directionFromTarget = (lastGoodCameraPosition - target.position).normalized;
+
+                // Calculate the new zoomed-out position by adding the zoom amount
+                float targetDistance = Vector3.Distance(lastGoodCameraPosition, target.position) + frozenZoomAmount;
+                Vector3 zoomedOutPosition = target.position + directionFromTarget * targetDistance;
+
+                // Smoothly move the camera to the zoomed-out position
+                transform.position = Vector3.Lerp(transform.position, zoomedOutPosition, Time.deltaTime * zoomSmoothness);
+
+                // Keep looking at the target
                 transform.LookAt(target);
             }
         }

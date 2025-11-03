@@ -142,6 +142,7 @@ public class PlaneRampAligner : MonoBehaviour
             planeRb.constraints &= ~RigidbodyConstraints.FreezeRotationZ;
             Debug.Log("Plane RB rotation unfrozen");
 
+            gameObject.GetComponent<Collider>().enabled = false;
         
             
         }

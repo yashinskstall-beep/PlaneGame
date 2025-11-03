@@ -1,21 +1,23 @@
 using UnityEngine;
 using System.Collections;
-
-
+using System.Collections.Generic;
 
 /// <summary>
-/// Controls the plane's handling (turning, banking, pitching) after it exits a ramp.
-/// Attach this script to the plane GameObject (which has the Rigidbody).
-/// Handles boost particles A and B 
+/// Complete PlaneController:
+/// Handles full airborne control, auto-leveling, gliding slowdown, boost effects,
+/// ground alignment, marker placement, and detachable damage parts.
 /// </summary>
+[RequireComponent(typeof(Rigidbody))]
 public class PlaneController : MonoBehaviour
 {
     [Header("References")]
-    public PlaneRampAligner rampAligner;  // Reference to the ramp aligner script
-    public CollisionMarker collisionMarker;  // Reference to the collision marker script
-    public JoystickController joystick;  // Reference to the joystick controller
-    public ParticleSystem boostA; // particle A
-    public ParticleSystem boostB; // particle B
+    public PlaneRampAligner rampAligner;
+    public CollisionMarker collisionMarker;
+    public JoystickController joystick;
+    public ParticleSystem boostA;
+    public ParticleSystem boostB;
+    public PlaneDamageHandler damageHandler;
+    public SimpleCameraFollow cameraFollow;
 
     [Header("Handling Settings")]
     public float turnSpeed = 3f;
@@ -32,44 +34,81 @@ public class PlaneController : MonoBehaviour
     public bool invertJoystickVertical = true;
     public bool autoLevelWhenNoInput = true;
     public float autoLevelSpeed = 1f;
-    [Tooltip("If true, auto-leveling will be disabled when the plane is being dragged")]
     public bool disableAutoLevelWhenDragging = true;
 
     [Header("Movement Alignment")]
     public float directionAlignmentStrength = 5.0f;
     public float minSpeedForAlignment = 2.0f;
 
+    [Header("Speed Control (Glide Behaviour)")]
+    [Tooltip("Aerodynamic drag applied when gliding or climbing. Higher values cause more slowdown.")]
+    public float glideDrag = 0.8f;
+    [Tooltip("Aerodynamic drag applied when diving. Lower values allow for more acceleration.")]
+    public float diveDrag = 0.1f;
+    
+    [Header("Air Resistance Settings")]
+    [Tooltip("Base air resistance coefficient. Higher values cause more slowdown.")]
+    public float airResistanceCoefficient = 0.05f;
+    [Tooltip("How much the air resistance increases with speed (quadratic). Higher values make faster speeds have more resistance.")]
+    public float velocityResistanceFactor = 0.01f;
+    [Tooltip("How much the plane's orientation affects air resistance. Higher values mean more resistance when flying sideways.")]
+    public float orientationResistanceFactor = 0.5f;
+    
+    [Header("Momentum Settings")]
+    [Tooltip("How efficiently the plane converts diving speed to climbing ability. Higher values allow for better climbing.")]
+    public float momentumConversionFactor = 0.8f;
+    [Tooltip("Minimum speed required to start climbing effectively.")]
+    public float minSpeedForClimbing = 5f;
+    [Tooltip("How quickly the plane loses momentum when climbing. Lower values allow for longer climbs.")]
+    public float momentumDecayRate = 0.2f;
+
     [Header("Ground Movement Settings")]
     public float groundDragFactor = 0.98f;
     public float minGroundSpeed = 0.1f;
+    public float minZAxisSpeed = 0.05f;
     public float groundAlignmentSpeed = 5.0f;
     public float groundCheckDistance = 0.5f;
+    public float minImpactForceForDamage = 10f;
+
+    [Header("Marker Settings")]
+    public float markerYOffset = 0.5f;
 
     [Header("Smoothing Settings")]
-    [Tooltip("How quickly input changes are smoothed (higher = snappier, lower = smoother)")]
-    public float inputSmoothness = 6f;
-    [Tooltip("How quickly torque is smoothed (helps prevent jerky rotation)")]
-    public float torqueSmoothness = 6f;
+    public float inputSmoothness = 4f;
+    public float torqueSmoothness = 3f;
 
-    // Private variables
-    private Rigidbody rb;
-    public bool isControlling = false;
-    private bool wasOnRamp = false;
-    private bool exitedRamp = false;
-    private bool isGrounded = false;
-    private bool isBeingDragged = false;
-    
-    // Boost variables
-    private Vector3 preBoostVelocity;
-    private bool isBoosting = false;
     [Header("Boost Settings")]
     public float boostAmount = 10f;
     public float boostDuration = 1.5f;
     public float returnToNormalSpeed = 2f;
 
+    // Internal state
+    private Rigidbody rb;
+    public  bool isControlling = false;
+    private bool wasOnRamp = false;
+    private bool exitedRamp = false;
+    private bool isGrounded = false;
+    private bool isBeingDragged = false;
+    private bool isBoosting = false;
+    
+    // Momentum tracking
+    private float storedMomentum = 0f;
+    private float maxRecentSpeed = 0f;
+    private bool wasDiving = false;
+
+    private Vector3 preBoostVelocity;
     private float smoothHorizontalInput = 0f;
     private float smoothVerticalInput = 0f;
     private Vector3 smoothTorque = Vector3.zero;
+    private PlanePartDetach[] detachableParts;
+
+    // Distance / marker tracking
+    private Vector3 startPosition;
+    private Vector3 maxZPosition;
+    private float maxZDistance;
+    private bool markerPlaced = false;
+    private GameObject placedMarker = null;
+    private float lastZPosition;
 
     void Start()
     {
@@ -78,31 +117,20 @@ public class PlaneController : MonoBehaviour
         if (rb != null)
         {
             rb.angularDrag = angularDragAmount;
-            Debug.Log($"PlaneController: Configured Rigidbody with angular drag {angularDragAmount}");
-        }
-        else
-        {
-            Debug.LogError("PlaneController: No Rigidbody component found!");
         }
 
-        if (collisionMarker == null)
+        damageHandler ??= GetComponent<PlaneDamageHandler>();
+        collisionMarker ??= GetComponent<CollisionMarker>() ?? gameObject.AddComponent<CollisionMarker>();
+        rampAligner ??= GetComponent<PlaneRampAligner>() ?? FindObjectOfType<PlaneRampAligner>();
+
+        if (useJoystickInput)
         {
-            collisionMarker = GetComponent<CollisionMarker>();
-            if (collisionMarker == null)
-                collisionMarker = gameObject.AddComponent<CollisionMarker>();
+            joystick ??= FindObjectOfType<JoystickController>();
+            if (joystick != null)
+                joystick.gameObject.SetActive(false);
         }
 
-        if (rampAligner == null)
-        {
-            rampAligner = GetComponent<PlaneRampAligner>();
-            if (rampAligner == null)
-                rampAligner = FindObjectOfType<PlaneRampAligner>();
-        }
-
-        if (useJoystickInput && joystick == null)
-        {
-            joystick = FindObjectOfType<JoystickController>();
-        }
+        detachableParts = GetComponentsInChildren<PlanePartDetach>();
     }
 
     void FixedUpdate()
@@ -110,60 +138,54 @@ public class PlaneController : MonoBehaviour
         bool isOnRamp = false;
         if (rampAligner != null)
         {
-            var isAligningField = typeof(PlaneRampAligner).GetField("isAligning",
+            var field = typeof(PlaneRampAligner).GetField("isAligning",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (isAligningField != null)
-                isOnRamp = (bool)isAligningField.GetValue(rampAligner);
+            if (field != null)
+                isOnRamp = (bool)field.GetValue(rampAligner);
         }
 
-        // Check if the plane is being dragged
         CheckIfBeingDragged();
 
         if (wasOnRamp && !isOnRamp)
-        {
             StartControlling();
-        }
 
         wasOnRamp = isOnRamp;
 
         if (isControlling)
-        {
             ApplyPlaneHandling();
-        }
         else if (isGrounded)
-        {
             HandleGroundMovement();
-        }
     }
 
     void CheckIfBeingDragged()
     {
-        // Check if there's a SimpleDragLauncher in the scene
-        SimpleDragLauncher dragLauncher = GetComponent<SimpleDragLauncher>();
-        if (dragLauncher == null)
-        {
-            dragLauncher = FindObjectOfType<SimpleDragLauncher>();
-        }
-
-        // If we found a drag launcher and it's not released yet, the plane is being dragged
-        if (dragLauncher != null)
-        {
-            isBeingDragged = !dragLauncher.released;
-        }
-        else
-        {
-            isBeingDragged = false;
-        }
+        var dragLauncher = GetComponent<SimpleDragLauncher>() ?? FindObjectOfType<SimpleDragLauncher>();
+        isBeingDragged = dragLauncher != null && !dragLauncher.released;
     }
 
     void StartControlling()
     {
         isControlling = true;
         exitedRamp = true;
-        Debug.Log("PlaneController: Control started after ramp exit.");
+    
+        Debug.Log("StartControlling");
+        if (useJoystickInput && joystick != null)
+            joystick.gameObject.SetActive(true);
 
-        if (collisionMarker != null)
-            collisionMarker.ResetCollisionState();
+        // Ensure gravity is on and drag is reset at the start of control
+        if(rb != null) 
+        {
+            rb.useGravity = true;
+            rb.drag = glideDrag;
+        }
+
+        collisionMarker?.ResetCollisionState();
+
+        startPosition = transform.position;
+        maxZPosition = startPosition;
+        maxZDistance = startPosition.z;
+        lastZPosition = startPosition.z;
+        markerPlaced = false;
     }
 
     private void JoystickInput(ref float horizontalInput, ref float verticalInput)
@@ -232,6 +254,9 @@ public class PlaneController : MonoBehaviour
         smoothTorque = Vector3.Lerp(smoothTorque, torque, Time.fixedDeltaTime * torqueSmoothness);
         rb.AddTorque(smoothTorque, ForceMode.Acceleration);
 
+        // Apply air resistance
+        ApplyAirResistance();
+
         // Align velocity with forward direction
         if (rb.velocity.magnitude > minSpeedForAlignment)
         {
@@ -240,20 +265,113 @@ public class PlaneController : MonoBehaviour
         }
     }
 
-    public void ForceControl()
+    /// <summary>
+    /// Smooth glide-style speed decay (natural slowdown over time)
+    /// </summary>
+    private void ApplyAirResistance()
     {
-        if (!isControlling)
-            StartControlling();
-    }
+        if (rb == null || rb.velocity.magnitude < 0.1f) return;
 
-    public void StopControlling()
-    {
-        isControlling = false;
+        // Calculate base air resistance
+        float speed = rb.velocity.magnitude;
+        
+        // Track the plane's orientation (pitch)
+        float pitchAngle = Vector3.SignedAngle(
+            Vector3.ProjectOnPlane(transform.forward, Vector3.right),
+            Vector3.ProjectOnPlane(Vector3.forward, Vector3.right),
+            Vector3.right);
+        
+        // Detect if we're diving (positive pitch = nose down)
+        bool isDiving = pitchAngle > 5f;
+        
+        // Store momentum when diving
+        if (isDiving)
+        {
+            // Track maximum speed during dive
+            maxRecentSpeed = Mathf.Max(maxRecentSpeed, speed);
+            wasDiving = true;
+            
+            // Use less drag when diving to build up speed
+            rb.drag = diveDrag;
+        }
+        else
+        {
+            // If we were diving but now pulling up, convert speed to momentum
+            if (wasDiving && pitchAngle < -2f) // Transitioning from dive to climb
+            {
+                // Convert speed to stored momentum
+                storedMomentum = maxRecentSpeed * momentumConversionFactor;
+                wasDiving = false;
+                
+                // Debug.Log($"Converted dive speed {maxRecentSpeed:F1} to momentum {storedMomentum:F1}");
+                maxRecentSpeed = 0f;
+            }
+            
+            // Use normal drag when not diving
+            rb.drag = glideDrag;
+        }
+        
+        // Calculate air resistance
+        float velocityResistance = speed * speed * velocityResistanceFactor;
+        float dotProduct = Vector3.Dot(transform.forward.normalized, rb.velocity.normalized);
+        float alignmentFactor = Mathf.Clamp01(dotProduct);
+        float orientationResistance = (1f - alignmentFactor) * orientationResistanceFactor;
+        float totalResistance = airResistanceCoefficient + velocityResistance + orientationResistance;
+        
+        // Apply resistance force
+        Vector3 resistanceForce = -rb.velocity.normalized * totalResistance;
+        rb.AddForce(resistanceForce, ForceMode.Acceleration);
+        
+        // Apply momentum-based climbing force when climbing
+        ApplyMomentumClimbing(pitchAngle, speed);
     }
+    
+    private void ApplyMomentumClimbing(float pitchAngle, float currentSpeed)
+    {
+        // Only apply climbing force if we have stored momentum and are trying to climb
+        if (storedMomentum > 0 && pitchAngle < -5f) // Negative pitch = nose up
+        {
+            // Calculate climbing force based on stored momentum
+            float climbForce = storedMomentum * 0.8f;
+            
+            // Apply force in the forward-up direction
+            Vector3 climbDirection = (transform.forward + Vector3.up).normalized;
+            rb.AddForce(climbDirection * climbForce, ForceMode.Acceleration);
+            
+            // Gradually reduce stored momentum
+            storedMomentum = Mathf.Max(0, storedMomentum - (momentumDecayRate * 0.5f * Time.fixedDeltaTime * (1 + Mathf.Abs(pitchAngle) * 0.05f)));
+
+            
+            // Debug.Log($"Climbing with momentum: {storedMomentum:F1}, Force: {climbForce:F1}");
+        }
+    }
+   
 
     private void HandleGroundMovement()
     {
         if (!isGrounded || rb == null) return;
+
+        if (transform.position.z > maxZDistance)
+        {
+            maxZDistance = transform.position.z;
+            maxZPosition = transform.position;
+        }
+
+        float currentZPosition = transform.position.z;
+        float zVelocity = (currentZPosition - lastZPosition) / Time.fixedDeltaTime;
+        lastZPosition = currentZPosition;
+
+        Debug.Log($"Marker Check: zVelocity={zVelocity:F2}, markerPlaced={markerPlaced}, exitedRamp={exitedRamp}");
+
+        if (zVelocity < minZAxisSpeed && !markerPlaced && exitedRamp)
+        {
+            if (collisionMarker != null)
+            {
+                PlaceMarkerAtCurrentPosition();
+                markerPlaced = true;
+                exitedRamp = false;
+            }
+        }
 
         rb.velocity *= groundDragFactor;
 
@@ -262,15 +380,7 @@ public class PlaneController : MonoBehaviour
             rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             rb.constraints = RigidbodyConstraints.None;
-
-            if (exitedRamp && collisionMarker != null)
-            {
-                PlaceMarkerAtCurrentPosition();
-                exitedRamp = false;
-            }
-
             isGrounded = false;
-            Debug.Log("Plane stopped moving on ground");
         }
         else
         {
@@ -291,6 +401,48 @@ public class PlaneController : MonoBehaviour
     {
         if (isControlling && collision.gameObject.CompareTag("Ground"))
         {
+            cameraFollow?.FreezePosition();
+            joystick?.joystickBG?.gameObject.SetActive(false);
+            float impactForce = collision.relativeVelocity.magnitude;
+
+            if (impactForce >= minImpactForceForDamage)
+            {
+                HashSet<PlanePartDetach> partsToNotify = new HashSet<PlanePartDetach>();
+
+                foreach (ContactPoint contact in collision.contacts)
+                {
+                    PlanePartDetach closestPart = null;
+                    float minDistance = float.MaxValue;
+
+                    foreach (var part in detachableParts)
+                    {
+                        if (part == null) continue;
+
+                        Collider partCollider = part.GetComponent<Collider>();
+                        if (partCollider == null) continue;
+
+                        Vector3 closestPointOnCollider = partCollider.ClosestPoint(contact.point);
+                        float distance = Vector3.Distance(closestPointOnCollider, contact.point);
+
+                        if (distance < minDistance)
+                        {
+                            minDistance = distance;
+                            closestPart = part;
+                        }
+                    }
+
+                    if (closestPart != null)
+                        partsToNotify.Add(closestPart);
+                }
+
+                foreach (var part in partsToNotify)
+                    part.HandleCollision(collision);
+
+                StopControlling();
+                isGrounded = true;
+                return;
+            }
+
             StopControlling();
 
             if (rb != null && rb.velocity.magnitude > 0.1f)
@@ -301,7 +453,7 @@ public class PlaneController : MonoBehaviour
                 rb.angularVelocity *= 0.5f;
                 rb.constraints = RigidbodyConstraints.FreezePositionY;
                 isGrounded = true;
-                Debug.Log("Plane landed and sliding on ground");
+                lastZPosition = transform.position.z;
             }
         }
     }
@@ -328,7 +480,6 @@ public class PlaneController : MonoBehaviour
             {
                 rb.constraints &= ~RigidbodyConstraints.FreezePositionY;
                 rb.AddForce(Vector3.down * 2f, ForceMode.Impulse);
-                Debug.Log("Plane left the ground surface");
             }
         }
     }
@@ -336,23 +487,26 @@ public class PlaneController : MonoBehaviour
     private void PlaceMarkerAtCurrentPosition()
     {
         if (collisionMarker == null || collisionMarker.markerPrefab == null)
-        {
-            Debug.LogWarning("CollisionMarker prefab missing.");
             return;
-        }
 
-        Vector3 position = transform.position;
-        Vector3 normal = Vector3.up;
+        Vector3 raycastStart = maxZPosition + Vector3.up * 1.0f;
+        Vector3 markerPosition = maxZPosition;
+        Quaternion markerRotation = Quaternion.identity;
+        Vector3 groundNormal = Vector3.up;
 
-        if (Physics.Raycast(position, Vector3.down, out RaycastHit hit, groundCheckDistance * 2f))
+        if (Physics.Raycast(raycastStart, Vector3.down, out RaycastHit hit, groundCheckDistance * 4f))
         {
-            position = hit.point;
-            normal = hit.normal;
+            groundNormal = hit.normal;
+            markerPosition = hit.point + groundNormal * markerYOffset;
+            markerRotation = Quaternion.FromToRotation(Vector3.up, groundNormal);
+        }
+        else
+        {
+            markerPosition = transform.position + Vector3.up * markerYOffset;
         }
 
-        position += normal * 0.05f;
-        GameObject marker = Instantiate(collisionMarker.markerPrefab, position, Quaternion.identity);
-        marker.transform.up = normal;
+        GameObject marker = Instantiate(collisionMarker.markerPrefab, markerPosition, markerRotation);
+        placedMarker = marker;
         marker.isStatic = false;
 
         LandingMarker landingMarker = marker.GetComponent<LandingMarker>();
@@ -364,52 +518,63 @@ public class PlaneController : MonoBehaviour
         else
             Destroy(marker, collisionMarker.markerLifetime);
 
-        Debug.Log($"Marker placed at: {position}");
+        cameraFollow?.TransitionToMarker(marker.transform);
     }
 
     public void BoostButton()
     {
         if (!isBoosting && rb != null)
         {
-            // Store the current velocity before boosting
             preBoostVelocity = rb.velocity;
-            
-            // Apply the boost
             rb.AddForce(transform.forward * boostAmount, ForceMode.Impulse);
-            boostA.Play();
-            boostB.Play();
-            
-            
-            // Start the coroutine to return to normal speed
+            boostA?.Play();
+            boostB?.Play();
             StartCoroutine(ReturnToNormalSpeed());
         }
     }
-    
+
     private IEnumerator ReturnToNormalSpeed()
     {
         isBoosting = true;
-        
-        // Wait for the boost duration
         yield return new WaitForSeconds(boostDuration);
-        
-        // Gradually return to the pre-boost velocity
+
         float elapsedTime = 0f;
         Vector3 currentVelocity = rb.velocity;
         float returnDuration = 1f / returnToNormalSpeed;
-        
+
         while (elapsedTime < returnDuration)
         {
-            // Interpolate between current boosted velocity and pre-boost velocity
             rb.velocity = Vector3.Lerp(currentVelocity, preBoostVelocity, elapsedTime / returnDuration);
-            
             elapsedTime += Time.deltaTime;
             yield return null;
         }
-        
-        // Ensure we exactly match the pre-boost velocity at the end
+
         rb.velocity = preBoostVelocity;
         isBoosting = false;
-        boostA.Stop();
-        boostB.Stop();
+        boostA?.Stop();
+        boostB?.Stop();
+    }
+
+    public IEnumerator DetachAllParts()
+    {
+        yield return new WaitForEndOfFrame();
+
+        foreach (var part in detachableParts)
+        {
+            if (part != null && !part.IsDetached)
+                part.Detach(part.transform.position);
+        }
+    }
+
+    public void ForceControl()
+    {
+        if (!isControlling)
+            StartControlling();
+    }
+
+    public void StopControlling()
+    {
+        isControlling = false;
+        joystick?.gameObject.SetActive(false);
     }
 }

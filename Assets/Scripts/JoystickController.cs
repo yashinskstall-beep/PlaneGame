@@ -7,9 +7,16 @@ public class JoystickController : MonoBehaviour, IDragHandler, IPointerUpHandler
     public RectTransform joystickBG;
     public RectTransform joystickHandle;
 
-    [Header("Settings")]
-    public float handleLimit = 100f; // how far handle can move
     private Vector2 inputVector;
+
+    private void Start()
+    {
+        // Hide the joystick at the start
+        if (joystickBG != null)
+        {
+            joystickBG.gameObject.SetActive(false);
+        }
+    }
 
     public void OnDrag(PointerEventData eventData)
     {
@@ -25,20 +32,29 @@ public class JoystickController : MonoBehaviour, IDragHandler, IPointerUpHandler
 
             // Move handle visually
             joystickHandle.anchoredPosition = new Vector2(
-                inputVector.x * (joystickBG.sizeDelta.x / 2) * 0.6f,
-                inputVector.y * (joystickBG.sizeDelta.y / 2) * 0.6f);
+                inputVector.x * (joystickBG.sizeDelta.x / 2),
+                inputVector.y * (joystickBG.sizeDelta.y / 2));
         }
     }
 
     public void OnPointerDown(PointerEventData eventData)
     {
+        if (joystickBG == null) return;
+
+        // Move the joystick to the touch position and show it
+        joystickBG.position = eventData.position;
+        joystickBG.gameObject.SetActive(true);
         OnDrag(eventData);
     }
 
     public void OnPointerUp(PointerEventData eventData)
     {
+        if (joystickBG == null) return;
+
+        // Reset and hide the joystick
         inputVector = Vector2.zero;
         joystickHandle.anchoredPosition = Vector2.zero;
+        joystickBG.gameObject.SetActive(false);
     }
 
     public float Horizontal => inputVector.x;
