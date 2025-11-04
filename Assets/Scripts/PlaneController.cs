@@ -73,7 +73,7 @@ public class PlaneController : MonoBehaviour
 
     [Header("Damage Fall Settings")]
     [Tooltip("The downward force applied when both wings are disabled.")]
-    public float fallDownForce = 10f; // Default value decreased from 20f
+    public float fallDownForce = 0f; // Default value decreased from 20f
 
     [Header("Marker Settings")]
     public float markerYOffset = 0.5f;
@@ -173,7 +173,7 @@ public class PlaneController : MonoBehaviour
             if (damageHandler.AreBothWingsMissing())
             {
                 Debug.Log("FixedUpdate: Both wings are missing, making plane fall");
-                FallWithoutWings();
+                //FallWithoutWings();
                 return;
             }
         }
@@ -636,38 +636,38 @@ public class PlaneController : MonoBehaviour
         if (damageHandler != null && damageHandler.AreBothWingsMissing() && isControlling)
         {
             Debug.Log("Delayed check: Both wings are disabled. Making plane fall.");
-            FallWithoutWings();
+            //FallWithoutWings();
         }
     }
     
     /// <summary>
     /// Makes the plane fall straight down when both wings are missing
     /// </summary>
-    private void FallWithoutWings()
-    {
-        isControlling = false;
-        exitedRamp = true;
+    // private void FallWithoutWings()
+    // {
+    //     isControlling = false;
+    //     exitedRamp = true;
 
-        if (rb != null)
-        {
-            rb.useGravity = true;
-            rb.drag = 0.1f; // Minimal drag
-            rb.angularDrag = 0.05f; // Minimal angular drag
+    //     if (rb != null)
+    //     {
+    //         rb.useGravity = true;
+    //         rb.drag = 0.1f; // Minimal drag
+    //         rb.angularDrag = 0.05f; // Minimal angular drag
 
-            // Apply a strong downward force to simulate falling
-            rb.AddForce(Vector3.down * fallDownForce, ForceMode.Impulse);
+    //         // Apply a strong downward force to simulate falling
+    //         rb.AddForce(Vector3.down * fallDownForce, ForceMode.Impulse);
             
-            // Add some random rotation to make it look more realistic
-            rb.AddTorque(new Vector3(
-                Random.Range(-1f, 1f),
-                Random.Range(-1f, 1f),
-                Random.Range(-1f, 1f)
-            ) * 5f, ForceMode.Impulse);
-        }
+    //         // Add some random rotation to make it look more realistic
+    //         rb.AddTorque(new Vector3(
+    //             Random.Range(-1f, 1f),
+    //             Random.Range(-1f, 1f),
+    //             Random.Range(-1f, 1f)
+    //         ) * 5f, ForceMode.Impulse);
+    //     }
 
-        Debug.Log("Both wings are missing. The plane is falling without control.");
+    //     Debug.Log("Both wings are missing. The plane is falling without control.");
         
-        // Disable joystick if it's active
-        joystick?.gameObject.SetActive(false);
-    }
+    //     // Disable joystick if it's active
+    //     joystick?.gameObject.SetActive(false);
+    // }
 }
