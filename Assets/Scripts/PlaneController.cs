@@ -1,3 +1,4 @@
+
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
@@ -70,6 +71,10 @@ public class PlaneController : MonoBehaviour
     public float groundCheckDistance = 0.5f;
     public float minImpactForceForDamage = 10f;
 
+    [Header("Damage Fall Settings")]
+    [Tooltip("The downward force applied when both wings are disabled.")]
+    public float fallDownForce = 10f; // Default value decreased from 20f
+
     [Header("Marker Settings")]
     public float markerYOffset = 0.5f;
 
@@ -105,7 +110,7 @@ public class PlaneController : MonoBehaviour
     // Distance / marker tracking
     private Vector3 startPosition;
     private Vector3 maxZPosition;
-    private float maxZDistance;
+    public  float maxZDistance;
     private bool markerPlaced = false;
     private GameObject placedMarker = null;
     private float lastZPosition;
@@ -119,9 +124,20 @@ public class PlaneController : MonoBehaviour
             rb.angularDrag = angularDragAmount;
         }
 
+        // Make sure we have a damage handler reference
         damageHandler ??= GetComponent<PlaneDamageHandler>();
+        if (damageHandler == null)
+        {
+            Debug.LogWarning("No PlaneDamageHandler found. Wing damage effects won't work.");
+        }
         collisionMarker ??= GetComponent<CollisionMarker>() ?? gameObject.AddComponent<CollisionMarker>();
         rampAligner ??= GetComponent<PlaneRampAligner>() ?? FindObjectOfType<PlaneRampAligner>();
+        cameraFollow ??= FindObjectOfType<SimpleCameraFollow>();
+
+        if (cameraFollow == null)
+        {
+            Debug.LogWarning("SimpleCameraFollow component not found in the scene. Camera transitions won't work.");
+        }
 
         if (useJoystickInput)
         {
@@ -150,6 +166,17 @@ public class PlaneController : MonoBehaviour
             StartControlling();
 
         wasOnRamp = isOnRamp;
+        
+        // Check for wing damage during flight
+        if (isControlling && damageHandler != null)
+        {
+            if (damageHandler.AreBothWingsMissing())
+            {
+                Debug.Log("FixedUpdate: Both wings are missing, making plane fall");
+                FallWithoutWings();
+                return;
+            }
+        }
 
         if (isControlling)
             ApplyPlaneHandling();
@@ -165,6 +192,7 @@ public class PlaneController : MonoBehaviour
 
     void StartControlling()
     {
+        // Always start controlling first to ensure the plane leaves the ramp
         isControlling = true;
         exitedRamp = true;
     
@@ -178,6 +206,9 @@ public class PlaneController : MonoBehaviour
             rb.useGravity = true;
             rb.drag = glideDrag;
         }
+        
+        // Start a delayed check for wing damage to ensure the plane gets off the ramp first
+        StartCoroutine(CheckWingDamageAfterDelay());
 
         collisionMarker?.ResetCollisionState();
 
@@ -250,6 +281,12 @@ public class PlaneController : MonoBehaviour
             torque += transform.forward * (signedAngle * autoLevelSpeed * torqueResponseMultiplier);
         }
 
+        // Apply damage effects to torque if damage handler exists
+        if (damageHandler != null)
+        {
+            torque = damageHandler.ModifyTorqueForDamage(torque, horizontalInput, verticalInput);
+        }
+        
         // Smooth torque application
         smoothTorque = Vector3.Lerp(smoothTorque, torque, Time.fixedDeltaTime * torqueSmoothness);
         rb.AddTorque(smoothTorque, ForceMode.Acceleration);
@@ -518,7 +555,16 @@ public class PlaneController : MonoBehaviour
         else
             Destroy(marker, collisionMarker.markerLifetime);
 
-        cameraFollow?.TransitionToMarker(marker.transform);
+        // Transition the camera to focus on the marker
+        if (cameraFollow != null)
+        {
+            Debug.Log("Transitioning camera to marker");
+            cameraFollow.TransitionToMarker(marker.transform);
+        }
+        else
+        {
+            Debug.LogWarning("Camera follow reference is missing. Cannot transition to marker.");
+        }
     }
 
     public void BoostButton()
@@ -575,6 +621,53 @@ public class PlaneController : MonoBehaviour
     public void StopControlling()
     {
         isControlling = false;
+        joystick?.gameObject.SetActive(false);
+    }
+    
+    /// <summary>
+    /// Coroutine that checks for wing damage after a short delay to ensure the plane has left the ramp
+    /// </summary>
+    private IEnumerator CheckWingDamageAfterDelay()
+    {
+        // Wait for a short time to ensure the plane is off the ramp
+        yield return new WaitForSeconds(0.5f);
+        
+        // Now check if both wings are missing
+        if (damageHandler != null && damageHandler.AreBothWingsMissing() && isControlling)
+        {
+            Debug.Log("Delayed check: Both wings are disabled. Making plane fall.");
+            FallWithoutWings();
+        }
+    }
+    
+    /// <summary>
+    /// Makes the plane fall straight down when both wings are missing
+    /// </summary>
+    private void FallWithoutWings()
+    {
+        isControlling = false;
+        exitedRamp = true;
+
+        if (rb != null)
+        {
+            rb.useGravity = true;
+            rb.drag = 0.1f; // Minimal drag
+            rb.angularDrag = 0.05f; // Minimal angular drag
+
+            // Apply a strong downward force to simulate falling
+            rb.AddForce(Vector3.down * fallDownForce, ForceMode.Impulse);
+            
+            // Add some random rotation to make it look more realistic
+            rb.AddTorque(new Vector3(
+                Random.Range(-1f, 1f),
+                Random.Range(-1f, 1f),
+                Random.Range(-1f, 1f)
+            ) * 5f, ForceMode.Impulse);
+        }
+
+        Debug.Log("Both wings are missing. The plane is falling without control.");
+        
+        // Disable joystick if it's active
         joystick?.gameObject.SetActive(false);
     }
 }
