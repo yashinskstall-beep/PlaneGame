@@ -8,9 +8,12 @@ public class SimpleDragLauncher : MonoBehaviour
     public Camera cam;
     [Tooltip("Optional reference to the DragRotationHandler script")]
     public DragRotationHandler rotationHandler;
+  //  public CameraManager cameraManager;
+    public RubberBandVisual lineRenderer;
 
     [Header("Settings")]
     public float maxDragDistance = 5f;
+    public float minDragToLaunch = 1f; // Minimum drag distance to launch
     public float launchForceMultiplier = 10f;
     public float verticalForceMultiplier = 5f;
     public float liftDuration = 2f; // How long the lift lasts
@@ -25,8 +28,10 @@ public class SimpleDragLauncher : MonoBehaviour
     public bool released = false;
     private Vector3 launchDir;
 
+
     void Start()
     {
+       
         if (!cam) cam = Camera.main;
         cubeRb = cube.GetComponent<Rigidbody>();
         cubeRb.isKinematic = true;
@@ -37,6 +42,7 @@ public class SimpleDragLauncher : MonoBehaviour
         {
             rotationHandler = cube.GetComponent<DragRotationHandler>();
         }
+
     }
 
     void Update()
@@ -45,16 +51,17 @@ public class SimpleDragLauncher : MonoBehaviour
         HandleInput();
     }
 
-    void HandleInput(){
+   void HandleInput()
+    {
         if (Input.GetMouseButtonDown(0))
         {
-            Debug.Log("Mouse button down");
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit))
             {
-                 if (hit.transform == cube)
+                if (hit.transform == cube)
                 {
                     isDragging = true;
+                    AndroidVibrations.StartContinuous(); // 🔸 start vibration
                 }
             }
         }
@@ -65,9 +72,13 @@ public class SimpleDragLauncher : MonoBehaviour
                 DragCube();
 
             if (Input.GetMouseButtonUp(0))
+            {
+                AndroidVibrations.Stop(); // 🔸 stop vibration
                 ReleaseCube();
+            }
         }
     }
+
 
     void FixedUpdate()
     {
@@ -129,41 +140,56 @@ public class SimpleDragLauncher : MonoBehaviour
     void ReleaseCube()
     {
         isDragging = false;
-        cubeRb.isKinematic = false;
-        cubeRb.useGravity = true;
 
-        float cubeHeight = cube.localScale.y * 0.5f;
-        Vector3 currentPos = cube.position;
-        currentPos.y = Mathf.Max(currentPos.y, cubeHeight + 0.1f);
-        cube.position = currentPos;
-                
-        // Calculate drag vector
         Vector3 dragVector = cube.position - restingPoint.position;
         float dragDistance = dragVector.magnitude;
-        originalDragDistance = dragDistance; // Store for lift calculation
 
-        // Horizontal launch force (along +Z)
-        float horizontalForce = dragDistance * launchForceMultiplier;
-
-        // Launch direction (from drag vector towards resting point)
-        launchDir = (restingPoint.position - cube.position).normalized;
-
-        // Only horizontal component from direction, Y handled separately
-        launchDir.y = 0;
-        launchDir = launchDir.normalized;
-
-        // Apply the forces
-        cubeRb.AddForce(launchDir * horizontalForce, ForceMode.Impulse);
-       
-        // Set the plane's rotation based on drag direction
-        if (rotationHandler != null)
+        // Check if drag distance is sufficient
+        if (dragDistance > minDragToLaunch)
         {
-            rotationHandler.SetLaunchRotation();
-        }
-        
-        released = true;
+            // Launch the cube
+            cubeRb.isKinematic = false;
+            cubeRb.useGravity = true;
 
-        Debug.Log($"Launched! Drag: {dragDistance:F2}, Horizontal: {horizontalForce:F2}");
+            originalDragDistance = dragDistance; // Store for lift calculation
+
+            float horizontalForce = dragDistance * launchForceMultiplier;
+            launchDir = (restingPoint.position - cube.position).normalized;
+            launchDir.y = 0;
+            launchDir = launchDir.normalized;
+
+            cubeRb.AddForce(launchDir * horizontalForce, ForceMode.Impulse);
+
+            if (rotationHandler != null)
+            {
+                rotationHandler.SetLaunchRotation();
+            }
+
+            released = true;
+            lineRenderer.enabled = false;
+            Debug.Log($"Launched! Drag: {dragDistance:F2}, Horizontal: {horizontalForce:F2}");
+        }
+        else
+        {
+            // Not enough drag, return to resting point
+            StartCoroutine(ReturnToRest());
+        }
+    }
+
+    private System.Collections.IEnumerator ReturnToRest()
+    {
+        Vector3 startPos = cube.position;
+        float duration = 0.3f; // Quick animation back to start
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            cube.position = Vector3.Lerp(startPos, restingPoint.position, elapsed / duration);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        cube.position = restingPoint.position;
     }
 
     // void OnTriggerEnter(Collider other) //this is for vertical lift 
@@ -181,5 +207,9 @@ public class SimpleDragLauncher : MonoBehaviour
         if (!restingPoint) return;
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(restingPoint.position, maxDragDistance);
+
+        // Visualize the minimum launch distance
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(restingPoint.position, minDragToLaunch);
     }
 }

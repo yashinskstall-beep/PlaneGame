@@ -19,6 +19,7 @@ public class PlaneController : MonoBehaviour
     public ParticleSystem boostB;
     public PlaneDamageHandler damageHandler;
     public SimpleCameraFollow cameraFollow;
+   // public CameraManager cameraManager;
 
     [Header("Handling Settings")]
     public float turnSpeed = 3f;
@@ -86,6 +87,7 @@ public class PlaneController : MonoBehaviour
     public float boostAmount = 10f;
     public float boostDuration = 1.5f;
     public float returnToNormalSpeed = 2f;
+    public UIManager uiManager;
 
     // Internal state
     private Rigidbody rb;
@@ -117,7 +119,10 @@ public class PlaneController : MonoBehaviour
 
     void Start()
     {
+
+       
         rb = GetComponent<Rigidbody>();
+        uiManager.btnAudio.Stop();
 
         if (rb != null)
         {
@@ -146,11 +151,23 @@ public class PlaneController : MonoBehaviour
                 joystick.gameObject.SetActive(false);
         }
 
+    }
+
+    public void InitializeDetachableParts()
+    {
         detachableParts = GetComponentsInChildren<PlanePartDetach>();
+        Debug.Log($"Initialized {detachableParts.Length} detachable parts.");
     }
 
     void FixedUpdate()
     {
+        // Always update the max distance regardless of state
+        if (transform.position.z > maxZDistance)
+        {
+            maxZDistance = transform.position.z;
+            maxZPosition = transform.position;
+        }
+        
         bool isOnRamp = false;
         if (rampAligner != null)
         {
@@ -388,12 +405,6 @@ public class PlaneController : MonoBehaviour
     {
         if (!isGrounded || rb == null) return;
 
-        if (transform.position.z > maxZDistance)
-        {
-            maxZDistance = transform.position.z;
-            maxZPosition = transform.position;
-        }
-
         float currentZPosition = transform.position.z;
         float zVelocity = (currentZPosition - lastZPosition) / Time.fixedDeltaTime;
         lastZPosition = currentZPosition;
@@ -569,6 +580,7 @@ public class PlaneController : MonoBehaviour
 
     public void BoostButton()
     {
+        uiManager.btnAudio.Play();
         if (!isBoosting && rb != null)
         {
             preBoostVelocity = rb.velocity;

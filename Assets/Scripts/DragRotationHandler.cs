@@ -24,7 +24,7 @@ public class DragRotationHandler : MonoBehaviour
     [Tooltip("How sensitive the rotation is to sideways drag")]
     [Range(0.1f, 5f)]
     public float rotationSensitivity = 1f;
-    
+    //public CameraManager cameraManager;
     // Private variables
     private Quaternion initialRotation;
     private Quaternion targetRotation;
@@ -33,6 +33,7 @@ public class DragRotationHandler : MonoBehaviour
     
     void Start()
     {
+        
         // Store initial rotation
         initialRotation = transform.rotation;
         targetRotation = initialRotation;

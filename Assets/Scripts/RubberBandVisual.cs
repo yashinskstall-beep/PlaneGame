@@ -58,6 +58,9 @@ public class RubberBandVisual : MonoBehaviour
         
         // Get the main camera
         mainCamera = Camera.main;
+
+        // Ensure the line renderer is visible from the start
+        lineRenderer.enabled = true;
     }
     
     private void SetupLineRenderer()
@@ -94,13 +97,12 @@ public class RubberBandVisual : MonoBehaviour
             sagDirection = -referenceUp.up; // Sag in the opposite direction of the reference's up
         }
         
-        // Only show the rubber band when dragging
-        lineRenderer.enabled = isDragging;
         
-        if (isDragging)
-        {
-            UpdateRubberBand();
-        }
+         UpdateRubberBand();
+        // if (isDragging)
+        // {
+           
+        // }
     }
     
     private void HandleInput()
@@ -116,6 +118,7 @@ public class RubberBandVisual : MonoBehaviour
                 {
                     isDragging = true;
                     dragStartPos = planeObject.position;
+                    lineRenderer.enabled = true; // Show the band when dragging starts
                 }
             }
         }
@@ -130,6 +133,7 @@ public class RubberBandVisual : MonoBehaviour
         if (Input.GetMouseButtonUp(0) && isDragging)
         {
             isDragging = false;
+            // Hide the band on release
         }
     }
     

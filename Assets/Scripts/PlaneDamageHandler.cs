@@ -33,6 +33,9 @@ public class PlaneDamageHandler : MonoBehaviour
     
     [Tooltip("Additional air resistance when both wings are missing")]
     public float bothWingsMissingResistance = 1.0f;
+
+    [Tooltip("Drag applied when all parts are missing")]
+    public float allPartsMissingDrag = 0.1f;
     
     // Reference to the plane controller
     private PlaneController planeController;
@@ -125,34 +128,39 @@ public class PlaneDamageHandler : MonoBehaviour
         // Apply additional drag based on missing parts
         if (rb != null)
         {
-            // Base drag increase from disabled parts count
-            float additionalDrag = additionalDragPerMissingPart * disabledPartCount;
-            
-            // Apply specific air resistance penalties based on which wings are missing
-            if (leftWingDisabled && rightWingDisabled)
+            // Check if all parts are missing to apply special drag
+            if (leftWingDisabled && rightWingDisabled && tailDisabled)
             {
-                // Both wings missing - severe air resistance penalty
-                additionalDrag += bothWingsMissingResistance;
-                Debug.Log("Both wings missing: Adding " + bothWingsMissingResistance + " air resistance");
+                rb.drag = originalDrag + allPartsMissingDrag;
+                Debug.Log("All parts missing: Applying special low drag of " + allPartsMissingDrag);
             }
             else
             {
-                // Individual wing penalties
-                if (leftWingDisabled)
+                // Original logic for when one or two parts are missing
+                float additionalDrag = additionalDragPerMissingPart * disabledPartCount;
+
+                if (leftWingDisabled && rightWingDisabled)
                 {
-                    additionalDrag += leftWingMissingResistance;
-                    Debug.Log("Left wing missing: Adding " + leftWingMissingResistance + " air resistance");
+                    additionalDrag += bothWingsMissingResistance;
+                    Debug.Log("Both wings missing: Adding " + bothWingsMissingResistance + " air resistance");
                 }
-                
-                if (rightWingDisabled)
+                else
                 {
-                    additionalDrag += rightWingMissingResistance;
-                    Debug.Log("Right wing missing: Adding " + rightWingMissingResistance + " air resistance");
+                    if (leftWingDisabled)
+                    {
+                        additionalDrag += leftWingMissingResistance;
+                        Debug.Log("Left wing missing: Adding " + leftWingMissingResistance + " air resistance");
+                    }
+
+                    if (rightWingDisabled)
+                    {
+                        additionalDrag += rightWingMissingResistance;
+                        Debug.Log("Right wing missing: Adding " + rightWingMissingResistance + " air resistance");
+                    }
                 }
+
+                rb.drag = originalDrag + additionalDrag;
             }
-            
-            // Apply the total drag
-            rb.drag = originalDrag + additionalDrag;
         }
     }
     

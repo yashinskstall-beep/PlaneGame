@@ -7,25 +7,35 @@ using UnityEngine.SceneManagement;
 
 public class UIManager : MonoBehaviour
 {
-    public PlaneController planeController;    
+    public PlaneController planeController;
     public GameObject boostBtn;
     public bool boostBtnActive = false;
     public GameObject boosters;
     public TextMeshProUGUI distanceText;
+    public TextMeshProUGUI finalScoreText;
+    public TextMeshProUGUI titleText;
     public GameObject ScoreUIScreen;
     public SimpleCameraFollow cameraFollow;
+    //public GameObject pointB;
+    public GameObject goalScreenUI;
+    public  AudioSource btnAudio;
+    private bool scoreCalculated = false;
+    private bool isGoalReached = false;
 
     void Start()
     {
+        btnAudio = GetComponent<AudioSource>();
+        btnAudio.Stop();
         // Initialize references if not set in the inspector
         if (planeController == null)
             planeController = FindObjectOfType<PlaneController>();
-            
+
         if (cameraFollow == null)
             cameraFollow = FindObjectOfType<SimpleCameraFollow>();
-            
+
         if (cameraFollow == null)
             Debug.LogWarning("SimpleCameraFollow component not found. Score UI may not work correctly.");
+
     }
     
     void Update()
@@ -40,47 +50,75 @@ public class UIManager : MonoBehaviour
             boostBtn.SetActive(false);          
         }
 
-        MaxDistance();
-        
+      
         // Check if we should show the score UI
-        if (cameraFollow != null && cameraFollow.isCameraZoomedOut && ScoreUIScreen != null)
-        {
-            ScoreUI();
-        }
+       CheckScoreUI();
     }
 
-
-    public void MaxDistance()
+    private void CheckScoreUI()
     {
-        if (distanceText != null && planeController != null)
+        if (cameraFollow != null && cameraFollow.isCameraZoomedOut && !scoreCalculated)
         {
-            distanceText.text = $"Distance: {planeController.maxZDistance:F0}m";
-        } 
-    }    
+           
+            Invoke("ScoreUI",3f);
+        }
+    }
+ 
     public void ScoreUI()
     {
+        btnAudio.Stop();    
         if (ScoreUIScreen == null)
         {
             Debug.LogWarning("ScoreUIScreen is not assigned in UIManager");
             return;
         }
         
-        if (cameraFollow != null && cameraFollow.isCameraZoomedOut)
+        if (distanceText != null && planeController != null)
         {
-            ScoreUIScreen.SetActive(true);
-            Debug.Log("Score UI activated");
-        }
-        else
+            distanceText.text = $"Distance: {planeController.maxZDistance:F0}m";
+        } 
+
+        if (scoreCalculated) return; // Prevent multiple calculations
+        scoreCalculated = true;
+
+        int distance = (int)planeController.maxZDistance;
+        int coinsEarned = distance / 10; // 1 coin for every 10 meters
+
+        if (CoinManager.Instance != null)
         {
-            ScoreUIScreen.SetActive(false);
+            CoinManager.Instance.AddCoins(coinsEarned);
         }
+
+        if (finalScoreText != null)
+        {
+            // This text is for the ScoreScreenUI
+           finalScoreText.text = $"Coins + {coinsEarned}";
+
+        }
+          // 👇 Change title text based on goal status
+        if (titleText != null)
+        {
+            titleText.text = isGoalReached ? "Congratulations!" : "Nice Flight!";
+        }
+
+        ScoreUIScreen.SetActive(true);
+        Debug.Log("Score UI activated");
     }
 
     public void RestartGame()
     {
+        btnAudio.Play();
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+
     }
     
+
+    public void GoalScreen()
+    {
+       isGoalReached = true;
+
+       Invoke("ScoreUI", 2f); 
+    }
     
     
    
