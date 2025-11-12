@@ -15,8 +15,9 @@ public class TextZoomAnimation : MonoBehaviour
 
     private RectTransform textTransform;
     private Vector3 initialScale;
+    private Coroutine animationCoroutine;
 
-    void Start()
+    void Awake()
     {
         // Get the RectTransform component attached to the TextMeshPro object.
         textTransform = GetComponent<RectTransform>();
@@ -28,9 +29,25 @@ public class TextZoomAnimation : MonoBehaviour
 
         // Store the initial scale to base the animation on.
         initialScale = textTransform.localScale;
+    }
 
-        // Start the animation coroutine.
-        StartCoroutine(AnimateZoom());
+    void OnEnable()
+    {
+        // Start the animation coroutine when the object is enabled.
+        if (textTransform != null)
+        {
+            animationCoroutine = StartCoroutine(AnimateZoom());
+        }
+    }
+
+    void OnDisable()
+    {
+        // Stop the animation coroutine when the object is disabled.
+        if (animationCoroutine != null)
+        {
+            StopCoroutine(animationCoroutine);
+            animationCoroutine = null;
+        }
     }
 
     private IEnumerator AnimateZoom()

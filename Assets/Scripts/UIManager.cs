@@ -16,16 +16,18 @@ public class UIManager : MonoBehaviour
     public TextMeshProUGUI titleText;
     public GameObject ScoreUIScreen;
     public SimpleCameraFollow cameraFollow;
+    public AudioManager audioManager;
     //public GameObject pointB;
     public GameObject goalScreenUI;
-    public  AudioSource btnAudio;
+   // public  AudioSource btnAudio;
+   
     private bool scoreCalculated = false;
     private bool isGoalReached = false;
 
     void Start()
     {
-        btnAudio = GetComponent<AudioSource>();
-        btnAudio.Stop();
+        //btnAudio = GetComponent<AudioSource>();
+        //btnAudio.Stop();
         // Initialize references if not set in the inspector
         if (planeController == null)
             planeController = FindObjectOfType<PlaneController>();
@@ -66,7 +68,7 @@ public class UIManager : MonoBehaviour
  
     public void ScoreUI()
     {
-        btnAudio.Stop();    
+        //btnAudio.Stop();    
         if (ScoreUIScreen == null)
         {
             Debug.LogWarning("ScoreUIScreen is not assigned in UIManager");
@@ -81,8 +83,8 @@ public class UIManager : MonoBehaviour
         if (scoreCalculated) return; // Prevent multiple calculations
         scoreCalculated = true;
 
-        int distance = (int)planeController.maxZDistance;
-        int coinsEarned = distance / 10; // 1 coin for every 10 meters
+        int distance = Mathf.RoundToInt(planeController.maxZDistance);
+        int coinsEarned = distance * 2; // 2 coins per meter
 
         if (CoinManager.Instance != null)
         {
@@ -91,9 +93,8 @@ public class UIManager : MonoBehaviour
 
         if (finalScoreText != null)
         {
-            // This text is for the ScoreScreenUI
-           finalScoreText.text = $"Coins + {coinsEarned}";
-
+            // This text is for the ScoreScreenUI - animate the counter
+            StartCoroutine(AnimateCoinCounter(coinsEarned));
         }
           // 👇 Change title text based on goal status
         if (titleText != null)
@@ -107,11 +108,16 @@ public class UIManager : MonoBehaviour
 
     public void RestartGame()
     {
-        btnAudio.Play();
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        //btnAudio.Play();
+        audioManager.btnSFX();
+       Invoke("loadCurrentScene", 0.5f);
 
     }
     
+    private void loadCurrentScene()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
 
     public void GoalScreen()
     {
@@ -119,7 +125,29 @@ public class UIManager : MonoBehaviour
 
        Invoke("ScoreUI", 2f); 
     }
-    
-    
+
+    private IEnumerator AnimateCoinCounter(int targetCoins)
+    {
+        float duration = 1.5f; // Animation duration in seconds
+        float elapsed = 0f;
+        int currentCount = 0;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float progress = elapsed / duration;
+            
+            // Use easing for smoother animation (ease-out)
+            float easedProgress = 1f - Mathf.Pow(1f - progress, 3f);
+            
+            currentCount = Mathf.RoundToInt(Mathf.Lerp(0, targetCoins, easedProgress));
+            finalScoreText.text = $"Coins + {currentCount}";
+            
+            yield return null;
+        }
+
+        // Ensure we end exactly at the target value
+        finalScoreText.text = $"Coins + {targetCoins}";
+    }
    
 }

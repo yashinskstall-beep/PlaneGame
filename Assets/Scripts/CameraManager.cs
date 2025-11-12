@@ -65,6 +65,36 @@ public class CameraManager : MonoBehaviour
         }
     }
 
+    public IEnumerator TransitionToTarget(Transform target, float duration)
+    {
+        if (target == null)
+        {
+            Debug.LogWarning("Target transform is null!");
+            yield break;
+        }
+
+        inTransition = true;
+        float time = 0;
+        Vector3 startingPos = mainCamera.transform.position;
+        Quaternion startingRot = mainCamera.transform.rotation;
+
+        while (time < duration)
+        {
+            float t = time / duration;
+            t = Mathf.SmoothStep(0f, 1f, t);
+
+            mainCamera.transform.position = Vector3.Lerp(startingPos, target.position, t);
+            mainCamera.transform.rotation = Quaternion.Slerp(startingRot, target.rotation, t);
+
+            time += Time.deltaTime;
+            yield return null;
+        }
+
+        mainCamera.transform.position = target.position;
+        mainCamera.transform.rotation = target.rotation;
+        inTransition = false;
+    }
+
     IEnumerator TransitionToPosition(Vector3 targetPosition, Quaternion targetRotation, float duration)
     {
         inTransition = true;

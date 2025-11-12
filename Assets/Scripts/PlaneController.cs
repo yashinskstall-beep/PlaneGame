@@ -19,6 +19,7 @@ public class PlaneController : MonoBehaviour
     public ParticleSystem boostB;
     public PlaneDamageHandler damageHandler;
     public SimpleCameraFollow cameraFollow;
+    public AudioManager audioManager;
    // public CameraManager cameraManager;
 
     [Header("Handling Settings")]
@@ -116,13 +117,16 @@ public class PlaneController : MonoBehaviour
     private bool markerPlaced = false;
     private GameObject placedMarker = null;
     private float lastZPosition;
+    private float lastRampZPosition;
+    private float timeStoppedOnRamp = 0f;
+    private const float rampStopThreshold = 1f; // Time in seconds before placing marker
 
     void Start()
     {
 
        
         rb = GetComponent<Rigidbody>();
-        uiManager.btnAudio.Stop();
+        //uiManager.btnAudio.Stop();
 
         if (rb != null)
         {
@@ -151,6 +155,11 @@ public class PlaneController : MonoBehaviour
                 joystick.gameObject.SetActive(false);
         }
 
+        // Initialize starting position (resting position on ramp)
+        startPosition = transform.position;
+        maxZDistance = 0f; // Start at 0 to measure distance traveled from resting position
+        lastZPosition = transform.position.z;
+        lastRampZPosition = transform.position.z;
     }
 
     public void InitializeDetachableParts()
@@ -162,9 +171,11 @@ public class PlaneController : MonoBehaviour
     void FixedUpdate()
     {
         // Always update the max distance regardless of state
-        if (transform.position.z > maxZDistance)
+        // Calculate distance from the original resting position
+        float currentDistance = transform.position.z - startPosition.z;
+        if (currentDistance > maxZDistance)
         {
-            maxZDistance = transform.position.z;
+            maxZDistance = currentDistance;
             maxZPosition = transform.position;
         }
         
@@ -181,6 +192,10 @@ public class PlaneController : MonoBehaviour
 
         if (wasOnRamp && !isOnRamp)
             StartControlling();
+
+        // Check if plane stopped on ramp
+        if (isOnRamp && !isBeingDragged)
+            CheckIfStoppedOnRamp();
 
         wasOnRamp = isOnRamp;
         
@@ -229,10 +244,10 @@ public class PlaneController : MonoBehaviour
 
         collisionMarker?.ResetCollisionState();
 
-        startPosition = transform.position;
-        maxZPosition = startPosition;
-        maxZDistance = startPosition.z;
-        lastZPosition = startPosition.z;
+        // Don't reset startPosition - keep the original resting position
+        maxZPosition = transform.position;
+        // Don't reset maxZDistance - it accumulates from the resting position
+        timeStoppedOnRamp = 0f;
         markerPlaced = false;
     }
 
@@ -532,6 +547,38 @@ public class PlaneController : MonoBehaviour
         }
     }
 
+    private void CheckIfStoppedOnRamp()
+    {
+        if (markerPlaced || rb == null) return;
+
+        float currentZPosition = transform.position.z;
+        float zVelocity = Mathf.Abs((currentZPosition - lastRampZPosition) / Time.fixedDeltaTime);
+        lastRampZPosition = currentZPosition;
+
+        // If plane is barely moving on Z-axis
+        if (zVelocity < minZAxisSpeed)
+        {
+            timeStoppedOnRamp += Time.fixedDeltaTime;
+            Debug.Log($"Ramp Stop Check: zVelocity={zVelocity:F2}, timeStoppedOnRamp={timeStoppedOnRamp:F2}");
+
+            // If stopped for threshold duration, place marker
+            if (timeStoppedOnRamp >= rampStopThreshold)
+            {
+                if (collisionMarker != null)
+                {
+                    Debug.Log("Plane stopped on ramp - placing marker");
+                    PlaceMarkerAtCurrentPosition();
+                    markerPlaced = true;
+                }
+            }
+        }
+        else
+        {
+            // Reset timer if plane is moving
+            timeStoppedOnRamp = 0f;
+        }
+    }
+
     private void PlaceMarkerAtCurrentPosition()
     {
         if (collisionMarker == null || collisionMarker.markerPrefab == null)
@@ -554,6 +601,7 @@ public class PlaneController : MonoBehaviour
         }
 
         GameObject marker = Instantiate(collisionMarker.markerPrefab, markerPosition, markerRotation);
+        audioManager.MarkerSFX();
         placedMarker = marker;
         marker.isStatic = false;
 
@@ -580,7 +628,8 @@ public class PlaneController : MonoBehaviour
 
     public void BoostButton()
     {
-        uiManager.btnAudio.Play();
+        //uiManager.btnAudio.Play();
+        audioManager.btnSFX();
         if (!isBoosting && rb != null)
         {
             preBoostVelocity = rb.velocity;
