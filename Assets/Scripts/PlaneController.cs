@@ -424,12 +424,11 @@ public class PlaneController : MonoBehaviour
         float zVelocity = (currentZPosition - lastZPosition) / Time.fixedDeltaTime;
         lastZPosition = currentZPosition;
 
-        Debug.Log($"Marker Check: zVelocity={zVelocity:F2}, markerPlaced={markerPlaced}, exitedRamp={exitedRamp}");
-
         if (zVelocity < minZAxisSpeed && !markerPlaced && exitedRamp)
         {
             if (collisionMarker != null)
             {
+                Debug.Log($"Marker Check: zVelocity={zVelocity:F2}, markerPlaced={markerPlaced}, exitedRamp={exitedRamp}");
                 PlaceMarkerAtCurrentPosition();
                 markerPlaced = true;
                 exitedRamp = false;

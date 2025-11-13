@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 using System.Collections;
 
 public class ButtonScaleAnimation : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
@@ -12,14 +13,20 @@ public class ButtonScaleAnimation : MonoBehaviour, IPointerDownHandler, IPointer
 
     private Vector3 originalScale;
     private Coroutine animationCoroutine;
+    private Button button;
 
     void Start()
     {
         originalScale = transform.localScale;
+        button = GetComponent<Button>();
     }
 
     public void OnPointerDown(PointerEventData eventData)
     {
+        // Only animate if button is interactable
+        if (button != null && !button.interactable)
+            return;
+
         if (animationCoroutine != null)
         {
             StopCoroutine(animationCoroutine);
@@ -29,6 +36,10 @@ public class ButtonScaleAnimation : MonoBehaviour, IPointerDownHandler, IPointer
 
     public void OnPointerUp(PointerEventData eventData)
     {
+        // Only animate if button is interactable
+        if (button != null && !button.interactable)
+            return;
+
         if (animationCoroutine != null)
         {
             StopCoroutine(animationCoroutine);

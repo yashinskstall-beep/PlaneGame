@@ -124,6 +124,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateCoinUI();
         UpdateCostUI();
         UpdateSliderUI();
+        UpdateBoostButtonInteractable();
 
         // Activate part if complete
         if (clickCount >= clicksRequired)
@@ -212,6 +213,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         SaveProgress();
         UpdateButtonInteractable();
+        UpdateBoostButtonInteractable();
         isUpgrading = false;
     }
 
@@ -289,7 +291,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public void CheatCoins()
     {
-        playerCoins += 10000;
+        playerCoins += 500;
         UpdateCoinUI();
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
