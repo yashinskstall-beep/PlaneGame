@@ -20,6 +20,7 @@ public class PlaneController : MonoBehaviour
     public PlaneDamageHandler damageHandler;
     public SimpleCameraFollow cameraFollow;
     public AudioManager audioManager;
+    public AudioSource windSource;
    // public CameraManager cameraManager;
 
     [Header("Handling Settings")]
@@ -463,6 +464,7 @@ public class PlaneController : MonoBehaviour
     {
         if (isControlling && collision.gameObject.CompareTag("Ground"))
         {
+            windSource.Stop();
             cameraFollow?.FreezePosition();
             joystick?.joystickBG?.gameObject.SetActive(false);
             float impactForce = collision.relativeVelocity.magnitude;

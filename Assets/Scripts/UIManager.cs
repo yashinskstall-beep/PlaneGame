@@ -19,7 +19,7 @@ public class UIManager : MonoBehaviour
     public AudioManager audioManager;
     //public GameObject pointB;
     public GameObject goalScreenUI;
-   // public  AudioSource btnAudio;
+    // public  AudioSource btnAudio;
    
     private bool scoreCalculated = false;
     private bool isGoalReached = false;
@@ -131,6 +131,7 @@ public class UIManager : MonoBehaviour
         float duration = 1.5f; // Animation duration in seconds
         float elapsed = 0f;
         int currentCount = 0;
+        audioManager.CoinSFX();
 
         while (elapsed < duration)
         {

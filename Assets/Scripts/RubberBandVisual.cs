@@ -108,20 +108,20 @@ public class RubberBandVisual : MonoBehaviour
     private void HandleInput()
     {
         // Start dragging when mouse button is pressed down
-        if (Input.GetMouseButtonDown(0))
-        {
-            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit))
-            {
-                // Check if we hit the plane object
-                if (hit.transform == planeObject)
-                {
-                    isDragging = true;
-                    dragStartPos = planeObject.position;
-                    lineRenderer.enabled = true; // Show the band when dragging starts
-                }
-            }
-        }
+        // if (Input.GetMouseButtonDown(0))
+        // {
+        //     Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+        //     if (Physics.Raycast(ray, out RaycastHit hit))
+        //     {
+        //         // Check if we hit the plane object
+        //         if (hit.transform == planeObject)
+        //         {
+        //             isDragging = true;
+        //             dragStartPos = planeObject.position;
+        //             lineRenderer.enabled = true; // Show the band when dragging starts
+        //         }
+        //     }
+        // }
         
         // Continue dragging when mouse button is held down
         if (isDragging && Input.GetMouseButton(0))

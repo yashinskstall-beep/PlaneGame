@@ -22,6 +22,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public GameObject PlaneBoosters;
     public GameObject notEnoughCoinsU;
     public GameObject notEnoughCoinsB;
+    public GameObject notEnoughCoinsS;
+    public Button increaseLaunchForceBtn;
+    public SimpleDragLauncher dragLauncher;
 
     [Header("Camera Focus Points")]
     public Transform leftWingFocusPoint;
@@ -43,7 +46,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private const int clicksRequired = 5;
     private float currentCost = 10;
     private int playerCoins;
-   // private AudioSource audioSource;
+ // private AudioSource audioSource;
     private bool isUpgrading = false;
 
 
@@ -79,6 +82,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateSliderUI();
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
+        UpdateIncreaseLaunchForceButtonInteractable();
+
+        Debug.Log("Launch force multiplier: " + dragLauncher.launchForceMultiplier);
     }
 
     public void OnPointerClick(PointerEventData eventData)
@@ -125,6 +131,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateCostUI();
         UpdateSliderUI();
         UpdateBoostButtonInteractable();
+        UpdateIncreaseLaunchForceButtonInteractable();
 
         // Activate part if complete
         if (clickCount >= clicksRequired)
@@ -147,6 +154,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (boostEnableBtn != null)
             boostEnableBtn.gameObject.SetActive(false);
         upgradeButton.gameObject.SetActive(false);
+        increaseLaunchForceBtn.gameObject.SetActive(false);
         
 
         // Step 1: Transition camera to the part
@@ -205,6 +213,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (boostEnableBtn != null)
             boostEnableBtn.gameObject.SetActive(true);
         upgradeButton.gameObject.SetActive(true);
+        increaseLaunchForceBtn.gameObject.SetActive(true);
         // If all parts are now active → show MAX
         if (currentIndex >= parts.Count)
         {
@@ -214,6 +223,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         SaveProgress();
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
+        UpdateIncreaseLaunchForceButtonInteractable();
         isUpgrading = false;
     }
 
@@ -289,12 +299,30 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
     }
 
+    private void UpdateIncreaseLaunchForceButtonInteractable()
+    {
+        if (increaseLaunchForceBtn != null)
+        {
+           bool canAffordLaunchForce = playerCoins >= 70;
+           increaseLaunchForceBtn.interactable = canAffordLaunchForce;
+
+          if(notEnoughCoinsS != null){
+            notEnoughCoinsS.SetActive(!canAffordLaunchForce);
+          }
+          if(dragLauncher.launchForceMultiplier >= 35){
+            increaseLaunchForceBtn.interactable = false;
+          }
+           
+        }
+    }
+
     public void CheatCoins()
     {
-        playerCoins += 500;
+        playerCoins += 10000;
         UpdateCoinUI();
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
+        UpdateIncreaseLaunchForceButtonInteractable();
     }
 
     // -----------------------------
@@ -371,8 +399,10 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             // Enable the boosters
             PlaneBoosters.SetActive(true);
             
-            // Update button interactability
+            // Update all button interactability
             UpdateBoostButtonInteractable();
+            UpdateButtonInteractable();
+            UpdateIncreaseLaunchForceButtonInteractable();
             
             Debug.Log("Boosters enabled! 50 coins deducted.");
         }
@@ -382,5 +412,29 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
     }
 
-   
+    public void IncreaseLaunchForce()
+    {
+        audioManager.btnSFX();
+        if(playerCoins >=70){
+            playerCoins -= 70;
+            PlayerPrefs.SetInt("PlayerCoins", playerCoins);
+            PlayerPrefs.Save();
+            UpdateCoinUI();
+
+             dragLauncher.launchForceMultiplier += 5f;
+             PlayerPrefs.SetFloat("LaunchForceMultiplier", dragLauncher.launchForceMultiplier);
+             PlayerPrefs.Save();
+
+             UpdateIncreaseLaunchForceButtonInteractable();
+             UpdateButtonInteractable();
+             UpdateBoostButtonInteractable();
+
+             Debug.Log("Launch force increased by 5!" + dragLauncher.launchForceMultiplier);
+            }
+            else{
+                Debug.Log("Not enough coins!");
+            }
+    }
+       
 }
+

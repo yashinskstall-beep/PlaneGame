@@ -9,6 +9,7 @@ public class AudioManager : MonoBehaviour
     public AudioSource Planepartfx;
     public AudioSource audioSource;
     public AudioSource markerSFX;
+    public AudioSource coinSfx;
     // Start is called before the first frame update
     void Start()
     {
@@ -16,6 +17,7 @@ public class AudioManager : MonoBehaviour
         audioSource.Play();
         btnsfx.Stop();
         Planepartfx.Stop();
+        coinSfx.Stop();
     }
 
    
@@ -32,5 +34,9 @@ public class AudioManager : MonoBehaviour
    public void MarkerSFX()
    {
        markerSFX.Play();
+   }
+   public void CoinSFX()
+   {
+        coinSfx.Play();
    }
 }
