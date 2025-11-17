@@ -21,6 +21,7 @@ public class PlaneController : MonoBehaviour
     public SimpleCameraFollow cameraFollow;
     public AudioManager audioManager;
     public AudioSource windSource;
+    //public GameObject boostBtn;
    // public CameraManager cameraManager;
 
     [Header("Handling Settings")]
@@ -89,6 +90,7 @@ public class PlaneController : MonoBehaviour
     public float boostAmount = 10f;
     public float boostDuration = 1.5f;
     public float returnToNormalSpeed = 2f;
+    public int maxBoostUses = 2;
     public UIManager uiManager;
 
     // Internal state
@@ -99,6 +101,7 @@ public class PlaneController : MonoBehaviour
     private bool isGrounded = false;
     private bool isBeingDragged = false;
     private bool isBoosting = false;
+    public int boostUsesRemaining = 0;
     
     // Momentum tracking
     private float storedMomentum = 0f;
@@ -127,6 +130,7 @@ public class PlaneController : MonoBehaviour
 
        
         rb = GetComponent<Rigidbody>();
+        boostUsesRemaining = maxBoostUses;
         //uiManager.btnAudio.Stop();
 
         if (rb != null)
@@ -631,13 +635,26 @@ public class PlaneController : MonoBehaviour
     {
         //uiManager.btnAudio.Play();
         audioManager.btnSFX();
-        if (!isBoosting && rb != null)
+        
+        // Check if boost uses are available
+        if (!isBoosting && rb != null && boostUsesRemaining > 0)
         {
             preBoostVelocity = rb.velocity;
             rb.AddForce(transform.forward * boostAmount, ForceMode.Impulse);
             boostA?.Play();
             boostB?.Play();
+            
+            // Decrease remaining uses
+            boostUsesRemaining--;
+            Debug.Log($"Boost used! Remaining uses: {boostUsesRemaining}");
+            
             StartCoroutine(ReturnToNormalSpeed());
+        }
+        else if (boostUsesRemaining <= 0)
+        {
+            //boostBtn.SetActive(false);
+            Debug.Log("No boost uses remaining!");
+            
         }
     }
 
@@ -661,6 +678,14 @@ public class PlaneController : MonoBehaviour
         isBoosting = false;
         boostA?.Stop();
         boostB?.Stop();
+        
+        // Deactivate boosters after last use (after particles have finished)
+        if (boostUsesRemaining <= 0)
+        {
+            Debug.Log("Boost uses depleted! Deactivating boosters.");
+            if (boostA != null) boostA.gameObject.SetActive(false);
+            if (boostB != null) boostB.gameObject.SetActive(false);
+        }
     }
 
     public IEnumerator DetachAllParts()

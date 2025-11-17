@@ -19,12 +19,17 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public AudioManager audioManager;
     public GameObject taptoplay;
     public Button boostEnableBtn;
+    public TextMeshProUGUI boostCostText;
     public GameObject PlaneBoosters;
     public GameObject notEnoughCoinsU;
     public GameObject notEnoughCoinsB;
     public GameObject notEnoughCoinsS;
     public Button increaseLaunchForceBtn;
+    public TextMeshProUGUI launchForceCostText;
+    public TextMeshProUGUI launchForceLevelText;
+    public Slider launchForceSlider;
     public SimpleDragLauncher dragLauncher;
+    public GameObject boostactive;
 
     [Header("Camera Focus Points")]
     public Transform leftWingFocusPoint;
@@ -48,6 +53,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private int playerCoins;
  // private AudioSource audioSource;
     private bool isUpgrading = false;
+    
+    // Launch force level system
+    private int launchForceLevel = 1;
+    private const int maxLaunchForceLevel = 3;
+    private readonly float[] launchForceLevels = { 25f, 30f, 35f };
+    private readonly int[] launchForceCosts = { 700, 1000, 1500 };
 
 
     void Start()
@@ -76,12 +87,19 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (boostEnableBtn != null)
             boostEnableBtn.gameObject.SetActive(true);
 
+        // Load launch force level
+        LoadLaunchForceLevel();
+        
         // Update UI
         UpdateCoinUI();
         UpdateCostUI();
         UpdateSliderUI();
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
+        UpdateBoostCostUI();
+        UpdateLaunchForceCostUI();
+        UpdateLaunchForceLevelUI();
+        UpdateLaunchForceSliderUI();
         UpdateIncreaseLaunchForceButtonInteractable();
 
         Debug.Log("Launch force multiplier: " + dragLauncher.launchForceMultiplier);
@@ -244,7 +262,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             if (currentIndex >= parts.Count)
                 costText.text = "MAX";
             else
-                costText.text = $"Cost: {FormatNumber(currentCost)}";
+                costText.text = $"{FormatNumber(currentCost)}";
         }
     }
 
@@ -282,12 +300,58 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
     }
 
+    private void UpdateBoostCostUI()
+    {
+        if (boostCostText != null)
+        {
+            boostCostText.text = "500";
+        }
+    }
+    
+    private void UpdateLaunchForceCostUI()
+    {
+        if (launchForceCostText != null)
+        {
+            if (launchForceLevel >= maxLaunchForceLevel)
+                launchForceCostText.text = "MAX";
+            else
+                launchForceCostText.text = launchForceCosts[launchForceLevel - 1].ToString();
+        }
+    }
+    
+    private void UpdateLaunchForceLevelUI()
+    {
+        if (launchForceLevelText != null)
+        {
+            launchForceLevelText.text = $"{launchForceLevel}";
+        }
+    }
+    
+    private void UpdateLaunchForceSliderUI()
+    {
+        if (launchForceSlider != null)
+        {
+            launchForceSlider.minValue = 0;
+            launchForceSlider.maxValue = 1;
+            
+            // Calculate slider value based on level (0 to 1)
+            if (maxLaunchForceLevel > 1)
+            {
+                launchForceSlider.value = (float)(launchForceLevel - 1) / (maxLaunchForceLevel - 1);
+            }
+            else
+            {
+                launchForceSlider.value = 1f;
+            }
+        }
+    }
+    
     private void UpdateBoostButtonInteractable()
     {
         if (boostEnableBtn != null)
         {
             // Disable button if not enough coins or boosters already active
-            bool canAffordBoost = playerCoins >= 50 && !PlaneBoosters.activeSelf;
+            bool canAffordBoost = playerCoins >= 500 && !PlaneBoosters.activeSelf;
             boostEnableBtn.interactable = canAffordBoost;
             
             // Show/hide not enough coins UI for boost
@@ -303,16 +367,22 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         if (increaseLaunchForceBtn != null)
         {
-           bool canAffordLaunchForce = playerCoins >= 70;
-           increaseLaunchForceBtn.interactable = canAffordLaunchForce;
+            // Disable button if not enough coins or max level reached
+            bool canAffordLaunchForce = false;
+            bool isMaxLevel = launchForceLevel >= maxLaunchForceLevel;
+            
+            if (!isMaxLevel)
+            {
+                int currentCostForLevel = launchForceCosts[launchForceLevel - 1];
+                canAffordLaunchForce = playerCoins >= currentCostForLevel;
+            }
+            
+            increaseLaunchForceBtn.interactable = canAffordLaunchForce;
 
-          if(notEnoughCoinsS != null){
-            notEnoughCoinsS.SetActive(!canAffordLaunchForce);
-          }
-          if(dragLauncher.launchForceMultiplier >= 35){
-            increaseLaunchForceBtn.interactable = false;
-          }
-           
+            // Only show "not enough coins" warning if NOT at max level and can't afford
+            if(notEnoughCoinsS != null){
+                notEnoughCoinsS.SetActive(!canAffordLaunchForce && !isMaxLevel);
+            }
         }
     }
 
@@ -386,10 +456,10 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         //audioSource.Play();
         audioManager.btnSFX();
         // Check if player has at least 50 coins and boosters not already active
-        if (playerCoins >= 50 && !PlaneBoosters.activeSelf)
+        if (playerCoins >= 500 && !PlaneBoosters.activeSelf)
         {
             // Deduct 50 coins
-            playerCoins -= 50;
+            playerCoins -= 500;
             PlayerPrefs.SetInt("PlayerCoins", playerCoins);
             PlayerPrefs.Save();
             
@@ -398,8 +468,10 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             
             // Enable the boosters
             PlaneBoosters.SetActive(true);
+            boostactive.SetActive(true);
             
-            // Update all button interactability
+            // Update all button interactability and UI
+            UpdateBoostCostUI();
             UpdateBoostButtonInteractable();
             UpdateButtonInteractable();
             UpdateIncreaseLaunchForceButtonInteractable();
@@ -412,28 +484,65 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
     }
 
+    private void LoadLaunchForceLevel()
+    {
+        // Load saved launch force level
+        launchForceLevel = PlayerPrefs.GetInt("LaunchForceLevel", 1);
+        
+        // Ensure level is within bounds
+        launchForceLevel = Mathf.Clamp(launchForceLevel, 1, maxLaunchForceLevel);
+        
+        // Set the launch force multiplier based on level
+        if (dragLauncher != null)
+        {
+            dragLauncher.launchForceMultiplier = launchForceLevels[launchForceLevel - 1];
+        }
+    }
+    
     public void IncreaseLaunchForce()
     {
         audioManager.btnSFX();
-        if(playerCoins >=70){
-            playerCoins -= 70;
+        
+        // Check if already at max level
+        if (launchForceLevel >= maxLaunchForceLevel)
+        {
+            Debug.Log("Launch force already at max level!");
+            return;
+        }
+        
+        int currentCostForLevel = launchForceCosts[launchForceLevel - 1];
+        
+        if (playerCoins >= currentCostForLevel)
+        {
+            // Deduct coins
+            playerCoins -= currentCostForLevel;
             PlayerPrefs.SetInt("PlayerCoins", playerCoins);
             PlayerPrefs.Save();
             UpdateCoinUI();
 
-             dragLauncher.launchForceMultiplier += 5f;
-             PlayerPrefs.SetFloat("LaunchForceMultiplier", dragLauncher.launchForceMultiplier);
-             PlayerPrefs.Save();
+            // Increase level
+            launchForceLevel++;
+            PlayerPrefs.SetInt("LaunchForceLevel", launchForceLevel);
+            
+            // Set new launch force multiplier
+            dragLauncher.launchForceMultiplier = launchForceLevels[launchForceLevel - 1];
+            PlayerPrefs.SetFloat("LaunchForceMultiplier", dragLauncher.launchForceMultiplier);
+            PlayerPrefs.Save();
 
-             UpdateIncreaseLaunchForceButtonInteractable();
-             UpdateButtonInteractable();
-             UpdateBoostButtonInteractable();
+            // Update all UI
+            UpdateLaunchForceCostUI();
+            UpdateLaunchForceLevelUI();
+            UpdateLaunchForceSliderUI();
+            UpdateIncreaseLaunchForceButtonInteractable();
+            UpdateButtonInteractable();
+            UpdateBoostButtonInteractable();
 
-             Debug.Log("Launch force increased by 5!" + dragLauncher.launchForceMultiplier);
-            }
-            else{
-                Debug.Log("Not enough coins!");
-            }
+            Debug.Log($"Launch force upgraded to Level {launchForceLevel}! Force: {dragLauncher.launchForceMultiplier}");
+        }
+        else
+        {
+            Debug.Log("Not enough coins!");
+        }
     }
        
 }

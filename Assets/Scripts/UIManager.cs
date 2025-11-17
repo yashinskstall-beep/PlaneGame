@@ -44,7 +44,12 @@ public class UIManager : MonoBehaviour
     {
         if (planeController == null || boosters == null || boostBtn == null) return;
 
-        if (planeController.isControlling == true && boosters.activeSelf == true )
+        // Check if boost uses are depleted
+        if (planeController.boostUsesRemaining <= 0)
+        {
+            boostBtn.SetActive(false);
+        }
+        else if (planeController.isControlling == true && boosters.activeSelf == true )
         {
            boostBtn.SetActive(true);
 
@@ -56,6 +61,8 @@ public class UIManager : MonoBehaviour
         // Check if we should show the score UI
        CheckScoreUI();
     }
+
+   
 
     private void CheckScoreUI()
     {

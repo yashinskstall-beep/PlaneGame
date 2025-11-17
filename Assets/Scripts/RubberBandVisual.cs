@@ -28,6 +28,13 @@ public class RubberBandVisual : MonoBehaviour
     public Color relaxedColor = new Color(0.8f, 0.2f, 0.2f, 0.8f);  // Color when not stretched (reddish)
     public Color stretchedColor = new Color(1f, 0.5f, 0.5f, 0.8f);  // Color when fully stretched (lighter red)
     
+    [Header("Level Materials")]
+    [Tooltip("Materials for each launch force level (Level 1, Level 2, Level 3)")]
+    public Material[] levelMaterials = new Material[3];
+    
+    [Header("References")]
+    public MainMenu mainMenu;
+    
     // Optional reference point for calculating sag direction
     public Transform referenceUp;
     
@@ -42,6 +49,7 @@ public class RubberBandVisual : MonoBehaviour
     private Camera mainCamera;
     private Vector3 dragStartPos;
     private float dragDistance;
+    private int currentLevel = 1;
 
     private void Awake()
     {
@@ -51,6 +59,12 @@ public class RubberBandVisual : MonoBehaviour
         {
             lineRenderer = gameObject.AddComponent<LineRenderer>();
             Debug.Log("Added LineRenderer component automatically");
+        }
+        
+        // Find MainMenu if not assigned
+        if (mainMenu == null)
+        {
+            mainMenu = FindObjectOfType<MainMenu>();
         }
         
         // Initialize the LineRenderer
@@ -86,19 +100,48 @@ public class RubberBandVisual : MonoBehaviour
 
     private void Update()
     {
-        if (planeObject == null || leftAnchor == null || rightAnchor == null || lineRenderer == null) return;
-        
-        // Handle mouse input for dragging
-        HandleInput();
-        
-        // Update the sag direction if we have a reference transform
-        if (referenceUp != null)
+        if (planeObject == null || leftAnchor == null || rightAnchor == null)
         {
-            sagDirection = -referenceUp.up; // Sag in the opposite direction of the reference's up
+            Debug.LogWarning("Missing required references!");
+            return;
         }
         
+        // Check and update material based on launch force level
+        UpdateMaterialBasedOnLevel();
         
-         UpdateRubberBand();
+        // Handle input for dragging
+        HandleInput();
+        
+        // Update the rubber band visual
+        UpdateRubberBand();
+    }
+    
+    /// <summary>
+    /// Updates the LineRenderer material based on the current launch force level
+    /// </summary>
+    private void UpdateMaterialBasedOnLevel()
+    {
+        if (mainMenu == null || levelMaterials == null || levelMaterials.Length == 0)
+            return;
+            
+        // Get the current level from MainMenu (using reflection to access private field)
+        int level = PlayerPrefs.GetInt("LaunchForceLevel", 1);
+        
+        // Clamp level to valid range
+        level = Mathf.Clamp(level, 1, 3);
+        
+        // Only update if level changed
+        if (level != currentLevel)
+        {
+            currentLevel = level;
+            
+            // Set the material based on level (level 1 = index 0, level 2 = index 1, etc.)
+            if (levelMaterials[level - 1] != null)
+            {
+                lineRenderer.material = levelMaterials[level - 1];
+                Debug.Log($"Rubber band material updated to Level {level}");
+            }
+        }
         // if (isDragging)
         // {
            
