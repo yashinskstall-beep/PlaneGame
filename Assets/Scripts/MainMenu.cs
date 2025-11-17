@@ -122,6 +122,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         //audioSource.Play();
         audioManager.btnSFX();
+        VibrationManager.Instance.VibrateButtonClick();
         Debug.Log("audio was Played");
         if (currentIndex >= parts.Count)
         {
@@ -455,6 +456,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         //audioSource.Play();
         audioManager.btnSFX();
+        VibrationManager.Instance.VibrateButtonClick();
         // Check if player has at least 50 coins and boosters not already active
         if (playerCoins >= 500 && !PlaneBoosters.activeSelf)
         {
@@ -502,7 +504,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public void IncreaseLaunchForce()
     {
         audioManager.btnSFX();
-        
+        VibrationManager.Instance.VibrateButtonClick();
         // Check if already at max level
         if (launchForceLevel >= maxLaunchForceLevel)
         {

@@ -117,6 +117,7 @@ public class UIManager : MonoBehaviour
     {
         //btnAudio.Play();
         audioManager.btnSFX();
+        VibrationManager.Instance.VibrateButtonClick();
        Invoke("loadCurrentScene", 0.5f);
 
     }
