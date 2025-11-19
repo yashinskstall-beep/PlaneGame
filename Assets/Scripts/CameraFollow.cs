@@ -258,8 +258,10 @@ public class SimpleCameraFollow : MonoBehaviour
                 float smoothTime = 0.1f; // Lower value = faster response
                 transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref cameraVelocity, smoothTime);
                 
-                // Look at target
-                transform.LookAt(target);
+                // Smooth rotation to prevent shake when plane spins
+                Vector3 directionToTarget = target.position - transform.position;
+                Quaternion targetRotation = Quaternion.LookRotation(directionToTarget);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * 3f);
                 
                 // Store this good position and rotation
                 lastGoodCameraPosition = transform.position;

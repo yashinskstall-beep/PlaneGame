@@ -392,7 +392,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public void CheatCoins()
     {
-        playerCoins += 100;
+        playerCoins += 1000000;
         UpdateCoinUI();
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();

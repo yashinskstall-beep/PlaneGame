@@ -3018,7 +3018,7 @@ MonoBehaviour:
   windSource: {fileID: 1030708548}
   turnSpeed: 5
   bankAngle: 30
-  pitchSpeed: 2
+  pitchSpeed: 5
   torqueResponseMultiplier: 0.5
   angularDragAmount: 0.5
   useKeyboardInput: 0
@@ -3145,7 +3145,7 @@ MonoBehaviour:
   wingDamageRollMultiplier: 15
   tailDamagePitchMultiplier: 3.5
   additionalDragPerMissingPart: 0.5
-  wingTiltStrength: 250
+  wingTiltStrength: 150
   leftWingMissingResistance: 0.09
   rightWingMissingResistance: 0.09
   bothWingsMissingResistance: 0.1
@@ -12947,7 +12947,7 @@ PrefabInstance:
     - target: {fileID: 1312843683801836188, guid: a2a09cc716e88d444af0a5e2b703e95e,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: -7.28
+      value: -5.59
       objectReference: {fileID: 0}
     - target: {fileID: 1312843683801836188, guid: a2a09cc716e88d444af0a5e2b703e95e,
         type: 3}

@@ -429,14 +429,13 @@ public class PlaneController : MonoBehaviour
         float zVelocity = (currentZPosition - lastZPosition) / Time.fixedDeltaTime;
         lastZPosition = currentZPosition;
 
-        if (zVelocity < minZAxisSpeed && !markerPlaced && exitedRamp)
+        if (zVelocity < minZAxisSpeed && !markerPlaced)
         {
             if (collisionMarker != null)
             {
-                Debug.Log($"Marker Check: zVelocity={zVelocity:F2}, markerPlaced={markerPlaced}, exitedRamp={exitedRamp}");
+                Debug.Log($"Marker Check: zVelocity={zVelocity:F2}, markerPlaced={markerPlaced}");
                 PlaceMarkerAtCurrentPosition();
                 markerPlaced = true;
-                exitedRamp = false;
             }
         }
 
@@ -466,14 +465,19 @@ public class PlaneController : MonoBehaviour
 
     void OnCollisionEnter(Collision collision)
     {
-        if (isControlling && collision.gameObject.CompareTag("Ground"))
+        if (collision.gameObject.CompareTag("Ground"))
         {
-            windSource.Stop();
-            cameraFollow?.FreezePosition();
-            joystick?.joystickBG?.gameObject.SetActive(false);
+            // Handle ground collision regardless of isControlling state
+            if (isControlling)
+            {
+                windSource.Stop();
+                cameraFollow?.FreezePosition();
+                joystick?.joystickBG?.gameObject.SetActive(false);
+            }
+            
             float impactForce = collision.relativeVelocity.magnitude;
 
-            if (impactForce >= minImpactForceForDamage)
+            if (impactForce >= minImpactForceForDamage && isControlling)
             {
                 HashSet<PlanePartDetach> partsToNotify = new HashSet<PlanePartDetach>();
 
@@ -511,7 +515,8 @@ public class PlaneController : MonoBehaviour
                 return;
             }
 
-            StopControlling();
+            if (isControlling)
+                StopControlling();
 
             if (rb != null && rb.velocity.magnitude > 0.1f)
             {
@@ -520,6 +525,12 @@ public class PlaneController : MonoBehaviour
                 rb.velocity = projectedVelocity;
                 rb.angularVelocity *= 0.5f;
                 rb.constraints = RigidbodyConstraints.FreezePositionY;
+                isGrounded = true;
+                lastZPosition = transform.position.z;
+            }
+            else
+            {
+                // Even if velocity is low, set isGrounded so marker can be placed
                 isGrounded = true;
                 lastZPosition = transform.position.z;
             }
