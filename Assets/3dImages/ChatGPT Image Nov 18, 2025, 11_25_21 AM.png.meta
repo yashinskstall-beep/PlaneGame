@@ -1,10 +1,7 @@
 fileFormatVersion: 2
-guid: 3036b6bd8e75caf4bbea0ee704900814
+guid: abb2d772027d9a1409b7cb4122636a81
 TextureImporter:
-  internalIDToNameTable:
-  - first:
-      213: 6495010317497119159
-    second: Design 2 Ribbon 1 BLUE_0
+  internalIDToNameTable: []
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -42,13 +39,13 @@ TextureImporter:
     mipBias: 0
     wrapU: 1
     wrapV: 1
-    wrapW: 1
+    wrapW: 0
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 1
+  spriteMode: 2
   spriteExtrude: 1
-  spriteMeshType: 0
+  spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
   spritePixelsToUnits: 100
@@ -97,19 +94,6 @@ TextureImporter:
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
   - serializedVersion: 3
-    buildTarget: Android
-    maxTextureSize: 2048
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 1
-    compressionQuality: 50
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    overridden: 0
-    ignorePlatformSupport: 0
-    androidETC2FallbackOverride: 0
-    forceMaximumCompressionQuality_BC6H_BC7: 0
-  - serializedVersion: 3
     buildTarget: iPhone
     maxTextureSize: 2048
     resizeAlgorithm: 0
@@ -135,26 +119,60 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Design 2 Ribbon 1 BLUE_0
+      name: ChatGPT Image Nov 18, 2025, 11_25_21 AM_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 659
-        height: 527
+        x: 80
+        y: 175
+        width: 268
+        height: 656
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 115, y: 50, z: 115, w: 165}
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 7b1b9e2c879e22a50800000000000000
-      internalID: 6495010317497119159
+      spriteID: 28f4be78a3781df49aff205c432c73a3
+      internalID: 278425153
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ChatGPT Image Nov 18, 2025, 11_25_21 AM_1
+      rect:
+        serializedVersion: 2
+        x: 392
+        y: 160
+        width: 234
+        height: 675
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0c5bfd54acf59594a9979155dcbf71ac
+      internalID: 913981941
       vertices: []
       indices: 
       edges: []
@@ -162,7 +180,7 @@ TextureImporter:
     outline: []
     physicsShape: []
     bones: []
-    spriteID: 28278065d6263a74c8ec48b68a834c74
+    spriteID: a256743b291f2844fa51b0e5c5bbaddf
     internalID: 0
     vertices: []
     indices: 
@@ -170,7 +188,8 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     nameFileIdTable:
-      Design 2 Ribbon 1 BLUE_0: 6495010317497119159
+      ChatGPT Image Nov 18, 2025, 11_25_21 AM_0: 278425153
+      ChatGPT Image Nov 18, 2025, 11_25_21 AM_1: 913981941
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

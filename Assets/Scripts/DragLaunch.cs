@@ -88,7 +88,7 @@ public class SimpleDragLauncher : MonoBehaviour
                 if (hit.transform == cube)
                 {
                     isDragging = true;
-                    AndroidVibrations.StartContinuous(); // 🔸 start vibration
+                    VibrationManager.Instance.StartContinuous(); // 🔸 start vibration (Android & iOS)
 
                     // Start rubber sound
                     StartRubberSound();
@@ -103,7 +103,7 @@ public class SimpleDragLauncher : MonoBehaviour
 
             if (Input.GetMouseButtonUp(0))
             {
-                AndroidVibrations.Stop(); // 🔸 stop vibration
+                VibrationManager.Instance.Stop(); // 🔸 stop vibration (Android & iOS)
                 ReleaseCube();
             }
         }

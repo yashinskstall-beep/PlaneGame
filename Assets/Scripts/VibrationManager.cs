@@ -1,4 +1,7 @@
 using UnityEngine;
+#if UNITY_IOS && !UNITY_EDITOR
+using System.Runtime.InteropServices;
+#endif
 
 /// <summary>
 /// Singleton manager for handling device vibrations.
@@ -6,6 +9,41 @@ using UnityEngine;
 /// </summary>
 public class VibrationManager : MonoBehaviour
 {
+#if UNITY_IOS && !UNITY_EDITOR
+    // iOS Haptic Feedback imports
+    [DllImport("__Internal")]
+    private static extern void _TriggerImpactLight();
+    
+    [DllImport("__Internal")]
+    private static extern void _TriggerImpactMedium();
+    
+    [DllImport("__Internal")]
+    private static extern void _TriggerImpactHeavy();
+    
+    [DllImport("__Internal")]
+    private static extern void _TriggerSelection();
+    
+    [DllImport("__Internal")]
+    private static extern void _TriggerNotificationSuccess();
+    
+    [DllImport("__Internal")]
+    private static extern void _TriggerNotificationWarning();
+    
+    [DllImport("__Internal")]
+    private static extern void _TriggerNotificationError();
+    
+    [DllImport("__Internal")]
+    private static extern void _StartContinuousHaptic();
+    
+    [DllImport("__Internal")]
+    private static extern void _StopContinuousHaptic();
+#endif
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+    private static AndroidJavaObject vibrator;
+    private static bool isVibrating = false;
+#endif
+
     // Singleton instance
     private static VibrationManager instance;
     public static VibrationManager Instance
@@ -50,7 +88,28 @@ public class VibrationManager : MonoBehaviour
         
         instance = this;
         DontDestroyOnLoad(gameObject);
+        
+#if UNITY_ANDROID && !UNITY_EDITOR
+        // Initialize Android vibrator
+        InitializeAndroidVibrator();
+#endif
     }
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+    private void InitializeAndroidVibrator()
+    {
+        try
+        {
+            AndroidJavaClass unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+            AndroidJavaObject currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
+            vibrator = currentActivity.Call<AndroidJavaObject>("getSystemService", "vibrator");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"Vibrator initialization failed: {e.Message}");
+        }
+    }
+#endif
 
     /// <summary>
     /// Vibrate for button click (short vibration)
@@ -61,6 +120,8 @@ public class VibrationManager : MonoBehaviour
         
 #if UNITY_ANDROID && !UNITY_EDITOR
         Vibrate(buttonClickDuration);
+#elif UNITY_IOS && !UNITY_EDITOR
+        _TriggerSelection();
 #endif
     }
 
@@ -73,6 +134,8 @@ public class VibrationManager : MonoBehaviour
         
 #if UNITY_ANDROID && !UNITY_EDITOR
         Vibrate(shortVibrationDuration);
+#elif UNITY_IOS && !UNITY_EDITOR
+        _TriggerImpactLight();
 #endif
     }
 
@@ -85,6 +148,8 @@ public class VibrationManager : MonoBehaviour
         
 #if UNITY_ANDROID && !UNITY_EDITOR
         Vibrate(mediumVibrationDuration);
+#elif UNITY_IOS && !UNITY_EDITOR
+        _TriggerImpactMedium();
 #endif
     }
 
@@ -97,6 +162,8 @@ public class VibrationManager : MonoBehaviour
         
 #if UNITY_ANDROID && !UNITY_EDITOR
         Vibrate(longVibrationDuration);
+#elif UNITY_IOS && !UNITY_EDITOR
+        _TriggerImpactHeavy();
 #endif
     }
 
@@ -110,6 +177,14 @@ public class VibrationManager : MonoBehaviour
         
 #if UNITY_ANDROID && !UNITY_EDITOR
         Vibrate(milliseconds);
+#elif UNITY_IOS && !UNITY_EDITOR
+        // Map duration to appropriate iOS haptic feedback
+        if (milliseconds <= 100)
+            _TriggerImpactLight();
+        else if (milliseconds <= 250)
+            _TriggerImpactMedium();
+        else
+            _TriggerImpactHeavy();
 #endif
     }
 
@@ -140,6 +215,58 @@ public class VibrationManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Start continuous vibration (for dragging)
+    /// </summary>
+    public void StartContinuous()
+    {
+        if (!vibrationsEnabled) return;
+        
+#if UNITY_ANDROID && !UNITY_EDITOR
+        if (vibrator == null || isVibrating) return;
+        
+        try
+        {
+            // Pattern: delay, vibrate, sleep, repeat index (0 means repeat forever)
+            long[] pattern = { 0, 50, 50 };
+            vibrator.Call("vibrate", pattern, 0);
+            isVibrating = true;
+            Debug.Log("Continuous vibration started (Android)");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"Start continuous vibration failed: {e.Message}");
+        }
+#elif UNITY_IOS && !UNITY_EDITOR
+        _StartContinuousHaptic();
+        Debug.Log("Continuous haptic started (iOS)");
+#endif
+    }
+    
+    /// <summary>
+    /// Stop continuous vibration
+    /// </summary>
+    public void Stop()
+    {
+#if UNITY_ANDROID && !UNITY_EDITOR
+        if (vibrator == null || !isVibrating) return;
+        
+        try
+        {
+            vibrator.Call("cancel");
+            isVibrating = false;
+            Debug.Log("Continuous vibration stopped (Android)");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"Stop continuous vibration failed: {e.Message}");
+        }
+#elif UNITY_IOS && !UNITY_EDITOR
+        _StopContinuousHaptic();
+        Debug.Log("Continuous haptic stopped (iOS)");
+#endif
+    }
+
+    /// <summary>
     /// Cancel any ongoing vibration
     /// </summary>
     public void CancelVibration()
@@ -162,6 +289,9 @@ public class VibrationManager : MonoBehaviour
         {
             Debug.LogWarning($"Cancel vibration failed: {e.Message}");
         }
+#elif UNITY_IOS && !UNITY_EDITOR
+        // Stop continuous haptic if running
+        _StopContinuousHaptic();
 #endif
     }
 

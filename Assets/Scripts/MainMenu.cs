@@ -30,6 +30,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public Slider launchForceSlider;
     public SimpleDragLauncher dragLauncher;
     public GameObject boostactive;
+    public GameObject SettingTab;
 
     [Header("Camera Focus Points")]
     public Transform leftWingFocusPoint;
@@ -174,6 +175,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             boostEnableBtn.gameObject.SetActive(false);
         upgradeButton.gameObject.SetActive(false);
         increaseLaunchForceBtn.gameObject.SetActive(false);
+        notEnoughCoinsB.SetActive(false);
+        notEnoughCoinsS.SetActive(false);
         
 
         // Step 1: Transition camera to the part
@@ -389,7 +392,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public void CheatCoins()
     {
-        playerCoins += 10000;
+        playerCoins += 100;
         UpdateCoinUI();
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
@@ -545,6 +548,13 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         {
             Debug.Log("Not enough coins!");
         }
+    }
+
+    public void SettingBtn(){
+
+        audioManager.btnSFX();
+        VibrationManager.Instance.VibrateButtonClick();
+        SettingTab.SetActive(true);
     }
        
 }

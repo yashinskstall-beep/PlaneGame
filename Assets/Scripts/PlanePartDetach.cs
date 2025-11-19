@@ -41,6 +41,7 @@ public class PlanePartDetach : MonoBehaviour
     {
         // This will only be called if the part itself has a Rigidbody, 
         // but we're keeping it for flexibility.
+        VibrationManager.Instance.VibrateButtonClick();
         HandleCollision(collision);
        
 
@@ -51,6 +52,7 @@ public class PlanePartDetach : MonoBehaviour
     {
         if (detached) return;
 
+       
         // Special handling for trees: detach the part but don't stop the plane
         if (collision.gameObject.CompareTag("Tree"))
         {

@@ -607,6 +607,7 @@ public class PlaneController : MonoBehaviour
 
         GameObject marker = Instantiate(collisionMarker.markerPrefab, markerPosition, markerRotation);
         audioManager.MarkerSFX();
+        VibrationManager.Instance.VibrateButtonClick();
         placedMarker = marker;
         marker.isStatic = false;
 
@@ -635,6 +636,7 @@ public class PlaneController : MonoBehaviour
     {
         //uiManager.btnAudio.Play();
         audioManager.btnSFX();
+        VibrationManager.Instance.VibrateButtonClick();
         
         // Check if boost uses are available
         if (!isBoosting && rb != null && boostUsesRemaining > 0)
@@ -643,6 +645,7 @@ public class PlaneController : MonoBehaviour
             rb.AddForce(transform.forward * boostAmount, ForceMode.Impulse);
             boostA?.Play();
             boostB?.Play();
+            audioManager.BoostSFX();
             
             // Decrease remaining uses
             boostUsesRemaining--;
@@ -663,18 +666,7 @@ public class PlaneController : MonoBehaviour
         isBoosting = true;
         yield return new WaitForSeconds(boostDuration);
 
-        float elapsedTime = 0f;
-        Vector3 currentVelocity = rb.velocity;
-        float returnDuration = 1f / returnToNormalSpeed;
-
-        while (elapsedTime < returnDuration)
-        {
-            rb.velocity = Vector3.Lerp(currentVelocity, preBoostVelocity, elapsedTime / returnDuration);
-            elapsedTime += Time.deltaTime;
-            yield return null;
-        }
-
-        rb.velocity = preBoostVelocity;
+        // Let the plane slow down naturally through air resistance instead of forcing velocity
         isBoosting = false;
         boostA?.Stop();
         boostB?.Stop();

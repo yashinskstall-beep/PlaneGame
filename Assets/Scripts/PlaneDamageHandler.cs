@@ -46,6 +46,10 @@ public class PlaneDamageHandler : MonoBehaviour
     private float originalPitchSpeed;
     private float originalDrag;
     
+    // Flags to ensure debug logs only appear once
+    private bool hasLoggedAllPartsMissing = false;
+    private bool hasLoggedBothWingsDisabled = false;
+    
     void Start()
     {
         // Get the plane controller reference
@@ -132,9 +136,18 @@ public class PlaneDamageHandler : MonoBehaviour
             if (leftWingDisabled && rightWingDisabled && tailDisabled)
             {
                 rb.drag = originalDrag + allPartsMissingDrag;
-                Debug.Log("All parts missing: Applying special low drag of " + allPartsMissingDrag);
+                if (!hasLoggedAllPartsMissing)
+                {
+                    Debug.Log("All parts missing: Applying special low drag of " + allPartsMissingDrag);
+                    hasLoggedAllPartsMissing = true;
+                }
             }
             else
+            {
+                hasLoggedAllPartsMissing = false;
+            }
+            
+            if (!(leftWingDisabled && rightWingDisabled && tailDisabled))
             {
                 // Original logic for when one or two parts are missing
                 float additionalDrag = additionalDragPerMissingPart * disabledPartCount;
@@ -229,11 +242,16 @@ public class PlaneDamageHandler : MonoBehaviour
         
         bool bothDisabled = leftWingDisabled && rightWingDisabled;
         
-        // Debug log to help diagnose issues
-        if (bothDisabled)
+        // Debug log to help diagnose issues (only once)
+        if (bothDisabled && !hasLoggedBothWingsDisabled)
         {
             Debug.Log("Both wings are disabled: Left wing = " + (leftWing != null ? (!leftWing.activeSelf).ToString() : "null") + 
                      ", Right wing = " + (rightWing != null ? (!rightWing.activeSelf).ToString() : "null"));
+            hasLoggedBothWingsDisabled = true;
+        }
+        else if (!bothDisabled)
+        {
+            hasLoggedBothWingsDisabled = false;
         }
         
         return bothDisabled;
