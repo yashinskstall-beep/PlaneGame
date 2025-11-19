@@ -2899,8 +2899,8 @@ GameObject:
   - component: {fileID: 549470090}
   - component: {fileID: 549470088}
   - component: {fileID: 549470087}
-  - component: {fileID: 549470093}
   - component: {fileID: 549470094}
+  - component: {fileID: 549470093}
   - component: {fileID: 549470096}
   - component: {fileID: 549470095}
   - component: {fileID: 549470097}
@@ -11910,7 +11910,7 @@ GameObject:
   - component: {fileID: 1926069590}
   - component: {fileID: 1926069592}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: Tap to play Text
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -22904,6 +22904,7 @@ ParticleSystem:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
+  - {fileID: 549470090}
   - {fileID: 946783999}
   - {fileID: 1623213802}
   - {fileID: 1269304030}
@@ -22915,7 +22916,6 @@ SceneRoots:
   - {fileID: 1267772364}
   - {fileID: 209255098}
   - {fileID: 1547430516119355650}
-  - {fileID: 549470090}
   - {fileID: 38257091}
   - {fileID: 6635898669938791133}
   - {fileID: 686282570}
