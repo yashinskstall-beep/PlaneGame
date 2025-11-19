@@ -3018,7 +3018,7 @@ MonoBehaviour:
   windSource: {fileID: 1030708548}
   turnSpeed: 5
   bankAngle: 30
-  pitchSpeed: 5
+  pitchSpeed: 4
   torqueResponseMultiplier: 0.5
   angularDragAmount: 0.5
   useKeyboardInput: 0
