@@ -85,6 +85,8 @@ public class PlaneController : MonoBehaviour
     [Header("Smoothing Settings")]
     public float inputSmoothness = 4f;
     public float torqueSmoothness = 3f;
+    [Tooltip("Visual rotation smoothing to hide wobbling. Higher = smoother but less responsive.")]
+    public float visualRotationSmoothing = 8f;
 
     [Header("Boost Settings")]
     public float boostAmount = 10f;
@@ -113,6 +115,10 @@ public class PlaneController : MonoBehaviour
     private float smoothVerticalInput = 0f;
     private Vector3 smoothTorque = Vector3.zero;
     private PlanePartDetach[] detachableParts;
+    
+    // Visual smoothing
+    private Quaternion smoothedRotation;
+    private GameObject visualModel;
 
     // Distance / marker tracking
     private Vector3 startPosition;
@@ -165,6 +171,13 @@ public class PlaneController : MonoBehaviour
         maxZDistance = 0f; // Start at 0 to measure distance traveled from resting position
         lastZPosition = transform.position.z;
         lastRampZPosition = transform.position.z;
+        
+        // Initialize visual smoothing
+        smoothedRotation = transform.rotation;
+        
+        // Try to find a visual model child (optional - for separating physics from visuals)
+        // If you have a child object with the plane mesh, assign it here
+        // For now, we'll smooth the main transform
     }
 
     public void InitializeDetachableParts()
@@ -219,6 +232,26 @@ public class PlaneController : MonoBehaviour
             ApplyPlaneHandling();
         else if (isGrounded)
             HandleGroundMovement();
+    }
+    
+    void LateUpdate()
+    {
+        // Apply visual smoothing to hide wobbling
+        // This runs after physics, smoothing out the visual rotation
+        if (isControlling)
+        {
+            // Smoothly interpolate the visual rotation
+            smoothedRotation = Quaternion.Slerp(smoothedRotation, transform.rotation, Time.deltaTime * visualRotationSmoothing);
+            
+            // Apply the smoothed rotation back to the transform
+            // Note: This creates a slight visual delay but hides wobbling
+            transform.rotation = smoothedRotation;
+        }
+        else
+        {
+            // When not controlling, keep smoothed rotation in sync
+            smoothedRotation = transform.rotation;
+        }
     }
 
     void CheckIfBeingDragged()
@@ -334,8 +367,33 @@ public class PlaneController : MonoBehaviour
         // Align velocity with forward direction
         if (rb.velocity.magnitude > minSpeedForAlignment)
         {
-            Vector3 targetVelocity = transform.forward * rb.velocity.magnitude;
-            rb.velocity = Vector3.Lerp(rb.velocity, targetVelocity, directionAlignmentStrength * Time.fixedDeltaTime);
+            // Calculate pitch angle from X axis rotation (local euler angles)
+            float pitchAngle = transform.localEulerAngles.x;
+            // Normalize to -180 to 180 range
+            if (pitchAngle > 180f) pitchAngle -= 360f;
+            
+            // If plane is pitched up steeply (stalling), reduce forward alignment and allow natural falling
+            if (pitchAngle < -35f) // Pitched up more than 35 degrees
+            {
+                // Gradual stall: 35° = 0%, 40° = 50%, 45° = 100%
+                float stallFactor = Mathf.InverseLerp(-35f, -45f, pitchAngle); // 0 at -35°, 1 at -45°
+                
+                // During stall, reduce the alignment strength instead of forcing downward
+                // This lets gravity naturally pull the plane down while maintaining horizontal momentum
+                float reducedAlignmentStrength = directionAlignmentStrength * (1f - stallFactor * 0.9f);
+                
+                Vector3 targetVelocity = transform.forward * rb.velocity.magnitude;
+                rb.velocity = Vector3.Lerp(rb.velocity, targetVelocity, reducedAlignmentStrength * Time.fixedDeltaTime);
+                
+                // Debug log for stall behavior
+                Debug.Log($"STALLING: Pitch = {pitchAngle:F1}°, StallFactor = {stallFactor:F2}, AlignmentStrength = {reducedAlignmentStrength:F2}, Speed = {rb.velocity.magnitude:F1}");
+            }
+            else
+            {
+                // Normal alignment when not stalling
+                Vector3 targetVelocity = transform.forward * rb.velocity.magnitude;
+                rb.velocity = Vector3.Lerp(rb.velocity, targetVelocity, directionAlignmentStrength * Time.fixedDeltaTime);
+            }
         }
     }
 
