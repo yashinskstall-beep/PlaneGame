@@ -20,6 +20,7 @@ public class UIManager : MonoBehaviour
     //public GameObject pointB;
     public GameObject goalScreenUI;
     // public  AudioSource btnAudio;
+    public TextMeshProUGUI boostCounterText;
    
     private bool scoreCalculated = false;
     private bool isGoalReached = false;
@@ -38,6 +39,9 @@ public class UIManager : MonoBehaviour
         if (cameraFollow == null)
             Debug.LogWarning("SimpleCameraFollow component not found. Score UI may not work correctly.");
 
+        // Initialize boost counter display
+        UpdateBoostCounter();
+        boostBtn.SetActive(false);
     }
     
     void Update()
@@ -118,7 +122,7 @@ public class UIManager : MonoBehaviour
         //btnAudio.Play();
         audioManager.btnSFX();
         VibrationManager.Instance.VibrateButtonClick();
-       Invoke("loadCurrentScene", 0.5f);
+        Invoke("loadCurrentScene", 0.5f);
 
     }
     
@@ -157,6 +161,17 @@ public class UIManager : MonoBehaviour
 
         // Ensure we end exactly at the target value
         finalScoreText.text = $"Coins + {targetCoins}";
+    }
+
+    /// <summary>
+    /// Updates the boost counter display with the current remaining boost uses
+    /// </summary>
+    public void UpdateBoostCounter()
+    {
+        if (boostCounterText != null && planeController != null)
+        {
+            boostCounterText.text = $"{planeController.boostUsesRemaining}X";
+        }
     }
    
 }
