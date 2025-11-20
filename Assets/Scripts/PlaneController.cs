@@ -662,6 +662,12 @@ public class PlaneController : MonoBehaviour
             boostUsesRemaining--;
             Debug.Log($"Boost used! Remaining uses: {boostUsesRemaining}");
             
+            // Update UI counter
+            if (uiManager != null)
+            {
+                uiManager.UpdateBoostCounter();
+            }
+            
             StartCoroutine(ReturnToNormalSpeed());
         }
         else if (boostUsesRemaining <= 0)
