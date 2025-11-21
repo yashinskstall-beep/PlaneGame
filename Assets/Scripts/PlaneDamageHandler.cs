@@ -256,4 +256,22 @@ public class PlaneDamageHandler : MonoBehaviour
         
         return bothDisabled;
     }
+    
+    /// <summary>
+    /// Check if left wing is missing/disabled
+    /// </summary>
+    /// <returns>True if left wing is disabled, false otherwise</returns>
+    public bool IsLeftWingMissing()
+    {
+        return leftWing != null && !leftWing.activeSelf;
+    }
+    
+    /// <summary>
+    /// Check if right wing is missing/disabled
+    /// </summary>
+    /// <returns>True if right wing is disabled, false otherwise</returns>
+    public bool IsRightWingMissing()
+    {
+        return rightWing != null && !rightWing.activeSelf;
+    }
 }

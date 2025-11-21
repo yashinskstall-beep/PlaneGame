@@ -12,7 +12,7 @@ public class PlaneRampAligner : MonoBehaviour
     public Transform[] ramps;     // Optional: Specific ramps to detect (if not using tags)
 
     [Header("Alignment Settings")]
-    public float alignmentSpeed = 5f;       // How quickly the plane aligns with the ramp
+    public float alignmentSpeed = 10f;      // How quickly the plane aligns with the ramp (increased for better responsiveness)
     public float minVelocityForAlignment = 1f; // Minimum velocity needed to align with direction of travel
     public bool alignToVelocity = true;     // Whether to align the forward direction with velocity
     public string rampTag = "RampTag";      // Tag to identify ramp objects (optional)
@@ -39,8 +39,8 @@ public class PlaneRampAligner : MonoBehaviour
 
     private void FixedUpdate()
     {
-        // Only align if we're in contact with a ramp and the plane has been released
-        if (isAligning && currentRamp != null && dragLauncher != null && dragLauncher.released)
+        // Align if we're in contact with a ramp, regardless of release state
+        if (isAligning && currentRamp != null)
         {
             AlignWithRamp();
         }
@@ -53,10 +53,14 @@ public class PlaneRampAligner : MonoBehaviour
         // Get the ramp's up direction (normal to the ramp surface)
         Vector3 rampNormal = currentRamp.up;
         
-        // First, create a rotation that aligns the plane's up with the ramp surface normal
-        Quaternion targetRotation = Quaternion.FromToRotation(plane.up, rampNormal) * plane.rotation;
+        // Get the ramp's forward direction (direction plane should face)
+        Vector3 rampForward = currentRamp.forward;
         
-        // If we should also align with velocity direction
+        // Create a rotation that aligns the plane with the ramp
+        // Plane's up should match ramp's up, and plane's forward should match ramp's forward
+        Quaternion targetRotation = Quaternion.LookRotation(rampForward, rampNormal);
+        
+        // If we should also align with velocity direction AND plane is moving
         if (alignToVelocity && planeRb.velocity.magnitude > minVelocityForAlignment)
         {
             // Project the velocity onto the ramp surface to get a forward direction
@@ -70,19 +74,18 @@ public class PlaneRampAligner : MonoBehaviour
         }
         
         // Smoothly interpolate to the target rotation
-        plane.rotation = Quaternion.Slerp(plane.rotation, targetRotation, Time.deltaTime * alignmentSpeed);
+        plane.rotation = Quaternion.Slerp(plane.rotation, targetRotation, Time.fixedDeltaTime * alignmentSpeed);
         
         // Debug visualization
         Debug.DrawRay(plane.position, rampNormal * 2f, Color.green);
-        Debug.DrawRay(plane.position, planeRb.velocity.normalized * 2f, Color.blue);
+        Debug.DrawRay(plane.position, rampForward * 2f, Color.red);
+        if (planeRb.velocity.magnitude > 0.1f)
+            Debug.DrawRay(plane.position, planeRb.velocity.normalized * 2f, Color.blue);
     }
 
     // Called when the plane collider enters another collider
     private void OnCollisionEnter(Collision collision)
     {
-        // Only process if the plane has been released
-        if (dragLauncher == null || !dragLauncher.released) return;
-        
         // Check if this is a ramp we should align with
         if (IsRamp(collision.transform))
         {
@@ -103,7 +106,7 @@ public class PlaneRampAligner : MonoBehaviour
     private void OnCollisionStay(Collision collision)
     {
         // If we're already aligning with a ramp, don't change to a new one
-        if (currentRamp == null && dragLauncher != null && dragLauncher.released)
+        if (currentRamp == null)
         {
             if (IsRamp(collision.transform))
             {

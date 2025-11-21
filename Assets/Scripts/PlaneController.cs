@@ -266,7 +266,7 @@ public class PlaneController : MonoBehaviour
         isControlling = true;
         exitedRamp = true;
     
-        Debug.Log("StartControlling");
+        Debug.Log("PlaneController.StartControlling() - isControlling set to TRUE");
         if (useJoystickInput && joystick != null)
             joystick.gameObject.SetActive(true);
 
@@ -342,8 +342,26 @@ public class PlaneController : MonoBehaviour
         // 1. Auto-leveling is enabled
         // 2. There is no horizontal or vertical input from the player
         // 3. The plane is not being dragged (if disableAutoLevelWhenDragging is true)
+        // 4. The plane is not upside down or at extreme roll angles (manual control in those cases)
+        // 5. The plane is not on a ramp (ramp aligner handles rotation)
         bool hasInput = !Mathf.Approximately(horizontalInput, 0f) || !Mathf.Approximately(verticalInput, 0f);
-        bool shouldAutoLevel = autoLevelWhenNoInput && !hasInput && !(disableAutoLevelWhenDragging && isBeingDragged);
+        
+        // Check if plane is on ramp
+        bool isOnRamp = false;
+        if (rampAligner != null)
+        {
+            var field = typeof(PlaneRampAligner).GetField("isAligning",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (field != null)
+                isOnRamp = (bool)field.GetValue(rampAligner);
+        }
+        
+        // Check if plane is upside down or at extreme angles (roll > 90 degrees)
+        float rollAngle = transform.localEulerAngles.z;
+        if (rollAngle > 180f) rollAngle -= 360f; // Normalize to -180 to 180
+        bool isUpsideDownOrExtreme = Mathf.Abs(rollAngle) > 90f;
+        
+        bool shouldAutoLevel = autoLevelWhenNoInput && !hasInput && !(disableAutoLevelWhenDragging && isBeingDragged) && !isUpsideDownOrExtreme && !isOnRamp;
         if (shouldAutoLevel)
         {
             Vector3 projectedUp = Vector3.ProjectOnPlane(Vector3.up, transform.forward).normalized;
