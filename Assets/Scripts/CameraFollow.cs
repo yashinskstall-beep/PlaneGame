@@ -11,6 +11,7 @@ public class SimpleCameraFollow : MonoBehaviour
     public Vector3 offset = new Vector3(0f, 3f, -6f); // How far behind/above the target
     public float followSpeed = 5f;                    // How quickly the camera catches up
     public float rotationSmoothness = 5f;             // How smoothly the camera rotates
+    public float rotationSmoothnessWhenSpinning = 1.5f; // Rotation smoothness when plane is spinning (lower = smoother)
     public float frozenZoomAmount = 5f;               // How much to zoom out when camera freezes
     public float zoomSmoothness = 2f;                 // How smoothly to zoom out
     
@@ -112,7 +113,10 @@ public class SimpleCameraFollow : MonoBehaviour
         isPositionFrozen = false;
         isCameraZoomedOut = false;
         
-        Debug.Log("Camera returning to following airplane");
+        // Reset controlling flag so it can be recaptured
+        isPlaneControlling = false;
+        
+        Debug.Log("Camera returning to following airplane - isPlaneControlling reset to false");
     }
 
     void FixedUpdate()
@@ -213,6 +217,8 @@ public class SimpleCameraFollow : MonoBehaviour
         PlaneController planeController = target.GetComponent<PlaneController>();
         if (planeController != null)
         {
+            Debug.Log($"Camera Check - isPlaneControlling: {isPlaneControlling}, planeController.isControlling: {planeController.isControlling}");
+            
             // Update the controlling state
             if (!isPlaneControlling && planeController.isControlling)
             {
@@ -225,8 +231,12 @@ public class SimpleCameraFollow : MonoBehaviour
             {
                 // Plane stopped controlling (hit ground or tree)
                 isPlaneControlling = false;
-                Debug.Log("Camera fixed offset released");
+                Debug.Log("Camera fixed offset released - plane stopped controlling");
             }
+        }
+        else
+        {
+            Debug.LogWarning("PlaneController component not found on target!");
         }
 
         if (dragLauncher == null) return;
@@ -251,6 +261,15 @@ public class SimpleCameraFollow : MonoBehaviour
             // If the plane is in controlling mode, maintain a fixed distance
             if (isPlaneControlling)
             {
+                // Check if plane has wing damage causing spinning
+                PlaneDamageHandler damageHandler = target.GetComponent<PlaneDamageHandler>();
+                bool isSpinning = false;
+                if (damageHandler != null)
+                {
+                    // Check if only one wing is missing (causes spinning)
+                    isSpinning = damageHandler.IsLeftWingMissing() != damageHandler.IsRightWingMissing();
+                }
+                
                 // Use the fixed offset captured when controlling started
                 Vector3 targetPosition = target.position + fixedOffset;
                 
@@ -258,14 +277,26 @@ public class SimpleCameraFollow : MonoBehaviour
                 float smoothTime = 0.1f; // Lower value = faster response
                 transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref cameraVelocity, smoothTime);
                 
-                // Smooth rotation to prevent shake when plane spins
-                Vector3 directionToTarget = target.position - transform.position;
-                Quaternion targetRotation = Quaternion.LookRotation(directionToTarget);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * 3f);
+                // Handle rotation: if spinning, keep rotation stable; otherwise follow normally
+                if (isSpinning)
+                {
+                    // When spinning, maintain the current camera rotation (don't follow plane's rotation)
+                    // Camera keeps plane centered via position following, but rotation stays still
+                    // No rotation update - camera maintains its current orientation
+                }
+                else
+                {
+                    // Normal rotation when not spinning
+                    Vector3 directionToTarget = target.position - transform.position;
+                    Quaternion targetRotation = Quaternion.LookRotation(directionToTarget);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * 3f);
+                    
+                    // Store this good rotation for when spinning starts
+                    lastGoodCameraRotation = transform.rotation;
+                }
                 
-                // Store this good position and rotation
+                // Store this good position
                 lastGoodCameraPosition = transform.position;
-                lastGoodCameraRotation = transform.rotation;
                 
                 // Reset frozen flag if we're moving again
                 hasFrozenCamera = false;
