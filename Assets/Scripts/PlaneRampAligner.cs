@@ -126,7 +126,7 @@ public class PlaneRampAligner : MonoBehaviour
             isAligning = false;
             
             // Restore the original rotation when leaving the ramp
-            StartCoroutine(SmoothlyRestoreRotation());
+            // StartCoroutine(SmoothlyRestoreRotation());
             
             // Notify the PlaneController that we've exited a ramp
             PlaneController planeController = plane.GetComponent<PlaneController>();
@@ -152,24 +152,7 @@ public class PlaneRampAligner : MonoBehaviour
     } 
     
     // Coroutine to smoothly restore the original rotation
-    private System.Collections.IEnumerator SmoothlyRestoreRotation()
-    {
-        float elapsedTime = 0f;
-        float duration = 2.5f; // Time to restore rotation (adjust as needed)
-        Quaternion startRotation = plane.rotation;
-        
-        while (elapsedTime < duration)
-        {
-            // Smoothly interpolate from current rotation to original rotation
-            plane.rotation = Quaternion.Slerp(startRotation, originalRotation, elapsedTime / duration);
-            
-            elapsedTime += Time.deltaTime;
-            yield return null;
-        }
-        
-        // Ensure we end exactly at the original rotation
-        plane.rotation = originalRotation;
-    }
+    // Coroutine removed to allow immediate control
     
     // Helper method to determine if a transform is a ramp we should align with
     private bool IsRamp(Transform potentialRamp)

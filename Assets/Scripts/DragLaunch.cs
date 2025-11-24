@@ -175,6 +175,10 @@ public class SimpleDragLauncher : MonoBehaviour
             currentPos.y = Mathf.Max(currentPos.y, cubeHeight + 0.1f);
             cube.position = currentPos;
 
+            // Store original magnitude before clamping for SFX
+            float originalMagnitude = dragVector.magnitude;
+            bool atMaxDistance = originalMagnitude >= maxDragDistance;
+
             // Clamp distance
             if (dragVector.magnitude > maxDragDistance)
                 dragVector = dragVector.normalized * maxDragDistance;
@@ -183,7 +187,16 @@ public class SimpleDragLauncher : MonoBehaviour
             cube.position = restingPoint.position + dragVector;
 
             // Update rubber SFX intensity based on how far back we are (0..1)
-            UpdateRubberSfx(dragVector.magnitude / maxDragDistance);
+            // Stop sound if at max distance, otherwise update normally
+            if (atMaxDistance)
+            {
+                StopRubberSound();
+                Debug.Log("Rubber sound stopped");
+            }
+            else
+            {
+                UpdateRubberSfx(dragVector.magnitude / maxDragDistance);
+            }
         }
     }
 

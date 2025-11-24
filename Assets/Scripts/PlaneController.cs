@@ -21,6 +21,7 @@ public class PlaneController : MonoBehaviour
     public SimpleCameraFollow cameraFollow;
     public AudioManager audioManager;
     public AudioSource windSource;
+    private SimpleDragLauncher dragLauncher;
     //public GameObject boostBtn;
    // public CameraManager cameraManager;
 
@@ -37,7 +38,7 @@ public class PlaneController : MonoBehaviour
     public float horizontalInputSensitivity = 1f;
     public float verticalInputSensitivity = 1f;
     public bool invertJoystickVertical = true;
-    public bool autoLevelWhenNoInput = true;
+    public bool autoLevelWhenNoInput = false;
     public float autoLevelSpeed = 1f;
     public bool disableAutoLevelWhenDragging = true;
 
@@ -94,6 +95,10 @@ public class PlaneController : MonoBehaviour
     public float returnToNormalSpeed = 2f;
     public int maxBoostUses = 2;
     public UIManager uiManager;
+    
+    [Header("High Score Settings")]
+    [Tooltip("GameObject to activate when a new high score is reached")]
+    public GameObject newHighScoreObject;
 
     // Internal state
     private Rigidbody rb;
@@ -124,6 +129,7 @@ public class PlaneController : MonoBehaviour
     private Vector3 startPosition;
     private Vector3 maxZPosition;
     public  float maxZDistance;
+    public  float bestZDistance; // Best distance saved in PlayerPrefs
     private bool markerPlaced = false;
     private GameObject placedMarker = null;
     private float lastZPosition;
@@ -162,15 +168,20 @@ public class PlaneController : MonoBehaviour
         if (useJoystickInput)
         {
             joystick ??= FindObjectOfType<JoystickController>();
-            if (joystick != null)
-                joystick.gameObject.SetActive(false);
+            // Joystick visibility is now handled in Update based on dragLauncher.released
         }
+        
+        dragLauncher = GetComponent<SimpleDragLauncher>() ?? FindObjectOfType<SimpleDragLauncher>();
 
         // Initialize starting position (resting position on ramp)
         startPosition = transform.position;
         maxZDistance = 0f; // Start at 0 to measure distance traveled from resting position
         lastZPosition = transform.position.z;
         lastRampZPosition = transform.position.z;
+        
+        // Load best distance from PlayerPrefs
+        bestZDistance = PlayerPrefs.GetFloat("BestZDistance", 0f);
+        Debug.Log($"Loaded best distance: {bestZDistance:F2}m");
         
         // Initialize visual smoothing
         smoothedRotation = transform.rotation;
@@ -184,6 +195,20 @@ public class PlaneController : MonoBehaviour
     {
         detachableParts = GetComponentsInChildren<PlanePartDetach>();
         Debug.Log($"Initialized {detachableParts.Length} detachable parts.");
+    }
+
+    void Update()
+    {
+        if (useJoystickInput && joystick != null)
+        {
+            // Only show joystick if drag launcher has released the plane
+            // If no drag launcher exists, default to showing joystick
+            bool shouldShow = dragLauncher == null || dragLauncher.released;
+            if (joystick.gameObject.activeSelf != shouldShow)
+            {
+                joystick.gameObject.SetActive(shouldShow);
+            }
+        }
     }
 
     void FixedUpdate()
@@ -267,8 +292,11 @@ public class PlaneController : MonoBehaviour
         exitedRamp = true;
     
         Debug.Log("PlaneController.StartControlling() - isControlling set to TRUE");
-        if (useJoystickInput && joystick != null)
-            joystick.gameObject.SetActive(true);
+        // Joystick is already active
+
+        // Turn off auto-leveling for full manual control
+        autoLevelWhenNoInput = false;
+        Debug.Log("Auto-leveling disabled - Full manual control enabled");
 
         // Ensure gravity is on and drag is reset at the start of control
         if(rb != null) 
@@ -707,6 +735,22 @@ public class PlaneController : MonoBehaviour
         else
             Destroy(marker, collisionMarker.markerLifetime);
 
+        // Save to PlayerPrefs if this is a new best distance
+        if (maxZDistance > bestZDistance)
+        {
+            bestZDistance = maxZDistance;
+            PlayerPrefs.SetFloat("BestZDistance", bestZDistance);
+            PlayerPrefs.Save();
+            Debug.Log($"New best distance saved: {bestZDistance:F2}m");
+            
+            // Activate the new high score GameObject
+            if (newHighScoreObject != null)
+            {
+                newHighScoreObject.SetActive(true);
+                Debug.Log("New High Score! GameObject activated.");
+            }
+        }
+        
         // Transition the camera to focus on the marker
         if (cameraFollow != null)
         {

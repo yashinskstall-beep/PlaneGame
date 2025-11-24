@@ -50,7 +50,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private int currentIndex = 0;
     private int clickCount = 0;
     private const int clicksRequired = 5;
-    private float currentCost = 10;
+    private float currentCost = 50;
     private int playerCoins;
  // private AudioSource audioSource;
     private bool isUpgrading = false;
@@ -59,7 +59,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private int launchForceLevel = 1;
     private const int maxLaunchForceLevel = 3;
     private readonly float[] launchForceLevels = { 25f, 30f, 35f };
-    private readonly int[] launchForceCosts = { 700, 1000, 1500 };
+    private readonly int[] launchForceCosts = { 2500, 3000, 3500 };
 
 
     void Start()
@@ -145,7 +145,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         // Progress and cost update
         clickCount++;
-        currentCost *= 1.5f;
+        currentCost *= 2f;
 
         UpdateCoinUI();
         UpdateCostUI();
@@ -308,7 +308,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         if (boostCostText != null)
         {
-            boostCostText.text = "500";
+            boostCostText.text = "2K";
         }
     }
     
@@ -355,7 +355,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (boostEnableBtn != null)
         {
             // Disable button if not enough coins or boosters already active
-            bool canAffordBoost = playerCoins >= 500 && !PlaneBoosters.activeSelf;
+            bool canAffordBoost = playerCoins >= 2000 && !PlaneBoosters.activeSelf;
             boostEnableBtn.interactable = canAffordBoost;
             
             // Show/hide not enough coins UI for boost
@@ -416,7 +416,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         currentIndex = PlayerPrefs.GetInt("Upgrade_CurrentIndex", 0);
         clickCount = PlayerPrefs.GetInt("Upgrade_ClickCount", 0);
-        currentCost = PlayerPrefs.GetFloat("Upgrade_CurrentCost", 10f);
+        currentCost = PlayerPrefs.GetFloat("Upgrade_CurrentCost", 50f);
         playerCoins = PlayerPrefs.GetInt("PlayerCoins", 0);
     }
 
@@ -461,10 +461,10 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         audioManager.btnSFX();
         VibrationManager.Instance.VibrateButtonClick();
         // Check if player has at least 50 coins and boosters not already active
-        if (playerCoins >= 500 && !PlaneBoosters.activeSelf)
+        if (playerCoins >= 2000 && !PlaneBoosters.activeSelf)
         {
             // Deduct 50 coins
-            playerCoins -= 500;
+            playerCoins -= 2000;
             PlayerPrefs.SetInt("PlayerCoins", playerCoins);
             PlayerPrefs.Save();
             

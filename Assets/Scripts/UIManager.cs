@@ -86,6 +86,13 @@ public class UIManager : MonoBehaviour
             return;
         }
         
+        // Disable the new high score GameObject before showing score UI
+        if (planeController != null && planeController.newHighScoreObject != null)
+        {
+            planeController.newHighScoreObject.SetActive(false);
+            Debug.Log("New high score GameObject disabled before score UI");
+        }
+        
         if (distanceText != null && planeController != null)
         {
             distanceText.text = $"Distance: {planeController.maxZDistance:F0}m";
