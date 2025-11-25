@@ -53,7 +53,7 @@ public class CameraManager : MonoBehaviour
     }
 
 
-    public void TransitionToMainMenu()
+    public void TransitionToStartCamPos()
     {
         if ( !inTransition)
         {
@@ -61,6 +61,18 @@ public class CameraManager : MonoBehaviour
             if (startPosition != null)
             {
                 StartCoroutine(TransitionToPosition(startPosition.position, startPosition.rotation, transitionDuration));
+            }
+        }
+    }
+
+    public void TransitionToMainMenuCamPos()
+    {
+        if ( !inTransition)
+        {
+            Debug.Log("Transitioning to main menu position");
+            if (mainMenuPosition != null)
+            {
+                StartCoroutine(TransitionToPosition(mainMenuPosition.position, mainMenuPosition.rotation, transitionDuration));
             }
         }
     }

@@ -7,8 +7,10 @@ using UnityEngine.SceneManagement;
 
 public class UIManager : MonoBehaviour
 {
+    public CameraManager cameraManager;
     public PlaneController planeController;
     public GameObject boostBtn;
+    public Button BackBtn;
     public bool boostBtnActive = false;
     public GameObject boosters;
     public TextMeshProUGUI distanceText;
@@ -21,6 +23,8 @@ public class UIManager : MonoBehaviour
     public GameObject goalScreenUI;
     // public  AudioSource btnAudio;
     public TextMeshProUGUI boostCounterText;
+    public GameObject thisCanvas;
+    public GameObject mainMenuCanvas;
    
     private bool scoreCalculated = false;
     private bool isGoalReached = false;
@@ -173,5 +177,18 @@ public class UIManager : MonoBehaviour
             boostCounterText.text = $"{planeController.boostUsesRemaining}X";
         }
     }
-   
+
+    public void OnBackBtnClick()
+    {
+        StartCoroutine(OnBackBtnClickCoroutine());
+    }
+
+    private IEnumerator OnBackBtnClickCoroutine()
+    {
+        cameraManager.TransitionToMainMenuCamPos();
+        thisCanvas.SetActive(false);
+        yield return new WaitForSeconds(0.1f); // Wait for 2 seconds
+        mainMenuCanvas.SetActive(true);
+    }
+
 }

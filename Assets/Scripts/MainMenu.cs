@@ -18,6 +18,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public TextMeshProUGUI costText;
     public AudioManager audioManager;
     public GameObject taptoplay;
+    public Button BackBtn;
     public Button boostEnableBtn;
     public TextMeshProUGUI boostCostText;
     public GameObject PlaneBoosters;
@@ -109,7 +110,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public void OnPointerClick(PointerEventData eventData)
     {
         Debug.Log("Panel clicked");
-        cameraManager.TransitionToMainMenu();
+        cameraManager.TransitionToStartCamPos();
         //audioManager.audioSource.Stop();
     }
 
