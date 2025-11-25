@@ -24,11 +24,11 @@ public class PlaneController : MonoBehaviour
    // public CameraManager cameraManager;
 
     [Header("Handling Settings")]
-    public float turnSpeed = 3f;
-    public float bankAngle = 30f;
-    public float pitchSpeed = 2f;
-    public float torqueResponseMultiplier = 0.5f;
-    public float angularDragAmount = 0.5f;
+    public float turnSpeed = 8f;
+    public float bankAngle = 45f;
+    public float pitchSpeed = 7f;
+    public float torqueResponseMultiplier = 2.5f;
+    public float angularDragAmount = 0.3f;
 
     [Header("Input Settings")]
     public bool useKeyboardInput = true;
@@ -82,8 +82,8 @@ public class PlaneController : MonoBehaviour
     public float markerYOffset = 0.5f;
 
     [Header("Smoothing Settings")]
-    public float inputSmoothness = 4f;
-    public float torqueSmoothness = 3f;
+    public float inputSmoothness = 25f;
+    public float torqueSmoothness = 18f;
     [Tooltip("Visual rotation smoothing to hide wobbling. Higher = smoother but less responsive.")]
     public float visualRotationSmoothing = 8f;
 
