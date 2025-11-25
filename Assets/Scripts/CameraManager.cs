@@ -53,26 +53,26 @@ public class CameraManager : MonoBehaviour
     }
 
 
-    public void TransitionToStartCamPos()
+    public void TransitionToStartCamPos(System.Action onComplete = null)
     {
-        if ( !inTransition)
+        if (!inTransition)
         {
             Debug.Log("Transitioning to start position");
             if (startPosition != null)
             {
-                StartCoroutine(TransitionToPosition(startPosition.position, startPosition.rotation, transitionDuration));
+                StartCoroutine(TransitionToPosition(startPosition.position, startPosition.rotation, transitionDuration, onComplete));
             }
         }
     }
 
-    public void TransitionToMainMenuCamPos()
+    public void TransitionToMainMenuCamPos(System.Action onComplete = null)
     {
-        if ( !inTransition)
+        if (!inTransition)
         {
             Debug.Log("Transitioning to main menu position");
             if (mainMenuPosition != null)
             {
-                StartCoroutine(TransitionToPosition(mainMenuPosition.position, mainMenuPosition.rotation, transitionDuration));
+                StartCoroutine(TransitionToPosition(mainMenuPosition.position, mainMenuPosition.rotation, transitionDuration, onComplete));
             }
         }
     }
@@ -107,7 +107,7 @@ public class CameraManager : MonoBehaviour
         inTransition = false;
     }
 
-    IEnumerator TransitionToPosition(Vector3 targetPosition, Quaternion targetRotation, float duration)
+    IEnumerator TransitionToPosition(Vector3 targetPosition, Quaternion targetRotation, float duration, System.Action onComplete = null)
     {
         inTransition = true;
         float time = 0;
@@ -117,10 +117,7 @@ public class CameraManager : MonoBehaviour
 
         while (time < duration)
         {
-            // Calculate the interpolation factor (0 to 1)
             float t = time / duration;
-
-            // Apply a smooth step curve for ease-in and ease-out
             t = Mathf.SmoothStep(0f, 1f, t);
 
             mainCamera.transform.position = Vector3.Lerp(startingPos, targetPosition, t);
@@ -133,6 +130,9 @@ public class CameraManager : MonoBehaviour
         mainCamera.transform.position = targetPosition;
         mainCamera.transform.rotation = targetRotation;
         inTransition = false;
+
+        // Invoke the callback if it exists
+        onComplete?.Invoke();
     }
 
     IEnumerator ResetAtStartFlag()

@@ -180,15 +180,22 @@ public class UIManager : MonoBehaviour
 
     public void OnBackBtnClick()
     {
-        StartCoroutine(OnBackBtnClickCoroutine());
-    }
-
-    private IEnumerator OnBackBtnClickCoroutine()
-    {
-        cameraManager.TransitionToMainMenuCamPos();
+        // Hide the current canvas immediately
         thisCanvas.SetActive(false);
-        yield return new WaitForSeconds(0.1f); // Wait for 2 seconds
-        mainMenuCanvas.SetActive(true);
+
+        // Start the transition and provide a callback to enable the main menu canvas when it's done
+        cameraManager.TransitionToMainMenuCamPos(() =>
+        {
+            if (mainMenuCanvas != null)
+            {
+                mainMenuCanvas.SetActive(true);
+                Debug.Log("Main Menu Canvas enabled via callback.");
+            }
+            else
+            {
+                Debug.LogError("mainMenuCanvas is not assigned in the UIManager inspector!");
+            }
+        });
     }
 
 }
