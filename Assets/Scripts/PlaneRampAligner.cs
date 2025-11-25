@@ -126,13 +126,20 @@ public class PlaneRampAligner : MonoBehaviour
             isAligning = false;
             
             // Restore the original rotation when leaving the ramp
-            StartCoroutine(SmoothlyRestoreRotation());
+            // StartCoroutine(SmoothlyRestoreRotation()); // DISABLED: Don't restore original rotation
             
             // Notify the PlaneController that we've exited a ramp
             PlaneController planeController = plane.GetComponent<PlaneController>();
             if (planeController != null)
             {
                 planeController.ForceControl();
+                
+                // Enable joystick controls if joystick input is enabled
+                if (planeController.useJoystickInput && planeController.joystick != null)
+                {
+                    planeController.joystick.gameObject.SetActive(true);
+                    Debug.Log("Joystick enabled on ramp exit");
+                }
             }
             gameObject.layer = LayerMask.NameToLayer("Ignore Raycast"); // this is a fix for taking input on flight mode
             Debug.Log("Raycast ignored");
