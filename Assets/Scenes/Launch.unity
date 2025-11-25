@@ -3590,7 +3590,7 @@ GameObject:
   m_Component:
   - component: {fileID: 612690085}
   m_Layer: 0
-  m_Name: NewStartPos
+  m_Name: CamStartPos
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5854,37 +5854,6 @@ MonoBehaviour:
   m_EffectColor: {r: 0, g: 0, b: 0, a: 0.61960787}
   m_EffectDistance: {x: 1.18, y: -1}
   m_UseGraphicAlpha: 1
---- !u!1 &946783998
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 946783999}
-  m_Layer: 0
-  m_Name: StartPosition
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &946783999
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 946783998}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0.1943199, y: -0, z: -0, w: 0.98093826}
-  m_LocalPosition: {x: 8.16, y: 1.6, z: -15.11}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &965345706
 GameObject:
   m_ObjectHideFlags: 0
@@ -7786,7 +7755,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1213607227}
   m_Layer: 0
-  m_Name: TailPos
+  m_Name: TailCamPos
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -8000,7 +7969,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1269304030}
   m_Layer: 0
-  m_Name: RightWingPos
+  m_Name: RightWingCamPos
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -10404,7 +10373,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1623213802}
   m_Layer: 0
-  m_Name: MainmenuPosition
+  m_Name: MainmenuCamPos
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -10435,7 +10404,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1637417778}
   m_Layer: 0
-  m_Name: LeftWingPos
+  m_Name: LeftWingCamPos
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -22842,7 +22811,6 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 549470090}
-  - {fileID: 946783999}
   - {fileID: 1623213802}
   - {fileID: 1269304030}
   - {fileID: 1637417778}
