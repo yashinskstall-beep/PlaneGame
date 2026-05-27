@@ -18,6 +18,7 @@ public class UIManager : MonoBehaviour
     public TextMeshProUGUI titleText;
     public GameObject ScoreUIScreen;
     public SimpleCameraFollow cameraFollow;
+    public SimpleDragLauncher dragLauncher;
     public AudioManager audioManager;
     //public GameObject pointB;
     public GameObject goalScreenUI;
@@ -25,7 +26,8 @@ public class UIManager : MonoBehaviour
     public TextMeshProUGUI boostCounterText;
     public GameObject thisCanvas;
     public GameObject mainMenuCanvas;
-   
+    [SerializeField] private int desertLevelIndex = 1;
+
     private bool scoreCalculated = false;
     private bool isGoalReached = false;
 
@@ -43,13 +45,18 @@ public class UIManager : MonoBehaviour
         if (cameraFollow == null)
             Debug.LogWarning("SimpleCameraFollow component not found. Score UI may not work correctly.");
 
-        // Initialize boost counter display
+        if (dragLauncher == null)
+            dragLauncher = FindObjectOfType<SimpleDragLauncher>();
+
+        UpdateBackButton();
         UpdateBoostCounter();
         boostBtn.SetActive(false);
     }
     
     void Update()
     {
+        UpdateBackButton();
+
         if (planeController == null || boosters == null || boostBtn == null) return;
 
         // Check if boost uses are depleted
@@ -123,23 +130,46 @@ public class UIManager : MonoBehaviour
 
     public void RestartGame()
     {
-        //btnAudio.Play();
         audioManager.btnSFX();
         VibrationManager.Instance.VibrateButtonClick();
-        Invoke("loadCurrentScene", 0.5f);
 
+        if (isGoalReached)
+            Invoke(nameof(ShowLevelsPanel), 0.5f);
+        else
+            Invoke(nameof(LoadCurrentScene), 0.5f);
     }
-    
-    private void loadCurrentScene()
+
+    private void LoadCurrentScene()
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
+    private void ShowLevelsPanel()
+    {
+        if (ScoreUIScreen != null)
+            ScoreUIScreen.SetActive(false);
+
+        if (thisCanvas != null)
+            thisCanvas.SetActive(false);
+
+        if (mainMenuCanvas != null)
+            mainMenuCanvas.SetActive(true);
+
+        var mainMenu = FindObjectOfType<MainMenu>();
+        if (mainMenu != null)
+            mainMenu.SetLevelsPanelOpen(true);
+    }
+
     public void GoalScreen()
     {
-       isGoalReached = true;
+        isGoalReached = true;
+        LevelsUI.UnlockLevel(desertLevelIndex);
+        Invoke(nameof(ScoreUI), 2f);
+    }
 
-       Invoke("ScoreUI", 2f); 
+    public void ResetGoalReached()
+    {
+        isGoalReached = false;
     }
 
     private IEnumerator AnimateCoinCounter(int targetCoins)
@@ -178,23 +208,47 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    private void UpdateBackButton()
+    {
+        if (BackBtn == null || dragLauncher == null)
+            return;
+
+        bool showBack = !dragLauncher.IsDragging && !dragLauncher.released;
+        if (BackBtn.gameObject.activeSelf != showBack)
+            BackBtn.gameObject.SetActive(showBack);
+    }
+
+    public void OnGameplayStarted()
+    {
+        scoreCalculated = false;
+
+        if (ScoreUIScreen != null)
+            ScoreUIScreen.SetActive(false);
+
+        if (mainMenuCanvas != null)
+            mainMenuCanvas.SetActive(false);
+
+        if (thisCanvas != null)
+            thisCanvas.SetActive(true);
+
+        if (dragLauncher != null)
+            dragLauncher.ResetForNewLaunch();
+
+        UpdateBoostCounter();
+        UpdateBackButton();
+    }
+
     public void OnBackBtnClick()
     {
-        // Hide the current canvas immediately
-        thisCanvas.SetActive(false);
+        if (thisCanvas != null)
+            thisCanvas.SetActive(false);
 
-        // Start the transition and provide a callback to enable the main menu canvas when it's done
         cameraManager.TransitionToMainMenuCamPos(() =>
         {
             if (mainMenuCanvas != null)
-            {
                 mainMenuCanvas.SetActive(true);
-                Debug.Log("Main Menu Canvas enabled via callback.");
-            }
             else
-            {
                 Debug.LogError("mainMenuCanvas is not assigned in the UIManager inspector!");
-            }
         });
     }
 

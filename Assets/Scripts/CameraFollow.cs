@@ -43,6 +43,20 @@ public class SimpleCameraFollow : MonoBehaviour
     public float markerZoomOutDistance = 15f;          // How far to zoom out when viewing marker
     public Vector3 markerCameraOffset = new Vector3(0f, 10f, -12f); // Camera offset when viewing marker
     
+    public void ResetForMenu()
+    {
+        if (airplaneTarget != null)
+            target = airplaneTarget;
+
+        markerSpawned = false;
+        isTransitioningToMarker = false;
+        isPositionFrozen = false;
+        isCameraZoomedOut = false;
+        hasStartedFollowing = false;
+        hasFrozenCamera = false;
+        isPlaneControlling = false;
+    }
+
     void Start()
     {
         // Start by following the airplane

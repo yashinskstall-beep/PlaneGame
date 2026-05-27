@@ -25,56 +25,52 @@ public class CameraManager : MonoBehaviour
         airPlane.gameObject.GetComponent<Collider>().enabled = false;
     }
 
-    void Update()
-    {
-        if (!gameStarted && transform.position == startPosition.position)
-        {
-            gameStarted = true;
-            Atstart = true; // Set for any other script that might need it for one frame.
-            GUIcanvas.SetActive(true);
-            airPlane.gameObject.GetComponent<Collider>().enabled = true;
-            Debug.Log("Game started, plane collider enabled.");
-
-            // Initialize detachable parts now that the plane is fully set up
-            PlaneController planeController = airPlane.GetComponent<PlaneController>();
-            if (planeController != null)
-            {
-                planeController.InitializeDetachableParts();
-            }
-            else
-            {
-                Debug.LogWarning("PlaneController not found on airplane object!");
-            }
-
-            StartCoroutine(ResetAtStartFlag());
-        }
-
-        
-    }
-
-
     public void TransitionToStartCamPos(System.Action onComplete = null)
     {
-        if (!inTransition)
+        if (inTransition || startPosition == null)
+            return;
+
+        Debug.Log("Transitioning to start position");
+        StartCoroutine(TransitionToPosition(startPosition.position, startPosition.rotation, transitionDuration, () =>
         {
-            Debug.Log("Transitioning to start position");
-            if (startPosition != null)
-            {
-                StartCoroutine(TransitionToPosition(startPosition.position, startPosition.rotation, transitionDuration, onComplete));
-            }
-        }
+            BeginGameplay();
+            onComplete?.Invoke();
+        }));
     }
 
     public void TransitionToMainMenuCamPos(System.Action onComplete = null)
     {
-        if (!inTransition)
-        {
-            Debug.Log("Transitioning to main menu position");
-            if (mainMenuPosition != null)
-            {
-                StartCoroutine(TransitionToPosition(mainMenuPosition.position, mainMenuPosition.rotation, transitionDuration, onComplete));
-            }
-        }
+        if (inTransition || mainMenuPosition == null)
+            return;
+
+        gameStarted = false;
+        Debug.Log("Transitioning to main menu position");
+        StartCoroutine(TransitionToPosition(mainMenuPosition.position, mainMenuPosition.rotation, transitionDuration, onComplete));
+    }
+
+    private void BeginGameplay()
+    {
+        gameStarted = true;
+        Atstart = true;
+
+        if (GUIcanvas != null)
+            GUIcanvas.SetActive(true);
+
+        if (airPlane != null)
+            airPlane.GetComponent<Collider>().enabled = true;
+
+        PlaneController planeController = airPlane != null ? airPlane.GetComponent<PlaneController>() : null;
+        if (planeController != null)
+            planeController.InitializeDetachableParts();
+        else
+            Debug.LogWarning("PlaneController not found on airplane object!");
+
+        UIManager uiManager = FindObjectOfType<UIManager>();
+        if (uiManager != null)
+            uiManager.OnGameplayStarted();
+
+        Debug.Log("Gameplay started, in-game UI enabled.");
+        StartCoroutine(ResetAtStartFlag());
     }
 
     public IEnumerator TransitionToTarget(Transform target, float duration)

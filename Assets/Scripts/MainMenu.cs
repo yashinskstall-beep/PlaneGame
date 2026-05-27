@@ -32,6 +32,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public SimpleDragLauncher dragLauncher;
     public GameObject boostactive;
     public GameObject SettingTab;
+    public GameObject levelsPanel;
+    public LevelsUI levelsUI;
+    public Button levelBtn;
 
     [Header("Camera Focus Points")]
     public Transform leftWingFocusPoint;
@@ -558,5 +561,42 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         SettingTab.SetActive(true);
     }
        
+    public void LevelBtn()
+    {
+        audioManager.btnSFX();
+        VibrationManager.Instance.VibrateButtonClick();
+        SetLevelsPanelOpen(true);
+    }
+
+    public void CloseLevelsPanel()
+    {
+        SetLevelsPanelOpen(false);
+    }
+
+    public void SetLevelsPanelOpen(bool open)
+    {
+        if (levelsPanel == null)
+            return;
+
+        levelsPanel.SetActive(open);
+
+        if (open)
+        {
+            levelsPanel.transform.SetAsLastSibling();
+
+            if (levelsUI != null)
+                levelsUI.RefreshAllButtons();
+        }
+
+        UpdateLevelBtnState(open);
+    }
+
+    private void UpdateLevelBtnState(bool levelsPanelOpen)
+    {
+        if (levelBtn == null)
+            return;
+
+        levelBtn.gameObject.SetActive(!levelsPanelOpen);
+    }
 }
 

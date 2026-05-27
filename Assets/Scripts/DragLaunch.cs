@@ -20,6 +20,7 @@ public class SimpleDragLauncher : MonoBehaviour
 
     private Rigidbody cubeRb;
     private bool isDragging = false;
+    public bool IsDragging => isDragging;
     private Vector3 dragStartPos;
     private bool isLifting = false;
     private float liftStartTime = 0f;
@@ -27,6 +28,13 @@ public class SimpleDragLauncher : MonoBehaviour
 
     public bool released = false;
     private Vector3 launchDir;
+
+    public void ResetForNewLaunch()
+    {
+        released = false;
+        isDragging = false;
+        isLifting = false;
+    }
 
     [Header("Rubber SFX")]
     public AudioSource rubberSource;      // assign in inspector (or it will try to GetComponent)
