@@ -11,7 +11,7 @@ public class SettingsManager : MonoBehaviour
     [SerializeField] private AudioManager audioManager;
 
     [Header("Setting Tab")]
-    [SerializeField] private GameObject SettingTab;
+    [SerializeField] private GameObject SettingsPanel;
     
     [Header("UI Switcher Toggles")]
     [SerializeField] private GameObject audioToggleObject;
@@ -266,6 +266,6 @@ public class SettingsManager : MonoBehaviour
     public void Close(){
         VibrationManager.Instance.VibrateButtonClick();
         audioManager.btnSFX();
-       SettingTab.SetActive(false);
+       SettingsPanel.SetActive(false);
     }
 }
