@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 0
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 2100000, guid: 59573b088aaea0442bf29e0a0e9d1339, type: 2}
+  m_SkyboxMaterial: {fileID: 2100000, guid: 12ccb828343c3405fb94289774b51aad, type: 2}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -2457,7 +2457,7 @@ GameObject:
   - component: {fileID: 347077530}
   - component: {fileID: 347077529}
   m_Layer: 5
-  m_Name: LevelsBtn
+  m_Name: LevelsButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2470,20 +2470,20 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 347077527}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1054871852}
   - {fileID: 803831440}
-  m_Father: {fileID: 1125030174}
+  m_Father: {fileID: 975694240}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 734}
+  m_AnchorMin: {x: 0.5, y: 1}
+  m_AnchorMax: {x: 0.5, y: 1}
+  m_AnchoredPosition: {x: 35, y: -240}
   m_SizeDelta: {x: 500, y: 150}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &347077529
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5534,6 +5534,11 @@ PrefabInstance:
       propertyPath: m_ReflectionProbeUsage
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 9209956919767573928, guid: ce69694b318a60e43991f6da830a6da9,
+        type: 3}
+      propertyPath: m_CastShadows
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -5859,7 +5864,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -174, y: -120}
+  m_AnchoredPosition: {x: -125, y: -312.5}
   m_SizeDelta: {x: 209.5, y: 86.3}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &713169839
@@ -8164,9 +8169,10 @@ RectTransform:
   m_Children:
   - {fileID: 2006096941}
   - {fileID: 1017280586}
+  - {fileID: 347077528}
   - {fileID: 1926069589}
-  - {fileID: 1619088406}
   - {fileID: 1422472995}
+  - {fileID: 1619088406}
   - {fileID: 713169838}
   m_Father: {fileID: 1125030174}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -9388,7 +9394,6 @@ RectTransform:
   - {fileID: 975694240}
   - {fileID: 453956033}
   - {fileID: 1385202065}
-  - {fileID: 347077528}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -11504,7 +11509,7 @@ GameObject:
   - component: {fileID: 1422472997}
   - component: {fileID: 1422472996}
   m_Layer: 5
-  m_Name: BuyBoostBtn
+  m_Name: BuyBoostButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -11532,7 +11537,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: 389.7142, y: 1028.0834}
+  m_AnchoredPosition: {x: 390, y: 1130}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1422472996
@@ -15892,7 +15897,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -116, y: -281}
+  m_AnchoredPosition: {x: -135, y: -115}
   m_SizeDelta: {x: 50, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2006096942
