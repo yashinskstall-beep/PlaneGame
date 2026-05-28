@@ -69,8 +69,19 @@ public class DragRotationHandler : MonoBehaviour
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
     }
     
+    public void ResetToRestPose()
+    {
+        isDragging = false;
+        dragVector = Vector3.zero;
+        transform.rotation = initialRotation;
+        targetRotation = initialRotation;
+    }
+
     void CheckDragging()
     {
+        if (dragLauncher != null && !dragLauncher.DragEnabled)
+            return;
+
         // Start dragging when mouse button is pressed down
         if (Input.GetMouseButtonDown(0))
         {

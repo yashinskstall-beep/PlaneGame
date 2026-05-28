@@ -28,12 +28,53 @@ public class SimpleDragLauncher : MonoBehaviour
 
     public bool released = false;
     private Vector3 launchDir;
+    private bool dragEnabled;
+
+    public bool DragEnabled => dragEnabled;
+
+    public void SetDragEnabled(bool enabled)
+    {
+        dragEnabled = enabled;
+        if (!enabled)
+            ResetToRestingState();
+    }
 
     public void ResetForNewLaunch()
     {
+        ResetToRestingState();
+    }
+
+    public void ResetToRestingState()
+    {
+        StopAllCoroutines();
+        rubberFadeCoroutine = null;
+
         released = false;
         isDragging = false;
         isLifting = false;
+
+        if (rubberSource != null && rubberSource.isPlaying)
+            rubberSource.Stop();
+
+        if (cubeRb != null)
+        {
+            cubeRb.velocity = Vector3.zero;
+            cubeRb.angularVelocity = Vector3.zero;
+            cubeRb.isKinematic = true;
+            cubeRb.useGravity = false;
+        }
+
+        if (cube != null && restingPoint != null)
+        {
+            cube.position = restingPoint.position;
+            cube.rotation = restingPoint.rotation;
+        }
+
+        if (lineRenderer != null)
+            lineRenderer.enabled = true;
+
+        if (rotationHandler != null)
+            rotationHandler.ResetToRestPose();
     }
 
     [Header("Rubber SFX")]
@@ -82,7 +123,9 @@ public class SimpleDragLauncher : MonoBehaviour
 
     void Update()
     {
-        if (released == true) return;
+        if (!dragEnabled || released)
+            return;
+
         HandleInput();
     }
 

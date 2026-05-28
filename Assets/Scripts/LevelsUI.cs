@@ -74,8 +74,17 @@ public class LevelsUI : MonoBehaviour
         if (!GetVisualState(index))
             return;
 
+        if (IsActiveLevel(index))
+        {
+            if (mainMenu != null)
+                mainMenu.CloseLevelsPanel();
+
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+            return;
+        }
+
         string scene = levels[index].sceneName;
-        if (!string.IsNullOrEmpty(scene) && scene != SceneManager.GetActiveScene().name)
+        if (!string.IsNullOrEmpty(scene))
         {
             LevelProgress.ResetGameplayProgress();
             SceneManager.LoadScene(scene);
@@ -84,10 +93,34 @@ public class LevelsUI : MonoBehaviour
 
         if (mainMenu != null)
             mainMenu.CloseLevelsPanel();
+    }
 
-        var uiManager = FindObjectOfType<UIManager>();
-        if (uiManager != null)
-            uiManager.ResetGoalReached();
+    private bool IsActiveLevel(int index)
+    {
+        return index == GetActiveLevelIndex();
+    }
+
+    private int GetActiveLevelIndex()
+    {
+        if (levels == null || levels.Length == 0)
+            return -1;
+
+        string activeScene = SceneManager.GetActiveScene().name;
+
+        for (int i = 0; i < levels.Length; i++)
+        {
+            string scene = levels[i].sceneName;
+            if (!string.IsNullOrEmpty(scene) && scene == activeScene)
+                return i;
+        }
+
+        for (int i = 0; i < levels.Length; i++)
+        {
+            if (string.IsNullOrEmpty(levels[i].sceneName) && GetVisualState(i))
+                return i;
+        }
+
+        return 0;
     }
 
     private void Update()

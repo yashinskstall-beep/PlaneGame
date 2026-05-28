@@ -44,8 +44,30 @@ public class CameraManager : MonoBehaviour
             return;
 
         gameStarted = false;
+        EndGameplay();
         Debug.Log("Transitioning to main menu position");
         StartCoroutine(TransitionToPosition(mainMenuPosition.position, mainMenuPosition.rotation, transitionDuration, onComplete));
+    }
+
+    private void EndGameplay()
+    {
+        if (airPlane == null)
+            return;
+
+        Collider col = airPlane.GetComponent<Collider>();
+        if (col != null)
+            col.enabled = false;
+
+        PlaneController planeController = airPlane.GetComponent<PlaneController>();
+        if (planeController != null)
+            planeController.StopControlling();
+
+        SimpleDragLauncher launcher = airPlane.GetComponent<SimpleDragLauncher>();
+        if (launcher == null)
+            launcher = airPlane.GetComponentInChildren<SimpleDragLauncher>();
+
+        if (launcher != null)
+            launcher.SetDragEnabled(false);
     }
 
     private void BeginGameplay()
@@ -58,6 +80,16 @@ public class CameraManager : MonoBehaviour
 
         if (airPlane != null)
             airPlane.GetComponent<Collider>().enabled = true;
+
+        SimpleDragLauncher launcher = airPlane != null ? airPlane.GetComponent<SimpleDragLauncher>() : null;
+        if (launcher == null && airPlane != null)
+            launcher = airPlane.GetComponentInChildren<SimpleDragLauncher>();
+
+        if (launcher != null)
+        {
+            launcher.SetDragEnabled(true);
+            launcher.ResetForNewLaunch();
+        }
 
         PlaneController planeController = airPlane != null ? airPlane.GetComponent<PlaneController>() : null;
         if (planeController != null)
