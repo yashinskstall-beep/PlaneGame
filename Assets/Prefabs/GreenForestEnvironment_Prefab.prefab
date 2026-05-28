@@ -1517,10 +1517,20 @@ PrefabInstance:
       propertyPath: m_Name
       value: Shed
       objectReference: {fileID: 0}
+    - target: {fileID: 6298187990740721375, guid: 5825444005fbaee49a95224e4642df67,
+        type: 3}
+      propertyPath: m_CastShadows
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7686870649418887661, guid: 5825444005fbaee49a95224e4642df67,
         type: 3}
       propertyPath: m_TagString
       value: Shed ground
+      objectReference: {fileID: 0}
+    - target: {fileID: 7774490415974321862, guid: 5825444005fbaee49a95224e4642df67,
+        type: 3}
+      propertyPath: m_StaticShadowCaster
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7851510744923847317, guid: 5825444005fbaee49a95224e4642df67,
         type: 3}
@@ -1600,6 +1610,11 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 7787651965624405672}
     m_Modifications:
+    - target: {fileID: 176489772267622899, guid: a2a09cc716e88d444af0a5e2b703e95e,
+        type: 3}
+      propertyPath: m_CastShadows
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1312843683801836188, guid: a2a09cc716e88d444af0a5e2b703e95e,
         type: 3}
       propertyPath: m_LocalScale.y
@@ -1664,6 +1679,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: SmallRamp
+      objectReference: {fileID: 0}
+    - target: {fileID: 1834083197712855078, guid: a2a09cc716e88d444af0a5e2b703e95e,
+        type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
