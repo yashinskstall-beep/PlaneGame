@@ -41,6 +41,12 @@ public class CoinManager : MonoBehaviour
         return coins;
     }
 
+    public float GetCoinMultiplier()
+    {
+        int level = PlayerPrefs.GetInt("CoinMultiplierLevel", 1);
+        return 1f + (level - 1) * 0.1f;
+    }
+
     private void SaveCoins()
     {
         PlayerPrefs.SetInt("PlayerCoins", coins);

@@ -29,6 +29,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public TextMeshProUGUI launchForceCostText;
     public TextMeshProUGUI launchForceLevelText;
     public Slider launchForceSlider;
+    [Header("Coin Multiplier Upgrade")]
+    public Button increaseCoinMultiplierBtn;
+    public TextMeshProUGUI coinMultiplierCostText;
+    public TextMeshProUGUI coinMultiplierLevelText;
+    public Slider coinMultiplierSlider;
+    public GameObject notEnoughCoinsC;
     public SimpleDragLauncher dragLauncher;
     public GameObject boostactive;
     public GameObject SettingTab;
@@ -65,6 +71,11 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private readonly float[] launchForceLevels = { 25f, 30f, 35f };
     private readonly int[] launchForceCosts = { 700, 1000, 1500 };
 
+    private int coinMultiplierLevel = 1;
+    private const int maxCoinMultiplierLevel = 11;
+    private const float coinMultiplierStep = 0.1f;
+    private readonly int[] coinMultiplierCosts = { 600, 900, 1200, 1800, 2500, 3500, 5000, 7000, 10000, 15000, 20000 };
+
 
     void Start()
     {
@@ -94,6 +105,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         // Load launch force level
         LoadLaunchForceLevel();
+        LoadCoinMultiplierLevel();
         
         // Update UI
         UpdateCoinUI();
@@ -106,6 +118,10 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateLaunchForceLevelUI();
         UpdateLaunchForceSliderUI();
         UpdateIncreaseLaunchForceButtonInteractable();
+        UpdateCoinMultiplierCostUI();
+        UpdateCoinMultiplierLevelUI();
+        UpdateCoinMultiplierSliderUI();
+        UpdateIncreaseCoinMultiplierButtonInteractable();
 
         Debug.Log("Launch force multiplier: " + dragLauncher.launchForceMultiplier);
     }
@@ -156,6 +172,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateSliderUI();
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
+        UpdateIncreaseCoinMultiplierButtonInteractable();
 
         // Activate part if complete
         if (clickCount >= clicksRequired)
@@ -179,8 +196,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             boostEnableBtn.gameObject.SetActive(false);
         upgradeButton.gameObject.SetActive(false);
         increaseLaunchForceBtn.gameObject.SetActive(false);
+        if (increaseCoinMultiplierBtn != null)
+            increaseCoinMultiplierBtn.gameObject.SetActive(false);
         notEnoughCoinsB.SetActive(false);
         notEnoughCoinsS.SetActive(false);
+        if (notEnoughCoinsC != null)
+            notEnoughCoinsC.SetActive(false);
         
 
         // Step 1: Transition camera to the part
@@ -240,6 +261,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             boostEnableBtn.gameObject.SetActive(true);
         upgradeButton.gameObject.SetActive(true);
         increaseLaunchForceBtn.gameObject.SetActive(true);
+        if (increaseCoinMultiplierBtn != null)
+            increaseCoinMultiplierBtn.gameObject.SetActive(true);
         // If all parts are now active → show MAX
         if (currentIndex >= parts.Count)
         {
@@ -250,6 +273,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
+        UpdateIncreaseCoinMultiplierButtonInteractable();
         isUpgrading = false;
     }
 
@@ -394,6 +418,62 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
     }
 
+    private float GetCoinMultiplierValue()
+    {
+        return 1f + (coinMultiplierLevel - 1) * coinMultiplierStep;
+    }
+
+    private void UpdateCoinMultiplierCostUI()
+    {
+        if (coinMultiplierCostText == null)
+            return;
+
+        if (coinMultiplierLevel >= maxCoinMultiplierLevel)
+            coinMultiplierCostText.text = "MAX";
+        else
+            coinMultiplierCostText.text = coinMultiplierCosts[coinMultiplierLevel - 1].ToString();
+    }
+
+    private void UpdateCoinMultiplierLevelUI()
+    {
+        if (coinMultiplierLevelText != null)
+            coinMultiplierLevelText.text = $"{GetCoinMultiplierValue():0.#}x";
+    }
+
+    private void UpdateCoinMultiplierSliderUI()
+    {
+        if (coinMultiplierSlider == null)
+            return;
+
+        coinMultiplierSlider.minValue = 0;
+        coinMultiplierSlider.maxValue = 1;
+
+        if (maxCoinMultiplierLevel > 1)
+            coinMultiplierSlider.value = (float)(coinMultiplierLevel - 1) / (maxCoinMultiplierLevel - 1);
+        else
+            coinMultiplierSlider.value = 1f;
+    }
+
+    private void UpdateIncreaseCoinMultiplierButtonInteractable()
+    {
+        if (increaseCoinMultiplierBtn == null)
+            return;
+
+        bool isMaxLevel = coinMultiplierLevel >= maxCoinMultiplierLevel;
+        bool canAfford = false;
+
+        if (!isMaxLevel)
+        {
+            int cost = coinMultiplierCosts[coinMultiplierLevel - 1];
+            canAfford = playerCoins >= cost;
+        }
+
+        increaseCoinMultiplierBtn.interactable = canAfford;
+
+        if (notEnoughCoinsC != null)
+            notEnoughCoinsC.SetActive(!canAfford && !isMaxLevel);
+    }
+
     public void CheatCoins()
     {
         playerCoins += 1000000;
@@ -401,6 +481,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
+        UpdateIncreaseCoinMultiplierButtonInteractable();
     }
 
     // -----------------------------
@@ -484,6 +565,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             UpdateBoostButtonInteractable();
             UpdateButtonInteractable();
             UpdateIncreaseLaunchForceButtonInteractable();
+            UpdateIncreaseCoinMultiplierButtonInteractable();
             
             Debug.Log("Boosters enabled! 50 coins deducted.");
         }
@@ -545,6 +627,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             UpdateIncreaseLaunchForceButtonInteractable();
             UpdateButtonInteractable();
             UpdateBoostButtonInteractable();
+            UpdateIncreaseCoinMultiplierButtonInteractable();
 
             Debug.Log($"Launch force upgraded to Level {launchForceLevel}! Force: {dragLauncher.launchForceMultiplier}");
         }
@@ -552,6 +635,51 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         {
             Debug.Log("Not enough coins!");
         }
+    }
+
+    private void LoadCoinMultiplierLevel()
+    {
+        coinMultiplierLevel = PlayerPrefs.GetInt("CoinMultiplierLevel", 1);
+        coinMultiplierLevel = Mathf.Clamp(coinMultiplierLevel, 1, maxCoinMultiplierLevel);
+    }
+
+    public void IncreaseCoinMultiplier()
+    {
+        audioManager.btnSFX();
+        VibrationManager.Instance.VibrateButtonClick();
+
+        if (coinMultiplierLevel >= maxCoinMultiplierLevel)
+        {
+            Debug.Log("Coin multiplier already at max level!");
+            return;
+        }
+
+        int cost = coinMultiplierCosts[coinMultiplierLevel - 1];
+        if (playerCoins < cost)
+        {
+            Debug.Log("Not enough coins!");
+            return;
+        }
+
+        playerCoins -= cost;
+        PlayerPrefs.SetInt("PlayerCoins", playerCoins);
+        PlayerPrefs.Save();
+        UpdateCoinUI();
+
+        coinMultiplierLevel++;
+        PlayerPrefs.SetInt("CoinMultiplierLevel", coinMultiplierLevel);
+        PlayerPrefs.SetFloat("CoinMultiplier", GetCoinMultiplierValue());
+        PlayerPrefs.Save();
+
+        UpdateCoinMultiplierCostUI();
+        UpdateCoinMultiplierLevelUI();
+        UpdateCoinMultiplierSliderUI();
+        UpdateIncreaseCoinMultiplierButtonInteractable();
+        UpdateButtonInteractable();
+        UpdateBoostButtonInteractable();
+        UpdateIncreaseLaunchForceButtonInteractable();
+
+        Debug.Log($"Coin multiplier upgraded to {GetCoinMultiplierValue():0.#}x (level {coinMultiplierLevel})");
     }
 
     public void SettingBtn(){

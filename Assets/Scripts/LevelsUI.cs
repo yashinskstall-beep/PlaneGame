@@ -51,6 +51,8 @@ public class LevelsUI : MonoBehaviour
     {
         if (mainMenu == null)
             mainMenu = FindObjectOfType<MainMenu>();
+
+        RefreshAllButtons();
     }
 
     private void SetupButtonListeners()
@@ -184,6 +186,27 @@ public class LevelsUI : MonoBehaviour
         return PlayerPrefs.GetInt(UnlockedKeyPrefix + index, 0) == 1;
     }
 
+    private TextMeshProUGUI ResolveNameText(LevelButtonData data)
+    {
+        if (data.nameText != null)
+            return data.nameText;
+
+        if (data.button == null)
+            return null;
+
+        Transform nameTransform = data.button.transform.Find("Name");
+        if (nameTransform != null)
+            return nameTransform.GetComponent<TextMeshProUGUI>();
+
+        foreach (var tmp in data.button.GetComponentsInChildren<TextMeshProUGUI>(true))
+        {
+            if (tmp != data.speedText)
+                return tmp;
+        }
+
+        return null;
+    }
+
     private void ApplyVisuals(LevelButtonData data, bool unlocked)
     {
         if (data.button == null)
@@ -193,11 +216,12 @@ public class LevelsUI : MonoBehaviour
         if (background != null)
             background.sprite = unlocked ? unlockedButtonSprite : lockedButtonSprite;
 
-        if (data.nameText != null)
+        TextMeshProUGUI nameLabel = ResolveNameText(data);
+        if (nameLabel != null)
         {
-            data.nameText.gameObject.SetActive(unlocked);
+            nameLabel.gameObject.SetActive(unlocked);
             if (unlocked)
-                data.nameText.text = data.displayName;
+                nameLabel.text = data.displayName;
         }
 
         if (data.speedText != null)

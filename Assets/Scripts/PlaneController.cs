@@ -88,9 +88,10 @@ public class PlaneController : MonoBehaviour
     public float visualRotationSmoothing = 8f;
 
     [Header("Boost Settings")]
-    public float boostAmount = 10f;
-    public float boostDuration = 1.5f;
-    public float returnToNormalSpeed = 2f;
+    [Tooltip("Speed increase as a fraction of current speed (0.3 = +30%).")]
+    public float boostSpeedMultiplier = 0.3f;
+    [Tooltip("How long the boosted speed is maintained.")]
+    public float boostDuration = 2f;
     public int maxBoostUses = 2;
     public UIManager uiManager;
 
@@ -109,7 +110,8 @@ public class PlaneController : MonoBehaviour
     private float maxRecentSpeed = 0f;
     private bool wasDiving = false;
 
-    private Vector3 preBoostVelocity;
+    private float boostTargetSpeed;
+    private Vector3 boostVelocityDirection;
     private float smoothHorizontalInput = 0f;
     private float smoothVerticalInput = 0f;
     private Vector3 smoothTorque = Vector3.zero;
@@ -412,6 +414,20 @@ public class PlaneController : MonoBehaviour
                 rb.velocity = Vector3.Lerp(rb.velocity, targetVelocity, directionAlignmentStrength * Time.fixedDeltaTime);
             }
         }
+
+        ApplyBoostSpeedMaintenance();
+    }
+
+    private void ApplyBoostSpeedMaintenance()
+    {
+        if (!isBoosting || rb == null || boostTargetSpeed <= 0f)
+            return;
+
+        Vector3 direction = rb.velocity.sqrMagnitude > 0.01f
+            ? rb.velocity.normalized
+            : boostVelocityDirection;
+
+        rb.velocity = direction * boostTargetSpeed;
     }
 
     /// <summary>
@@ -724,26 +740,28 @@ public class PlaneController : MonoBehaviour
         audioManager.btnSFX();
         VibrationManager.Instance.VibrateButtonClick();
         
-        // Check if boost uses are available
         if (!isBoosting && rb != null && boostUsesRemaining > 0)
         {
-            preBoostVelocity = rb.velocity;
-            rb.AddForce(transform.forward * boostAmount, ForceMode.Impulse);
+            float currentSpeed = rb.velocity.magnitude;
+            boostVelocityDirection = currentSpeed > 0.1f
+                ? rb.velocity.normalized
+                : transform.forward;
+            boostTargetSpeed = currentSpeed * (1f + boostSpeedMultiplier);
+
+            rb.velocity = boostVelocityDirection * boostTargetSpeed;
+            isBoosting = true;
+
             boostA?.Play();
             boostB?.Play();
             audioManager.BoostSFX();
-            
-            // Decrease remaining uses
+
             boostUsesRemaining--;
-            Debug.Log($"Boost used! Remaining uses: {boostUsesRemaining}");
-            
-            // Update UI counter
+            Debug.Log($"Boost active: {currentSpeed:F1} -> {boostTargetSpeed:F1} for {boostDuration:F1}s. Uses left: {boostUsesRemaining}");
+
             if (uiManager != null)
-            {
                 uiManager.UpdateBoostCounter();
-            }
-            
-            StartCoroutine(ReturnToNormalSpeed());
+
+            StartCoroutine(BoostDurationRoutine());
         }
         else if (boostUsesRemaining <= 0)
         {
@@ -753,17 +771,15 @@ public class PlaneController : MonoBehaviour
         }
     }
 
-    private IEnumerator ReturnToNormalSpeed()
+    private IEnumerator BoostDurationRoutine()
     {
-        isBoosting = true;
         yield return new WaitForSeconds(boostDuration);
 
-        // Let the plane slow down naturally through air resistance instead of forcing velocity
         isBoosting = false;
+        boostTargetSpeed = 0f;
         boostA?.Stop();
         boostB?.Stop();
-        
-        // Deactivate boosters after last use (after particles have finished)
+
         if (boostUsesRemaining <= 0)
         {
             Debug.Log("Boost uses depleted! Deactivating boosters.");
