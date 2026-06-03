@@ -19,8 +19,15 @@ public static class LevelProgress
         "tail_active",
         "LeftWing_active",
         "RightWing_active",
-        "Tail_active"
+        "Tail_active",
+        "Left_Wing_active",
+        "Right_Wing_active"
     };
+
+    public static string GetPartActiveKey(string partObjectName)
+    {
+        return partObjectName + "_active";
+    }
 
     public static void ResetGameplayProgress()
     {

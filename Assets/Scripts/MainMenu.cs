@@ -50,7 +50,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     [Header("Particle Effects")]
     public GameObject upgradeParticleEffect;
 
-    [Header("Timing Settings")]
+    [Header("Timing c")]
     public float cameraTransitionDuration = 1.5f;
     public float particleEffectDuration = 1.0f;
 
@@ -86,12 +86,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         // Load saved data
         LoadProgress();
 
-        // Load part states
-        for (int i = 0; i < parts.Count; i++)
-        {
-            if (PlayerPrefs.GetInt(parts[i].name + "_active", 0) == 1)
-                parts[i].SetActive(true);
-        }
+        ApplyPartStatesFromSave();
 
         // Set current index if not loaded
         for (int i = 0; i < parts.Count; i++)
@@ -245,7 +240,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (!parts[currentIndex].activeSelf)
         {
             parts[currentIndex].SetActive(true);
-            PlayerPrefs.SetInt(parts[currentIndex].name + "_active", 1);
+            PlayerPrefs.SetInt(LevelProgress.GetPartActiveKey(parts[currentIndex].name), 1);
             Debug.Log(parts[currentIndex].name + " activated!");
         }
 
@@ -280,6 +275,18 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     // -----------------------------
     // 🧠 UI Helpers
     // -----------------------------
+
+    private void ApplyPartStatesFromSave()
+    {
+        for (int i = 0; i < parts.Count; i++)
+        {
+            if (parts[i] == null)
+                continue;
+
+            bool active = PlayerPrefs.GetInt(LevelProgress.GetPartActiveKey(parts[i].name), 0) == 1;
+            parts[i].SetActive(active);
+        }
+    }
 
     private void UpdateCoinUI()
     {
