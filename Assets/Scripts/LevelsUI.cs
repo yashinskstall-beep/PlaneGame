@@ -4,7 +4,8 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Level button visuals, unlock state, and level selection.
+/// Level button visuals, unlock state, and level selection (2 playable levels).
+/// Coming-soon slots are static UI in the scene, not listed here.
 /// Opening/closing the Levels Panel is handled by MainMenu only.
 /// </summary>
 public class LevelsUI : MonoBehaviour
@@ -18,21 +19,18 @@ public class LevelsUI : MonoBehaviour
         public Button button;
         public TextMeshProUGUI nameText;
         public TextMeshProUGUI speedText;
+        [Tooltip("Optional. Shown while locked; leave empty to find child named Lock.")]
+        public GameObject lockIcon;
         public string displayName = "Toy Plane";
         public string speedLabel = "20 \nKM/H";
         [Tooltip("Leave empty to stay in the current scene. Set a name (e.g. Desert) to load another scene.")]
         public string sceneName;
         public bool unlockedByDefault;
-
-        [Header("Runtime test")]
-        public bool locked;
-        public bool unlocked;
     }
 
     [SerializeField] private MainMenu mainMenu;
     [SerializeField] private LevelButtonData[] levels;
     [SerializeField] private Sprite unlockedButtonSprite;
-    [SerializeField] private Sprite lockedButtonSprite;
     [SerializeField] private bool refreshInUpdate = true;
 
     private void Awake()
@@ -130,8 +128,7 @@ public class LevelsUI : MonoBehaviour
         if (!refreshInUpdate || levels == null || !IsPanelVisible())
             return;
 
-        for (int i = 0; i < levels.Length; i++)
-            ApplyVisuals(levels[i], GetVisualState(i));
+        RefreshAllButtons();
     }
 
     private bool IsPanelVisible()
@@ -175,11 +172,6 @@ public class LevelsUI : MonoBehaviour
 
         var data = levels[index];
 
-        if (data.unlocked)
-            return true;
-        if (data.locked)
-            return false;
-
         if (index == 0 || data.unlockedByDefault)
             return true;
 
@@ -212,9 +204,14 @@ public class LevelsUI : MonoBehaviour
         if (data.button == null)
             return;
 
+        var colors = data.button.colors;
+        colors.disabledColor = colors.normalColor;
+        data.button.colors = colors;
+        data.button.interactable = unlocked;
+
         var background = data.button.GetComponent<Image>();
-        if (background != null)
-            background.sprite = unlocked ? unlockedButtonSprite : lockedButtonSprite;
+        if (unlocked && background != null && unlockedButtonSprite != null)
+            background.sprite = unlockedButtonSprite;
 
         TextMeshProUGUI nameLabel = ResolveNameText(data);
         if (nameLabel != null)
@@ -229,5 +226,20 @@ public class LevelsUI : MonoBehaviour
             data.speedText.gameObject.SetActive(true);
             data.speedText.text = data.speedLabel;
         }
+
+        GameObject lockObject = data.lockIcon != null
+            ? data.lockIcon
+            : ResolveLockIcon(data);
+        if (lockObject != null)
+            lockObject.SetActive(!unlocked);
+    }
+
+    private GameObject ResolveLockIcon(LevelButtonData data)
+    {
+        if (data.button == null)
+            return null;
+
+        Transform lockTransform = data.button.transform.Find("Lock");
+        return lockTransform != null ? lockTransform.gameObject : null;
     }
 }
