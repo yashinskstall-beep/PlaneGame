@@ -76,23 +76,31 @@ public class LevelsUI : MonoBehaviour
 
         if (IsActiveLevel(index))
         {
-            if (mainMenu != null)
-                mainMenu.CloseLevelsPanel();
-
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+            LoadSceneWithTransition(SceneManager.GetActiveScene().name, resetProgress: false);
             return;
         }
 
         string scene = levels[index].sceneName;
         if (!string.IsNullOrEmpty(scene))
         {
-            LevelProgress.ResetGameplayProgress();
-            SceneManager.LoadScene(scene);
+            LoadSceneWithTransition(scene, resetProgress: true);
             return;
         }
 
         if (mainMenu != null)
             mainMenu.CloseLevelsPanel();
+    }
+
+    private void LoadSceneWithTransition(string sceneName, bool resetProgress)
+    {
+        UICircleFadeTransition.EnsureInstance().PlayLoadScene(sceneName, () =>
+        {
+            if (mainMenu != null)
+                mainMenu.CloseLevelsPanel();
+
+            if (resetProgress)
+                LevelProgress.ResetGameplayProgress();
+        });
     }
 
     private bool IsActiveLevel(int index)
