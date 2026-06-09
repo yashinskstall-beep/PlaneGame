@@ -106,6 +106,8 @@ public class UIManager : MonoBehaviour
         scoreCalculated = true;
 
         int distance = Mathf.RoundToInt(planeController.maxZDistance);
+        BestDistanceLayer.RecordFlightDistance(planeController.maxZDistance);
+
         float coinMultiplier = CoinManager.Instance != null
             ? CoinManager.Instance.GetCoinMultiplier()
             : 1f;

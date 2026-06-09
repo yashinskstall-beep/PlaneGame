@@ -903,6 +903,7 @@ GameObject:
   m_Component:
   - component: {fileID: 418747495}
   - component: {fileID: 418747494}
+  - component: {fileID: 418747496}
   m_Layer: 0
   m_Name: DistanceTracker
   m_TagString: Untagged
@@ -946,6 +947,29 @@ Transform:
   - {fileID: 1797748879}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &418747496
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 418747493}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7ed5ad4e2423c9f4481f6ffa1ae21960, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  startPoint: {fileID: 95573069}
+  finishPoint: {fileID: 1797748879}
+  wallWidth: 200
+  wallHeight: 50
+  groundOffset: 0.08
+  layerColor: {r: 0.2, g: 0.75, b: 1, a: 0.28}
+  edgeFade: 0
+  snapToGround: 1
+  groundRaycastHeight: 30
+  groundRaycastDistance: 60
+  hideWhenNoRecord: 1
 --- !u!114 &515219282 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2844624535822623690, guid: 2fbd472d455b3884cbeaadd144a002c8,
