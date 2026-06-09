@@ -94,61 +94,34 @@ public class PlaneDamageHandler : MonoBehaviour
             rb.drag = originalDrag;
         }
         
-        // Count disabled parts for drag calculation
-        int disabledPartCount = 0;
-        
-        // Apply left wing damage effects
-        if (leftWingDisabled)
-        {
-            // When left wing is disabled, turning left (negative input) will cause faster roll
-            disabledPartCount++;
-            
-            // We'll handle tilting in ModifyTorqueForDamage instead of applying torque directly here
-            // This prevents competing forces that can cause shaking
-        }
-        
-        // Apply right wing damage effects
-        if (rightWingDisabled)
-        {
-            // When right wing is disabled, turning right (positive input) will cause faster roll
-            disabledPartCount++;
-            
-            // We'll handle tilting in ModifyTorqueForDamage instead of applying torque directly here
-            // This prevents competing forces that can cause shaking
-        }
-        
+        bool bothWingsMissing = leftWingDisabled && rightWingDisabled;
+
         // Apply tail damage effects
         if (tailDisabled)
         {
-            // When tail is disabled, pitching will be more unstable and tend to pitch down
             planeController.pitchSpeed *= tailDamagePitchMultiplier;
-            disabledPartCount++;
         }
-        
+
         // Apply additional drag based on missing parts
         if (rb != null)
         {
-            // Check if all parts are missing to apply special drag
             if (leftWingDisabled && rightWingDisabled && tailDisabled)
             {
                 rb.drag = originalDrag + allPartsMissingDrag;
             }
             else
             {
-                float additionalDrag = additionalDragPerMissingPart * disabledPartCount;
+                // One wing missing: no extra wing drag (same as all wings attached).
+                // Both wings missing: apply the full "no wings" resistance.
+                int dragPartCount = 0;
+                if (bothWingsMissing)
+                    dragPartCount += 2;
+                if (tailDisabled)
+                    dragPartCount++;
 
-                if (leftWingDisabled && rightWingDisabled)
-                {
+                float additionalDrag = additionalDragPerMissingPart * dragPartCount;
+                if (bothWingsMissing)
                     additionalDrag += bothWingsMissingResistance;
-                }
-                else
-                {
-                    if (leftWingDisabled)
-                        additionalDrag += leftWingMissingResistance;
-
-                    if (rightWingDisabled)
-                        additionalDrag += rightWingMissingResistance;
-                }
 
                 rb.drag = originalDrag + additionalDrag;
             }
