@@ -33,8 +33,6 @@ public class PlanePartDetach : MonoBehaviour
         }
 
         gameObject.layer = LayerMask.NameToLayer("Ignore Raycast");
-        Debug.Log($"{name} now ignoring raycasts");
-           
     }
 
     private void OnCollisionEnter(Collision collision)

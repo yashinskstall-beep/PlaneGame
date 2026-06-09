@@ -90,9 +90,7 @@ public class SimpleCameraFollow : MonoBehaviour
 
         target = markerTarget;
         markerSpawned = true;
-        Debug.Log($"Camera target switched to: {markerTarget.name}");
-        Debug.Log("Initiating camera transition to marker.");
-        
+
         // Initiate smooth transition to the marker
         isTransitioningToMarker = true;
         markerTransitionStartPos = transform.position;
@@ -104,7 +102,6 @@ public class SimpleCameraFollow : MonoBehaviour
     public void FreezePosition()
     {
         isPositionFrozen = true;
-        Debug.Log("Camera position has been frozen.");
     }
     
     /// <summary>
@@ -129,8 +126,6 @@ public class SimpleCameraFollow : MonoBehaviour
         
         // Reset controlling flag so it can be recaptured
         isPlaneControlling = false;
-        
-        Debug.Log("Camera returning to following airplane - isPlaneControlling reset to false");
     }
 
     void FixedUpdate()
@@ -150,7 +145,6 @@ public class SimpleCameraFollow : MonoBehaviour
                 isTransitioningToMarker = false;
                 isPositionFrozen = false;
                 isCameraZoomedOut = false;
-                Debug.Log("Camera returned to following airplane");
             }
             
             HandleAirplaneCamera();
@@ -210,7 +204,6 @@ public class SimpleCameraFollow : MonoBehaviour
             transform.position = Vector3.Lerp(transform.position, basePosition + orbitOffset, Time.fixedDeltaTime);
         }
         isCameraZoomedOut = true;
-        Debug.Log("Camera zoomed out");
     }
 
     private void HandleAirplaneCamera()
@@ -231,21 +224,14 @@ public class SimpleCameraFollow : MonoBehaviour
         PlaneController planeController = target.GetComponent<PlaneController>();
         if (planeController != null)
         {
-            Debug.Log($"Camera Check - isPlaneControlling: {isPlaneControlling}, planeController.isControlling: {planeController.isControlling}");
-            
-            // Update the controlling state
             if (!isPlaneControlling && planeController.isControlling)
             {
-                // Plane just started controlling - capture the current offset
                 isPlaneControlling = true;
                 fixedOffset = transform.position - target.position;
-                Debug.Log("Camera fixed offset set: " + fixedOffset);
             }
             else if (isPlaneControlling && !planeController.isControlling)
             {
-                // Plane stopped controlling (hit ground or tree)
                 isPlaneControlling = false;
-                Debug.Log("Camera fixed offset released - plane stopped controlling");
             }
         }
         else
@@ -364,8 +350,6 @@ public class SimpleCameraFollow : MonoBehaviour
                 
                 // Slightly adjust position to keep the same distance from target
                 lastGoodCameraPosition = target.position - directionToTarget * distanceToTarget;
-                
-                Debug.Log("Camera frozen at final position");
             }
             
             // If camera is frozen, zoom out

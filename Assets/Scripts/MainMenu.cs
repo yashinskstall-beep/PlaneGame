@@ -118,7 +118,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateCoinMultiplierSliderUI();
         UpdateIncreaseCoinMultiplierButtonInteractable();
 
-        Debug.Log("Launch force multiplier: " + dragLauncher.launchForceMultiplier);
     }
 
     public void OnPointerClick(PointerEventData eventData)

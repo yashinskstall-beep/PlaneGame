@@ -46,10 +46,6 @@ public class PlaneDamageHandler : MonoBehaviour
     private float originalPitchSpeed;
     private float originalDrag;
     
-    // Flags to ensure debug logs only appear once
-    private bool hasLoggedAllPartsMissing = false;
-    private bool hasLoggedBothWingsDisabled = false;
-    
     void Start()
     {
         // Get the plane controller reference
@@ -136,40 +132,22 @@ public class PlaneDamageHandler : MonoBehaviour
             if (leftWingDisabled && rightWingDisabled && tailDisabled)
             {
                 rb.drag = originalDrag + allPartsMissingDrag;
-                if (!hasLoggedAllPartsMissing)
-                {
-                    Debug.Log("All parts missing: Applying special low drag of " + allPartsMissingDrag);
-                    hasLoggedAllPartsMissing = true;
-                }
             }
             else
             {
-                hasLoggedAllPartsMissing = false;
-            }
-            
-            if (!(leftWingDisabled && rightWingDisabled && tailDisabled))
-            {
-                // Original logic for when one or two parts are missing
                 float additionalDrag = additionalDragPerMissingPart * disabledPartCount;
 
                 if (leftWingDisabled && rightWingDisabled)
                 {
                     additionalDrag += bothWingsMissingResistance;
-                    Debug.Log("Both wings missing: Adding " + bothWingsMissingResistance + " air resistance");
                 }
                 else
                 {
                     if (leftWingDisabled)
-                    {
                         additionalDrag += leftWingMissingResistance;
-                        Debug.Log("Left wing missing: Adding " + leftWingMissingResistance + " air resistance");
-                    }
 
                     if (rightWingDisabled)
-                    {
                         additionalDrag += rightWingMissingResistance;
-                        Debug.Log("Right wing missing: Adding " + rightWingMissingResistance + " air resistance");
-                    }
                 }
 
                 rb.drag = originalDrag + additionalDrag;
@@ -240,21 +218,7 @@ public class PlaneDamageHandler : MonoBehaviour
         bool leftWingDisabled = leftWing != null && !leftWing.activeSelf;
         bool rightWingDisabled = rightWing != null && !rightWing.activeSelf;
         
-        bool bothDisabled = leftWingDisabled && rightWingDisabled;
-        
-        // Debug log to help diagnose issues (only once)
-        if (bothDisabled && !hasLoggedBothWingsDisabled)
-        {
-            Debug.Log("Both wings are disabled: Left wing = " + (leftWing != null ? (!leftWing.activeSelf).ToString() : "null") + 
-                     ", Right wing = " + (rightWing != null ? (!rightWing.activeSelf).ToString() : "null"));
-            hasLoggedBothWingsDisabled = true;
-        }
-        else if (!bothDisabled)
-        {
-            hasLoggedBothWingsDisabled = false;
-        }
-        
-        return bothDisabled;
+        return leftWingDisabled && rightWingDisabled;
     }
     
     /// <summary>

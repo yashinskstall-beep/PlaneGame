@@ -11,37 +11,61 @@ using System.Collections.Generic;
 public class PlaneController : MonoBehaviour
 {
     [Header("References")]
+    [Tooltip("Aligns the plane to the ramp while rolling. Usually on the same object as the plane.")]
     public PlaneRampAligner rampAligner;
+    [Tooltip("Spawns the landing flag prefab when the plane stops. Auto-added if missing.")]
     public CollisionMarker collisionMarker;
+    [Tooltip("On-screen joystick for pitch and turn. Enable with Use Joystick Input.")]
     public JoystickController joystick;
+    [Tooltip("Left booster particle effect. Plays during boost.")]
     public ParticleSystem boostA;
+    [Tooltip("Right booster particle effect. Plays during boost.")]
     public ParticleSystem boostB;
+    [Tooltip("Handles wing/tail damage effects on flight. Should be on the plane root.")]
     public PlaneDamageHandler damageHandler;
+    [Tooltip("Camera follow script. Used to freeze camera on landing and move to the flag.")]
     public SimpleCameraFollow cameraFollow;
+    [Tooltip("Plays marker, boost, and button sounds.")]
     public AudioManager audioManager;
+    [Tooltip("Wind loop during flight. Stops when the plane lands.")]
     public AudioSource windSource;
     //public GameObject boostBtn;
    // public CameraManager cameraManager;
 
     [Header("Handling Settings")]
+    [Tooltip("How fast the plane yaws left/right when you steer. Higher = snappier turns.")]
     public float turnSpeed = 8f;
+    [Tooltip("How far the plane banks (rolls) when turning. Higher = more visible bank angle.")]
     public float bankAngle = 45f;
+    [Tooltip("How fast the plane pitches up/down. Higher = more responsive nose control.")]
     public float pitchSpeed = 7f;
+    [Tooltip("Global multiplier on all rotation torque. Raise for twitchier flight; lower for softer control.")]
     public float torqueResponseMultiplier = 2.5f;
+    [Tooltip("Rigidbody angular drag. Higher = less spin/wobble after collisions or damage.")]
     public float angularDragAmount = 0.3f;
 
     [Header("Input Settings")]
+    [Tooltip("Allow WASD / arrow keys to control the plane in flight.")]
     public bool useKeyboardInput = true;
+    [Tooltip("Allow the on-screen joystick to control the plane in flight.")]
     public bool useJoystickInput = false;
+    [Tooltip("Multiplier on horizontal (turn) input. Use if turns feel too weak or too strong.")]
     public float horizontalInputSensitivity = 1f;
+    [Tooltip("Multiplier on vertical (pitch) input. Use if climb/dive feels too weak or too strong.")]
     public float verticalInputSensitivity = 1f;
+    [Tooltip("Flip joystick up/down if pitch feels reversed on your device.")]
     public bool invertJoystickVertical = true;
+    [Tooltip("Gently levels the wings when you release the controls.")]
     public bool autoLevelWhenNoInput = true;
+    [Tooltip("How strongly the plane auto-levels. Higher = faster return to level flight.")]
     public float autoLevelSpeed = 1f;
+    [Tooltip("Disable auto-level while the slingshot is still dragging the plane.")]
     public bool disableAutoLevelWhenDragging = true;
 
     [Header("Movement Alignment")]
+    [Tooltip("How strongly velocity snaps to the plane nose direction. Higher = flies where it points.")]
     public float directionAlignmentStrength = 5.0f;
+    [Tooltip("Speed below which nose-alignment is ignored. Prevents jitter at very low speed.")]
     public float minSpeedForAlignment = 2.0f;
 
     [Header("Speed Control (Glide Behaviour)")]
@@ -67,11 +91,17 @@ public class PlaneController : MonoBehaviour
     public float momentumDecayRate = 0.2f;
 
     [Header("Ground Movement Settings")]
+    [Tooltip("Friction while sliding on the ground after landing (0.98 = loses 2% speed per physics step).")]
     public float groundDragFactor = 0.98f;
+    [Tooltip("Speed at which the plane is considered fully stopped on the ground.")]
     public float minGroundSpeed = 0.1f;
+    [Tooltip("Forward slide speed threshold for placing the landing flag. Lower = flag appears sooner.")]
     public float minZAxisSpeed = 0.05f;
+    [Tooltip("How fast the plane uprights to match ground slope while sliding.")]
     public float groundAlignmentSpeed = 5.0f;
+    [Tooltip("Raycast distance to detect ground under the plane for alignment and markers.")]
     public float groundCheckDistance = 0.5f;
+    [Tooltip("Collision force needed to detach parts (wings/tail). Lower = parts break on lighter crashes.")]
     public float minImpactForceForDamage = 10f;
 
     [Header("Damage Fall Settings")]
@@ -79,10 +109,13 @@ public class PlaneController : MonoBehaviour
     public float fallDownForce = 0f; // Default value decreased from 20f
 
     [Header("Marker Settings")]
+    [Tooltip("Height above the ground where the landing flag is spawned.")]
     public float markerYOffset = 0.5f;
 
     [Header("Smoothing Settings")]
+    [Tooltip("Input smoothing. Higher = softer stick/keyboard response, less twitchy.")]
     public float inputSmoothness = 25f;
+    [Tooltip("Rotation smoothing. Higher = gentler pitch/roll changes, less jerky.")]
     public float torqueSmoothness = 18f;
     [Tooltip("Visual rotation smoothing to hide wobbling. Higher = smoother but less responsive.")]
     public float visualRotationSmoothing = 8f;
@@ -92,17 +125,21 @@ public class PlaneController : MonoBehaviour
     public float boostSpeedMultiplier = 0.3f;
     [Tooltip("How long the boosted speed is maintained.")]
     public float boostDuration = 2f;
+    [Tooltip("How many boost button presses per flight.")]
     public int maxBoostUses = 2;
+    [Tooltip("UI manager for boost counter and score screen.")]
     public UIManager uiManager;
 
     // Internal state
     private Rigidbody rb;
-    public  bool isControlling = false;
+    [Tooltip("True when player can steer the plane (after leaving the ramp). Read-only at runtime.")]
+    public bool isControlling = false;
     private bool wasOnRamp = false;
     private bool exitedRamp = false;
     private bool isGrounded = false;
     private bool isBeingDragged = false;
     private bool isBoosting = false;
+    [Tooltip("Boost uses left this flight. Reset from Max Boost Uses at start.")]
     public int boostUsesRemaining = 0;
     
     // Momentum tracking
@@ -124,7 +161,8 @@ public class PlaneController : MonoBehaviour
     // Distance / marker tracking
     private Vector3 startPosition;
     private Vector3 maxZPosition;
-    public  float maxZDistance;
+    [Tooltip("Furthest distance flown this run (Z axis from launch). Used for score and flag position.")]
+    public float maxZDistance;
     private bool markerPlaced = false;
     private GameObject placedMarker = null;
     private float lastZPosition;
