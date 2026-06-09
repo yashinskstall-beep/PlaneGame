@@ -22,8 +22,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public Button boostEnableBtn;
     public TextMeshProUGUI boostCostText;
     public GameObject PlaneBoosters;
+    [Tooltip("Shown when the player cannot afford boosters.")]
+    public GameObject notEnoughCoinsBoost;
     public GameObject notEnoughCoinsU;
-    public GameObject notEnoughCoinsB;
     public GameObject notEnoughCoinsS;
     public Button increaseLaunchForceBtn;
     public TextMeshProUGUI launchForceCostText;
@@ -75,6 +76,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private const int maxCoinMultiplierLevel = 11;
     private const float coinMultiplierStep = 0.1f;
     private readonly int[] coinMultiplierCosts = { 600, 900, 1200, 1800, 2500, 3500, 5000, 7000, 10000, 15000, 20000 };
+    private const int BoostCost = 500;
 
 
     void Start()
@@ -192,7 +194,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         increaseLaunchForceBtn.gameObject.SetActive(false);
         if (increaseCoinMultiplierBtn != null)
             increaseCoinMultiplierBtn.gameObject.SetActive(false);
-        notEnoughCoinsB.SetActive(false);
+        if (notEnoughCoinsBoost != null)
+            notEnoughCoinsBoost.SetActive(false);
         notEnoughCoinsS.SetActive(false);
         if (notEnoughCoinsC != null)
             notEnoughCoinsC.SetActive(false);
@@ -342,7 +345,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         if (boostCostText != null)
         {
-            boostCostText.text = "500";
+            boostCostText.text = BoostCost.ToString();
         }
     }
     
@@ -389,15 +392,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (boostEnableBtn != null)
         {
             // Disable button if not enough coins or boosters already active
-            bool canAffordBoost = playerCoins >= 500 && !PlaneBoosters.activeSelf;
+            bool boostersInactive = PlaneBoosters == null || !PlaneBoosters.activeSelf;
+            bool canAffordBoost = playerCoins >= BoostCost && boostersInactive;
             boostEnableBtn.interactable = canAffordBoost;
-            
-            // Show/hide not enough coins UI for boost
-            if (notEnoughCoinsB != null)
-            {
-                // Show warning only if not enough coins AND boosters not already active
-                notEnoughCoinsB.SetActive(!canAffordBoost && !PlaneBoosters.activeSelf);
-            }
+
+            if (notEnoughCoinsBoost != null)
+                notEnoughCoinsBoost.SetActive(boostersInactive && playerCoins < BoostCost);
         }
     }
 
@@ -551,20 +551,20 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         //audioSource.Play();
         audioManager.btnSFX();
         VibrationManager.Instance.VibrateButtonClick();
-        // Check if player has at least 50 coins and boosters not already active
-        if (playerCoins >= 500 && !PlaneBoosters.activeSelf)
+        bool boostersInactive = PlaneBoosters == null || !PlaneBoosters.activeSelf;
+        if (playerCoins >= BoostCost && boostersInactive)
         {
-            // Deduct 50 coins
-            playerCoins -= 500;
+            playerCoins -= BoostCost;
             PlayerPrefs.SetInt("PlayerCoins", playerCoins);
             PlayerPrefs.Save();
             
             // Update coin UI
             UpdateCoinUI();
             
-            // Enable the boosters
-            PlaneBoosters.SetActive(true);
-            boostactive.SetActive(true);
+            if (PlaneBoosters != null)
+                PlaneBoosters.SetActive(true);
+            if (boostactive != null)
+                boostactive.SetActive(true);
             
             // Update all button interactability and UI
             UpdateBoostCostUI();
@@ -573,7 +573,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             UpdateIncreaseLaunchForceButtonInteractable();
             UpdateIncreaseCoinMultiplierButtonInteractable();
             
-            Debug.Log("Boosters enabled! 50 coins deducted.");
+            Debug.Log($"Boosters enabled! {BoostCost} coins deducted.");
         }
         else
         {
