@@ -79,18 +79,19 @@ public class VibrationManager : MonoBehaviour
 
     private void Awake()
     {
-        // Ensure only one instance exists
         if (instance != null && instance != this)
         {
             Destroy(gameObject);
             return;
         }
-        
+
         instance = this;
         DontDestroyOnLoad(gameObject);
-        
+
+        SettingsManager.LoadSavedSettings();
+        ApplyVibrationEnabled(SettingsManager.IsVibrationEnabled);
+
 #if UNITY_ANDROID && !UNITY_EDITOR
-        // Initialize Android vibrator
         InitializeAndroidVibrator();
 #endif
     }
@@ -114,9 +115,21 @@ public class VibrationManager : MonoBehaviour
     /// <summary>
     /// Vibrate for button click (short vibration)
     /// </summary>
+    public void ApplyVibrationEnabled(bool enabled)
+    {
+        vibrationsEnabled = enabled;
+        if (!enabled)
+            CancelVibration();
+    }
+
+    private bool CanVibrate()
+    {
+        return vibrationsEnabled && SettingsManager.IsVibrationEnabled;
+    }
+
     public void VibrateButtonClick()
     {
-        if (!vibrationsEnabled) return;
+        if (!CanVibrate()) return;
         
 #if UNITY_ANDROID && !UNITY_EDITOR
         Vibrate(buttonClickDuration);
@@ -130,8 +143,8 @@ public class VibrationManager : MonoBehaviour
     /// </summary>
     public void VibrateShort()
     {
-        if (!vibrationsEnabled) return;
-        
+        if (!CanVibrate()) return;
+
 #if UNITY_ANDROID && !UNITY_EDITOR
         Vibrate(shortVibrationDuration);
 #elif UNITY_IOS && !UNITY_EDITOR
@@ -144,8 +157,8 @@ public class VibrationManager : MonoBehaviour
     /// </summary>
     public void VibrateMedium()
     {
-        if (!vibrationsEnabled) return;
-        
+        if (!CanVibrate()) return;
+
 #if UNITY_ANDROID && !UNITY_EDITOR
         Vibrate(mediumVibrationDuration);
 #elif UNITY_IOS && !UNITY_EDITOR
@@ -158,8 +171,8 @@ public class VibrationManager : MonoBehaviour
     /// </summary>
     public void VibrateLong()
     {
-        if (!vibrationsEnabled) return;
-        
+        if (!CanVibrate()) return;
+
 #if UNITY_ANDROID && !UNITY_EDITOR
         Vibrate(longVibrationDuration);
 #elif UNITY_IOS && !UNITY_EDITOR
@@ -173,8 +186,8 @@ public class VibrationManager : MonoBehaviour
     /// <param name="milliseconds">Duration in milliseconds</param>
     public void VibrateCustom(long milliseconds)
     {
-        if (!vibrationsEnabled) return;
-        
+        if (!CanVibrate()) return;
+
 #if UNITY_ANDROID && !UNITY_EDITOR
         Vibrate(milliseconds);
 #elif UNITY_IOS && !UNITY_EDITOR
@@ -219,8 +232,8 @@ public class VibrationManager : MonoBehaviour
     /// </summary>
     public void StartContinuous()
     {
-        if (!vibrationsEnabled) return;
-        
+        if (!CanVibrate()) return;
+
 #if UNITY_ANDROID && !UNITY_EDITOR
         if (vibrator == null || isVibrating) return;
         
@@ -300,16 +313,6 @@ public class VibrationManager : MonoBehaviour
     /// </summary>
     public void ToggleVibrations(bool enabled)
     {
-        vibrationsEnabled = enabled;
-        PlayerPrefs.SetInt("VibrationsEnabled", enabled ? 1 : 0);
-        PlayerPrefs.Save();
-    }
-
-    /// <summary>
-    /// Load vibration settings
-    /// </summary>
-    private void Start()
-    {
-        vibrationsEnabled = PlayerPrefs.GetInt("VibrationsEnabled", 1) == 1;
+        ApplyVibrationEnabled(enabled);
     }
 }
