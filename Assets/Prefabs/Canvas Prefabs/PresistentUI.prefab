@@ -216,6 +216,11 @@ PrefabInstance:
       propertyPath: levels.Array.data[0].sceneName
       value: Forest
       objectReference: {fileID: 0}
+    - target: {fileID: 6817286660846778479, guid: d1b7ebbe1d2c20c43ad9c9750cb1eac8,
+        type: 3}
+      propertyPath: levels.Array.data[1].displayName
+      value: High - Wing
+      objectReference: {fileID: 0}
     - target: {fileID: 7857050179685612717, guid: d1b7ebbe1d2c20c43ad9c9750cb1eac8,
         type: 3}
       propertyPath: m_AnchoredPosition.y

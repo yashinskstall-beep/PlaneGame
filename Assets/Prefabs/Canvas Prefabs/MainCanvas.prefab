@@ -3490,7 +3490,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 700
+  m_text: 500
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 48151183ad3b17541a39649faecebfd0, type: 2}
   m_sharedMaterial: {fileID: -7337404343391928600, guid: 48151183ad3b17541a39649faecebfd0,
@@ -9815,6 +9815,7 @@ MonoBehaviour:
   tailFocusPoint: {fileID: 0}
   upgradeParticleEffect: {fileID: 2522031522935134172, guid: 93bb6780ec7e87e46bac8f1fca601cfc,
     type: 3}
+  upgradeParticleYOffset: 0
   cameraTransitionDuration: 1.5
   particleEffectDuration: 1
 --- !u!114 &3985721426433240750

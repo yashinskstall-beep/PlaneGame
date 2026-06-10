@@ -50,6 +50,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     [Header("Particle Effects")]
     public GameObject upgradeParticleEffect;
+    [Tooltip("Added to the spawn position Y when the upgrade particle plays.")]
+    public float upgradeParticleYOffset = 0f;
 
     [Header("Timing c")]
     public float cameraTransitionDuration = 1.5f;
@@ -222,11 +224,13 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             {
                 partPosition.x += 0.3f;
             }
-            else if (currentIndex ==2)// Tail
+            else if (currentIndex == 2) // Tail
             {
-                partPosition.z-=0.4f;
+                partPosition.z -= 0.4f;
             }
-           
+
+            partPosition.y += upgradeParticleYOffset;
+
             audioManager.PlanepartSFX();
             GameObject particleInstance = Instantiate(upgradeParticleEffect, partPosition, Quaternion.identity);
             Debug.Log($"Playing particle effect at {parts[currentIndex].name}");
