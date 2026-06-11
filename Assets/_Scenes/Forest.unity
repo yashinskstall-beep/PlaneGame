@@ -456,12 +456,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 418747495}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &141093305 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 1393755358096079232, guid: 2fbd472d455b3884cbeaadd144a002c8,
-    type: 3}
-  m_PrefabInstance: {fileID: 1926194796}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &277234516 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -3722410590200924036, guid: 138967af2f288844b91e21d54c3918ea,
@@ -2234,7 +2228,7 @@ MonoBehaviour:
   dragLauncher: {fileID: 549470095}
   markerTransitionDuration: 2
   markerZoomOutDistance: 15
-  markerCameraOffset: {x: 0, y: 10, z: -12}
+  markerCameraOffset: {x: 0, y: 12, z: -12}
 --- !u!114 &1209805506
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3516,11 +3510,6 @@ PrefabInstance:
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
       objectReference: {fileID: 549470094}
-    - target: {fileID: 190006870115768723, guid: 2fbd472d455b3884cbeaadd144a002c8,
-        type: 3}
-      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
-      value: BoostButton
-      objectReference: {fileID: 0}
     - target: {fileID: 827016120625586346, guid: 2fbd472d455b3884cbeaadd144a002c8,
         type: 3}
       propertyPath: m_AnchorMax.y
@@ -3588,18 +3577,8 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2844624535822623690, guid: 2fbd472d455b3884cbeaadd144a002c8,
         type: 3}
-      propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.size
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2844624535822623690, guid: 2fbd472d455b3884cbeaadd144a002c8,
-        type: 3}
-      propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 2844624535822623690, guid: 2fbd472d455b3884cbeaadd144a002c8,
-        type: 3}
-      propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_CallState
-      value: 2
+      propertyPath: levels.Array.data[1].displayName
+      value: High - Wing
       objectReference: {fileID: 0}
     - target: {fileID: 4675535055533038779, guid: 2fbd472d455b3884cbeaadd144a002c8,
         type: 3}
@@ -3748,64 +3727,14 @@ PrefabInstance:
       objectReference: {fileID: 1209805505}
     - target: {fileID: 8123243743718294708, guid: 2fbd472d455b3884cbeaadd144a002c8,
         type: 3}
-      propertyPath: dragLauncher
-      value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 8123243743718294708, guid: 2fbd472d455b3884cbeaadd144a002c8,
-        type: 3}
-      propertyPath: goalScreenUI
-      value: 
-      objectReference: {fileID: 141093305}
-    - target: {fileID: 8123243743718294708, guid: 2fbd472d455b3884cbeaadd144a002c8,
-        type: 3}
       propertyPath: cameraManager
       value: 
       objectReference: {fileID: 1209805506}
     - target: {fileID: 8123243743718294708, guid: 2fbd472d455b3884cbeaadd144a002c8,
         type: 3}
-      propertyPath: mainMenuCanvas
-      value: 
-      objectReference: {fileID: 1926194797}
-    - target: {fileID: 8123243743718294708, guid: 2fbd472d455b3884cbeaadd144a002c8,
-        type: 3}
       propertyPath: planeController
       value: 
       objectReference: {fileID: 549470094}
-    - target: {fileID: 8951586409953562539, guid: 2fbd472d455b3884cbeaadd144a002c8,
-        type: 3}
-      propertyPath: m_Pivot.x
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 8951586409953562539, guid: 2fbd472d455b3884cbeaadd144a002c8,
-        type: 3}
-      propertyPath: m_AnchorMax.x
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 8951586409953562539, guid: 2fbd472d455b3884cbeaadd144a002c8,
-        type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 8951586409953562539, guid: 2fbd472d455b3884cbeaadd144a002c8,
-        type: 3}
-      propertyPath: m_AnchorMin.x
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 8951586409953562539, guid: 2fbd472d455b3884cbeaadd144a002c8,
-        type: 3}
-      propertyPath: m_AnchorMin.y
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 8951586409953562539, guid: 2fbd472d455b3884cbeaadd144a002c8,
-        type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: -30
-      objectReference: {fileID: 0}
-    - target: {fileID: 8951586409953562539, guid: 2fbd472d455b3884cbeaadd144a002c8,
-        type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 100
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

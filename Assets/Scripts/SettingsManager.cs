@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Manages game settings for audio and vibration toggles
@@ -27,18 +28,79 @@ public class SettingsManager : MonoBehaviour
     
     private bool isSyncing = false;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void RegisterSceneCallbacks()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoadedApplySettings;
+        SceneManager.sceneLoaded += OnSceneLoadedApplySettings;
+        LoadSavedSettings();
+    }
+
+    private static void OnSceneLoadedApplySettings(Scene scene, LoadSceneMode mode)
+    {
+        LoadSavedSettings();
+        ApplySavedAudioState();
+        ApplySavedVibrationState();
+    }
+
+    /// <summary>
+    /// Loads toggle states from PlayerPrefs. Safe to call before the settings UI exists.
+    /// </summary>
+    public static void LoadSavedSettings()
+    {
+        IsAudioEnabled = PlayerPrefs.GetInt(AUDIO_ENABLED_KEY, 1) == 1;
+
+        if (PlayerPrefs.HasKey(VIBRATION_ENABLED_KEY))
+            IsVibrationEnabled = PlayerPrefs.GetInt(VIBRATION_ENABLED_KEY, 1) == 1;
+        else if (PlayerPrefs.HasKey("VibrationsEnabled"))
+            IsVibrationEnabled = PlayerPrefs.GetInt("VibrationsEnabled", 1) == 1;
+        else
+            IsVibrationEnabled = true;
+    }
+
+    public static void ApplySavedAudioState()
+    {
+        AudioManager manager = FindObjectOfType<AudioManager>();
+        if (manager != null)
+        {
+            AudioSource[] audioSources = manager.GetComponentsInChildren<AudioSource>(true);
+            foreach (AudioSource source in audioSources)
+            {
+                if (source == null)
+                    continue;
+
+                source.mute = !IsAudioEnabled;
+                if (!IsAudioEnabled && source.isPlaying)
+                    source.Stop();
+            }
+        }
+
+        AudioListener.volume = IsAudioEnabled ? 1f : 0f;
+        AudioListener.pause = !IsAudioEnabled;
+    }
+
+    public static void ApplySavedVibrationState()
+    {
+        if (VibrationManager.Instance != null)
+            VibrationManager.Instance.ApplyVibrationEnabled(IsVibrationEnabled);
+    }
+
+    private void ApplyVibrationState()
+    {
+        ApplySavedVibrationState();
+    }
+
     private void Awake()
     {
-        // Load saved settings (runs even if GameObject is inactive)
-        LoadSettings();
+        if (audioManager == null)
+            audioManager = FindObjectOfType<AudioManager>();
 
-        // Apply initial audio state
-        ApplyAudioState();
-        
-        // Sync toggle visuals with loaded settings
+        LoadSavedSettings();
+        ApplySavedAudioState();
+        ApplySavedVibrationState();
+
         isSyncing = true;
         SyncToggleVisuals();
-        // Delay clearing the flag to ensure all events are processed
         Invoke(nameof(ClearSyncFlag), 0.1f);
     }
     
@@ -91,16 +153,8 @@ public class SettingsManager : MonoBehaviour
 
     private void LoadSettings()
     {
-        // Load settings from PlayerPrefs (default to true if not set)
-        IsAudioEnabled = PlayerPrefs.GetInt(AUDIO_ENABLED_KEY, 1) == 1;
-        IsVibrationEnabled = PlayerPrefs.GetInt(VIBRATION_ENABLED_KEY, 1) == 1;
-
-        // Sync with VibrationManager
-        if (VibrationManager.Instance != null)
-        {
-            VibrationManager.Instance.ToggleVibrations(IsVibrationEnabled);
-        }
-
+        LoadSavedSettings();
+        ApplySavedVibrationState();
         Debug.Log($"Settings Loaded - Audio: {IsAudioEnabled}, Vibration: {IsVibrationEnabled}");
     }
 
@@ -143,7 +197,9 @@ public class SettingsManager : MonoBehaviour
     /// </summary>
     public void SetAudioEnabled(bool isOn)
     {
-        // Log the state change
+        if (isSyncing)
+            return;
+
         if (isOn)
             Debug.Log("Audio Toggle: OFF -> ON");
         else
@@ -187,11 +243,7 @@ public class SettingsManager : MonoBehaviour
         PlayerPrefs.SetInt(VIBRATION_ENABLED_KEY, newState ? 1 : 0);
         PlayerPrefs.Save();
 
-        // Update VibrationManager
-        if (VibrationManager.Instance != null)
-        {
-            VibrationManager.Instance.ToggleVibrations(newState);
-        }
+        ApplyVibrationState();
 
         Debug.Log($"Vibration {(newState ? "Enabled" : "Disabled")}");
     }
@@ -201,7 +253,9 @@ public class SettingsManager : MonoBehaviour
     /// </summary>
     public void SetVibrationEnabled(bool isOn)
     {
-        // Log the state change
+        if (isSyncing)
+            return;
+
         if (isOn)
             Debug.Log("Vibration Toggle: OFF -> ON");
         else
@@ -211,30 +265,14 @@ public class SettingsManager : MonoBehaviour
         PlayerPrefs.SetInt(VIBRATION_ENABLED_KEY, isOn ? 1 : 0);
         PlayerPrefs.Save();
 
-        // Update VibrationManager
-        if (VibrationManager.Instance != null)
-        {
-            VibrationManager.Instance.ToggleVibrations(isOn);
-        }
+        ApplyVibrationState();
 
         Debug.Log($"Vibration {(isOn ? "Enabled" : "Disabled")}");
     }
 
     private void ApplyAudioState()
     {
-        if (audioManager != null)
-        {
-            // Mute/unmute all audio sources in the audio manager
-            AudioSource[] audioSources = audioManager.GetComponents<AudioSource>();
-            foreach (var source in audioSources)
-            {
-                if (source != null)
-                    source.mute = !IsAudioEnabled;
-            }
-        }
-
-        // Set global audio listener volume
-        AudioListener.volume = IsAudioEnabled ? 1f : 0f;
+        ApplySavedAudioState();
     }
 
     /// <summary>
@@ -263,9 +301,15 @@ public class SettingsManager : MonoBehaviour
         Debug.Log("Settings reset to defaults");
     }
 
-    public void Close(){
-        VibrationManager.Instance.VibrateButtonClick();
-        audioManager.btnSFX();
-       SettingsPanel.SetActive(false);
+    public void Close()
+    {
+        if (IsVibrationEnabled && VibrationManager.Instance != null)
+            VibrationManager.Instance.VibrateButtonClick();
+
+        if (IsAudioEnabled && audioManager != null)
+            audioManager.btnSFX();
+
+        if (SettingsPanel != null)
+            SettingsPanel.SetActive(false);
     }
 }

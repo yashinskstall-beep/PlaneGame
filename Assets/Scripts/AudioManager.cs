@@ -11,11 +11,19 @@ public class AudioManager : MonoBehaviour
     public AudioSource markerSFX;
     public AudioSource coinSfx;
     public AudioSource boostSFX;
-    // Start is called before the first frame update
+
+    void Awake()
+    {
+        SettingsManager.LoadSavedSettings();
+        SettingsManager.ApplySavedAudioState();
+        SettingsManager.ApplySavedVibrationState();
+    }
+
     void Start()
     {
         audioSource = GetComponent<AudioSource>();
-        audioSource.Play();
+        if (SettingsManager.IsAudioEnabled && audioSource != null)
+            audioSource.Play();
         btnsfx.Stop();
         Planepartfx.Stop();
         coinSfx.Stop();
@@ -23,26 +31,38 @@ public class AudioManager : MonoBehaviour
     }
 
    
+   private bool CanPlaySfx()
+   {
+       return SettingsManager.IsAudioEnabled;
+   }
+
    public void btnSFX()
    {
-       btnsfx.Play();
+       if (CanPlaySfx() && btnsfx != null)
+           btnsfx.Play();
    }
 
    public void PlanepartSFX()
    {
-       Planepartfx.Play();
+       if (CanPlaySfx() && Planepartfx != null)
+           Planepartfx.Play();
    }
 
    public void MarkerSFX()
    {
-       markerSFX.Play();
+       if (CanPlaySfx() && markerSFX != null)
+           markerSFX.Play();
    }
+
    public void CoinSFX()
    {
-        coinSfx.Play();
+       if (CanPlaySfx() && coinSfx != null)
+           coinSfx.Play();
    }
+
    public void BoostSFX()
    {
-        boostSFX.Play();
+       if (CanPlaySfx() && boostSFX != null)
+           boostSFX.Play();
    }
 }

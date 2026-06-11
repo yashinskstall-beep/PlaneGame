@@ -1157,11 +1157,11 @@ RectTransform:
   - {fileID: 3035478756904387746}
   - {fileID: 1958286895322397328}
   - {fileID: 5324431632584092278}
-  m_Father: {fileID: 5282534904839335378}
+  m_Father: {fileID: 781468959937429331}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0}
-  m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: -0.000030517578, y: 72.96057}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0.0993042, y: -19.124878}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8587696701493856745
@@ -2532,43 +2532,6 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!1 &1888035255556859114
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 5282534904839335378}
-  m_Layer: 5
-  m_Name: BuyBoostBtnP
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &5282534904839335378
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1888035255556859114}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 3443060974816080184}
-  - {fileID: 789973182644882399}
-  m_Father: {fileID: 4770831658850660656}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 334.00003, y: 128.72095}
-  m_SizeDelta: {x: 248.1473, y: 237.92126}
-  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1890955444169573876
 GameObject:
   m_ObjectHideFlags: 0
@@ -3527,7 +3490,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 700
+  m_text: 500
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 48151183ad3b17541a39649faecebfd0, type: 2}
   m_sharedMaterial: {fileID: -7337404343391928600, guid: 48151183ad3b17541a39649faecebfd0,
@@ -4325,10 +4288,10 @@ MonoBehaviour:
   onValueChanged:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
+      - m_Target: {fileID: 4278243838393817529}
         m_TargetAssemblyTypeName: SettingsManager, Assembly-CSharp
         m_MethodName: SetVibrationEnabled
-        m_Mode: 1
+        m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
@@ -4652,11 +4615,11 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7857050179685612717}
-  m_Father: {fileID: 5282534904839335378}
+  m_Father: {fileID: 781468959937429331}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0}
-  m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: -2, y: 118.96057}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: -1.9007874, y: 26.875122}
   m_SizeDelta: {x: 337.3, y: 323.4}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &633582629431832419
@@ -7353,10 +7316,10 @@ MonoBehaviour:
   onValueChanged:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
+      - m_Target: {fileID: 4278243838393817529}
         m_TargetAssemblyTypeName: SettingsManager, Assembly-CSharp
         m_MethodName: SetAudioEnabled
-        m_Mode: 1
+        m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
@@ -7717,6 +7680,43 @@ RectTransform:
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 340.6637, y: 402.57397}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &5628532406104448257
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 781468959937429331}
+  m_Layer: 5
+  m_Name: BuyBootBtnP
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &781468959937429331
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5628532406104448257}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3443060974816080184}
+  - {fileID: 789973182644882399}
+  m_Father: {fileID: 4770831658850660656}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 1, y: 0.5}
+  m_AnchorMax: {x: 1, y: 0.5}
+  m_AnchoredPosition: {x: -140, y: 165}
+  m_SizeDelta: {x: 251.94891, y: 290.83575}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &5776487778608025035
 GameObject:
@@ -9717,8 +9717,8 @@ RectTransform:
   - {fileID: 6085693917085953121}
   - {fileID: 4946732133815959303}
   - {fileID: 9138687093350454996}
+  - {fileID: 781468959937429331}
   - {fileID: 2363312839066589811}
-  - {fileID: 5282534904839335378}
   - {fileID: 2930966232741427278}
   - {fileID: 9223286068353807486}
   m_Father: {fileID: 6442441566018328002}
@@ -9792,8 +9792,8 @@ MonoBehaviour:
   boostEnableBtn: {fileID: 2464884851719964824}
   boostCostText: {fileID: 3352670084832128107}
   PlaneBoosters: {fileID: 0}
-  notEnoughCoinsU: {fileID: 1218953125468505659}
   notEnoughCoinsBoost: {fileID: 1142007527698613365}
+  notEnoughCoinsU: {fileID: 1218953125468505659}
   notEnoughCoinsS: {fileID: 8200165650866320351}
   increaseLaunchForceBtn: {fileID: 55249058152517855}
   launchForceCostText: {fileID: 134195803505633743}
@@ -9815,6 +9815,7 @@ MonoBehaviour:
   tailFocusPoint: {fileID: 0}
   upgradeParticleEffect: {fileID: 2522031522935134172, guid: 93bb6780ec7e87e46bac8f1fca601cfc,
     type: 3}
+  upgradeParticleYOffset: 0
   cameraTransitionDuration: 1.5
   particleEffectDuration: 1
 --- !u!114 &3985721426433240750
