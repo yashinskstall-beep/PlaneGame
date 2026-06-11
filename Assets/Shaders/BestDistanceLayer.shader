@@ -3,7 +3,7 @@ Shader "Custom/BestDistanceLayer"
     Properties
     {
         _Color ("Color", Color) = (0.2, 0.75, 1, 0.3)
-        _EdgeFade ("Edge Fade", Range(0, 0.5)) = 0.15
+        _EdgeFade ("Top Edge Fade", Range(0, 0.5)) = 0.15
     }
 
     SubShader
@@ -53,8 +53,8 @@ Shader "Custom/BestDistanceLayer"
 
             half4 frag(Varyings input) : SV_Target
             {
-                float2 edge = min(input.uv, 1.0 - input.uv);
-                float fade = saturate(min(edge.x, edge.y) / max(_EdgeFade, 0.001));
+                // Fade only at the top edge; bottom and sides stay solid
+                float fade = saturate((1.0 - input.uv.y) / max(_EdgeFade, 0.001));
                 half4 color = _Color;
                 color.a *= fade;
                 return color;

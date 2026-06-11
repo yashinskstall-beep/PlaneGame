@@ -326,6 +326,32 @@ public class PlaneController : MonoBehaviour
         // Don't reset maxZDistance - it accumulates from the resting position
         timeStoppedOnRamp = 0f;
         markerPlaced = false;
+
+        StartGlideSound();
+    }
+
+    private void StartGlideSound()
+    {
+        AudioSource source = windSource;
+        if (source == null)
+        {
+            SimpleDragLauncher launcher = GetComponent<SimpleDragLauncher>();
+            if (launcher != null)
+                source = launcher.windSource;
+        }
+
+        if (source != null && !source.isPlaying)
+            source.Play();
+    }
+
+    private void StopGlideSound()
+    {
+        if (windSource != null && windSource.isPlaying)
+            windSource.Stop();
+
+        SimpleDragLauncher launcher = GetComponent<SimpleDragLauncher>();
+        if (launcher != null && launcher.windSource != null && launcher.windSource != windSource && launcher.windSource.isPlaying)
+            launcher.windSource.Stop();
     }
 
     private void JoystickInput(ref float horizontalInput, ref float verticalInput)
@@ -599,7 +625,7 @@ public class PlaneController : MonoBehaviour
             // Handle ground collision regardless of isControlling state
             if (isControlling)
             {
-                windSource.Stop();
+                StopGlideSound();
                 cameraFollow?.FreezePosition();
                 joystick?.joystickBG?.gameObject.SetActive(false);
             }

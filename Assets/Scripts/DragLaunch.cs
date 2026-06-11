@@ -56,6 +56,9 @@ public class SimpleDragLauncher : MonoBehaviour
         if (rubberSource != null && rubberSource.isPlaying)
             rubberSource.Stop();
 
+        if (windSource != null && windSource.isPlaying)
+            windSource.Stop();
+
         if (cubeRb != null)
         {
             cubeRb.velocity = Vector3.zero;
@@ -244,7 +247,6 @@ public class SimpleDragLauncher : MonoBehaviour
 
         // Fade out rubber sound on release
         StopRubberSound();
-        windSource.Play();
 
         Vector3 dragVector = cube.position - restingPoint.position;
         float dragDistance = dragVector.magnitude;
