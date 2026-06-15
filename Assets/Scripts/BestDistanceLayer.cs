@@ -39,7 +39,9 @@ public class BestDistanceLayer : MonoBehaviour
     [Header("Optional")]
     [Tooltip("Hide the wall until the player has a recorded best distance.")]
     public bool hideWhenNoRecord = true;
+    [SerializeField] private Material wallMaterialTemplate;
 
+    private static Material runtimeWallMaterialTemplate;
     private GameObject layerObject;
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
@@ -77,8 +79,17 @@ public class BestDistanceLayer : MonoBehaviour
         BestDistanceRecord.TryUpdateBest(distance);
 
         BestDistanceLayer layer = FindObjectOfType<BestDistanceLayer>();
-        if (layer != null)
+        if (layer == null)
+            return;
+
+        try
+        {
             layer.RefreshLayer();
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogWarning($"BestDistanceLayer could not refresh after flight: {exception.Message}");
+        }
     }
 
     public void RefreshLayer()
@@ -162,8 +173,8 @@ public class BestDistanceLayer : MonoBehaviour
             return;
         }
 
-        if (layerObject == null)
-            CreateLayerObject();
+        if (layerObject == null && !CreateLayerObject())
+            return;
 
         Vector3 direction = GetPathDirection();
         Vector3 pathPoint = startPoint.position + direction * distance;
@@ -235,34 +246,90 @@ public class BestDistanceLayer : MonoBehaviour
         layerObject.SetActive(true);
     }
 
-    private void CreateLayerObject()
+    private bool CreateLayerObject()
     {
+        Material template = GetWallMaterialTemplate();
+        if (template == null)
+        {
+            Debug.LogWarning("BestDistanceLayer: wall material is unavailable. Skipping best-distance wall.");
+            return false;
+        }
+
         layerObject = new GameObject("BestDistanceWall");
         layerObject.transform.SetParent(transform, false);
 
         meshFilter = layerObject.AddComponent<MeshFilter>();
         meshRenderer = layerObject.AddComponent<MeshRenderer>();
 
-        Shader shader = Shader.Find("Custom/BestDistanceLayer");
-        if (shader == null)
-            shader = Shader.Find("Universal Render Pipeline/Unlit");
-
-        layerMaterial = new Material(shader);
-        layerMaterial.SetColor("_Color", layerColor);
-        layerMaterial.SetFloat("_EdgeFade", edgeFade);
-
-        if (shader.name.Contains("Universal Render Pipeline/Unlit"))
-        {
-            layerMaterial.SetFloat("_Surface", 1f);
-            layerMaterial.SetFloat("_Blend", 0f);
-            layerMaterial.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            layerMaterial.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            layerMaterial.SetFloat("_ZWrite", 0f);
-            layerMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            layerMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-        }
-
+        layerMaterial = new Material(template);
+        ApplyLayerMaterialSettings(layerMaterial);
         meshRenderer.sharedMaterial = layerMaterial;
+        return true;
+    }
+
+    private Material GetWallMaterialTemplate()
+    {
+        if (wallMaterialTemplate != null)
+            return wallMaterialTemplate;
+
+        if (runtimeWallMaterialTemplate == null)
+            runtimeWallMaterialTemplate = Resources.Load<Material>("BestDistanceLayer");
+
+        if (runtimeWallMaterialTemplate != null)
+            return runtimeWallMaterialTemplate;
+
+        Shader shader = ResolveWallShader();
+        if (shader == null)
+            return null;
+
+        runtimeWallMaterialTemplate = new Material(shader);
+        return runtimeWallMaterialTemplate;
+    }
+
+    private static Shader ResolveWallShader()
+    {
+        Shader shader = Shader.Find("Custom/BestDistanceLayer");
+        if (shader != null)
+            return shader;
+
+        shader = Shader.Find("Universal Render Pipeline/Unlit");
+        if (shader != null)
+            return shader;
+
+        shader = Shader.Find("Sprites/Default");
+        if (shader != null)
+            return shader;
+
+        return Shader.Find("Unlit/Color");
+    }
+
+    private void ApplyLayerMaterialSettings(Material material)
+    {
+        if (material == null)
+            return;
+
+        if (material.HasProperty("_Color"))
+            material.SetColor("_Color", layerColor);
+
+        if (material.HasProperty("_EdgeFade"))
+            material.SetFloat("_EdgeFade", edgeFade);
+
+        if (material.shader != null && material.shader.name.Contains("Universal Render Pipeline/Unlit"))
+        {
+            if (material.HasProperty("_Surface"))
+                material.SetFloat("_Surface", 1f);
+            if (material.HasProperty("_Blend"))
+                material.SetFloat("_Blend", 0f);
+            if (material.HasProperty("_SrcBlend"))
+                material.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (material.HasProperty("_DstBlend"))
+                material.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            if (material.HasProperty("_ZWrite"))
+                material.SetFloat("_ZWrite", 0f);
+
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+        }
     }
 
     private void HideLayer()

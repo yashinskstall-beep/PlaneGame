@@ -28,8 +28,20 @@ public class UIManager : MonoBehaviour
     public GameObject mainMenuCanvas;
     [SerializeField] private int desertLevelIndex = 1;
 
+    [Header("Use Boost Button")]
+    [SerializeField] private float boostSlideOffsetX = 500f;
+    [SerializeField] private float boostSlideDuration = 0.4f;
+
     private bool scoreCalculated = false;
+    private bool scoreUIScheduled = false;
     private bool isGoalReached = false;
+    private Coroutine scoreUIScheduleCoroutine;
+    private RectTransform useBoostButtonRect;
+    private Vector2 useBoostButtonRestPosition;
+    private bool useBoostButtonRestCaptured;
+    private bool useBoostButtonShown;
+    private bool useBoostButtonWantsShown;
+    private Coroutine useBoostButtonSlideCoroutine;
 
     void Start()
     {
@@ -48,89 +60,170 @@ public class UIManager : MonoBehaviour
         if (dragLauncher == null)
             dragLauncher = FindObjectOfType<SimpleDragLauncher>();
 
+        ResolveSceneReferences();
         UpdateBackButton();
         UpdateBoostCounter();
-        boostBtn.SetActive(false);
+        CaptureUseBoostButtonRestPosition();
+        HideUseBoostButtonInstant();
     }
     
     void Update()
     {
         UpdateBackButton();
+        CheckScoreUI();
 
-        if (planeController == null || boosters == null || boostBtn == null) return;
+        if (planeController == null || boostBtn == null)
+            return;
 
-        // Check if boost uses are depleted
-        if (planeController.boostUsesRemaining <= 0)
-        {
-            boostBtn.SetActive(false);
-        }
-        else if (planeController.isControlling == true && boosters.activeSelf == true )
-        {
-           boostBtn.SetActive(true);
-
-        }else{
-            boostBtn.SetActive(false);          
-        }
-
-      
-        // Check if we should show the score UI
-       CheckScoreUI();
+        UpdateUseBoostButtonVisibility();
     }
 
    
 
-    private void CheckScoreUI()
+    private void ResolveSceneReferences()
     {
-        if (cameraFollow != null && cameraFollow.isCameraZoomedOut && !scoreCalculated)
+        if (planeController == null)
+            planeController = FindObjectOfType<PlaneController>();
+
+        if (cameraFollow == null)
+            cameraFollow = FindObjectOfType<SimpleCameraFollow>();
+
+        if (dragLauncher == null)
+            dragLauncher = FindObjectOfType<SimpleDragLauncher>();
+
+        if (audioManager == null)
+            audioManager = FindObjectOfType<AudioManager>();
+
+        if (boosters == null && planeController != null)
         {
-           
-            Invoke("ScoreUI",3f);
+            Transform boostersTransform = planeController.transform.Find("Boosters");
+            if (boostersTransform != null)
+                boosters = boostersTransform.gameObject;
         }
     }
- 
+
+    private void CheckScoreUI()
+    {
+        if (scoreCalculated || scoreUIScheduled)
+            return;
+
+        ResolveSceneReferences();
+
+        if (cameraFollow != null && cameraFollow.isCameraZoomedOut)
+            ScheduleScoreUI(3f);
+    }
+
+    public void OnLandingMarkerPlaced()
+    {
+        if (scoreCalculated || scoreUIScheduled)
+            return;
+
+        ScheduleScoreUI(3f);
+    }
+
+    private void ScheduleScoreUI(float delaySeconds)
+    {
+        if (scoreCalculated || scoreUIScheduled)
+            return;
+
+        scoreUIScheduled = true;
+        CancelInvoke(nameof(ScoreUI));
+
+        if (scoreUIScheduleCoroutine != null)
+            StopCoroutine(scoreUIScheduleCoroutine);
+
+        scoreUIScheduleCoroutine = StartCoroutine(ShowScoreAfterDelay(delaySeconds));
+    }
+
+    private void CancelScoreUISchedule()
+    {
+        CancelInvoke(nameof(ScoreUI));
+
+        if (scoreUIScheduleCoroutine != null)
+        {
+            StopCoroutine(scoreUIScheduleCoroutine);
+            scoreUIScheduleCoroutine = null;
+        }
+
+        scoreUIScheduled = false;
+    }
+
+    private IEnumerator ShowScoreAfterDelay(float delaySeconds)
+    {
+        yield return new WaitForSecondsRealtime(delaySeconds);
+        scoreUIScheduleCoroutine = null;
+        scoreUIScheduled = false;
+        ScoreUI();
+    }
+
     public void ScoreUI()
     {
-        //btnAudio.Stop();    
+        if (scoreCalculated)
+            return;
+
+        ResolveSceneReferences();
+
         if (ScoreUIScreen == null)
         {
             Debug.LogWarning("ScoreUIScreen is not assigned in UIManager");
             return;
         }
-        
-        if (distanceText != null && planeController != null)
-        {
-            distanceText.text = $"Distance: {planeController.maxZDistance:F0}m";
-        } 
 
-        if (scoreCalculated) return; // Prevent multiple calculations
-        scoreCalculated = true;
+        if (planeController == null)
+        {
+            Debug.LogWarning("PlaneController is not assigned in UIManager");
+            return;
+        }
+
+        if (distanceText != null)
+            distanceText.text = $"Distance: {planeController.maxZDistance:F0}m";
 
         int distance = Mathf.RoundToInt(planeController.maxZDistance);
-        BestDistanceLayer.RecordFlightDistance(planeController.maxZDistance);
 
         float coinMultiplier = CoinManager.Instance != null
             ? CoinManager.Instance.GetCoinMultiplier()
             : 1f;
         int coinsEarned = Mathf.RoundToInt(distance * 2 * coinMultiplier);
 
-        if (CoinManager.Instance != null)
-        {
-            CoinManager.Instance.AddCoins(coinsEarned);
-        }
-
-        if (finalScoreText != null)
-        {
-            // This text is for the ScoreScreenUI - animate the counter
-            StartCoroutine(AnimateCoinCounter(coinsEarned));
-        }
-          // 👇 Change title text based on goal status
         if (titleText != null)
-        {
             titleText.text = isGoalReached ? "Congratulations!" : "Nice Flight!";
-        }
 
         ScoreUIScreen.SetActive(true);
+        scoreCalculated = true;
+        CancelScoreUISchedule();
         Debug.Log("Score UI activated");
+
+        AwardFlightCoins(coinsEarned);
+
+        BestDistanceLayer.RecordFlightDistance(planeController.maxZDistance);
+
+        if (finalScoreText != null)
+            StartCoroutine(AnimateCoinCounter(coinsEarned));
+    }
+
+    private void AwardFlightCoins(int coinsEarned)
+    {
+        if (coinsEarned <= 0)
+            return;
+
+        CoinManager.EnsureInstance();
+        if (CoinManager.Instance != null)
+            CoinManager.Instance.AddCoins(coinsEarned);
+        else
+        {
+            int updatedBalance = PlayerPrefs.GetInt("PlayerCoins", 0) + coinsEarned;
+            PlayerPrefs.SetInt("PlayerCoins", updatedBalance);
+            PlayerPrefs.Save();
+        }
+
+        RefreshMainMenuCoins();
+    }
+
+    private void RefreshMainMenuCoins()
+    {
+        MainMenu mainMenu = FindObjectOfType<MainMenu>(true);
+        if (mainMenu != null)
+            mainMenu.RefreshEconomyUI();
     }
 
     public void RestartGame()
@@ -160,16 +253,19 @@ public class UIManager : MonoBehaviour
         if (mainMenuCanvas != null)
             mainMenuCanvas.SetActive(true);
 
-        var mainMenu = FindObjectOfType<MainMenu>();
+        var mainMenu = FindObjectOfType<MainMenu>(true);
         if (mainMenu != null)
+        {
+            mainMenu.RefreshEconomyUI();
             mainMenu.SetLevelsPanelOpen(true);
+        }
     }
 
     public void GoalScreen()
     {
         isGoalReached = true;
         LevelsUI.UnlockLevel(desertLevelIndex);
-        Invoke(nameof(ScoreUI), 2f);
+        ScheduleScoreUI(2f);
     }
 
     public void ResetGoalReached()
@@ -182,7 +278,7 @@ public class UIManager : MonoBehaviour
         float duration = 1.5f; // Animation duration in seconds
         float elapsed = 0f;
         int currentCount = 0;
-        audioManager.CoinSFX();
+        audioManager?.CoinSFX();
 
         while (elapsed < duration)
         {
@@ -223,9 +319,115 @@ public class UIManager : MonoBehaviour
             BackBtn.gameObject.SetActive(showBack);
     }
 
+    private void CaptureUseBoostButtonRestPosition()
+    {
+        if (boostBtn == null)
+            return;
+
+        useBoostButtonRect = boostBtn.GetComponent<RectTransform>();
+        if (useBoostButtonRect == null || useBoostButtonRestCaptured)
+            return;
+
+        useBoostButtonRestPosition = useBoostButtonRect.anchoredPosition;
+        useBoostButtonRestCaptured = true;
+    }
+
+    private void UpdateUseBoostButtonVisibility()
+    {
+        if (boostBtn == null)
+            return;
+
+        CaptureUseBoostButtonRestPosition();
+        if (useBoostButtonRect == null)
+            return;
+
+        bool boostersActive = boosters == null || boosters.activeSelf;
+        bool canShowUseBoost = planeController.boostUsesRemaining > 0
+            && planeController.isControlling
+            && boostersActive;
+
+        if (canShowUseBoost == useBoostButtonWantsShown)
+            return;
+
+        useBoostButtonWantsShown = canShowUseBoost;
+
+        if (canShowUseBoost)
+            ShowUseBoostButtonSlideIn();
+        else
+            HideUseBoostButtonSlideOut();
+    }
+
+    private void ShowUseBoostButtonSlideIn()
+    {
+        if (useBoostButtonRect == null)
+            return;
+
+        if (useBoostButtonSlideCoroutine != null)
+            StopCoroutine(useBoostButtonSlideCoroutine);
+
+        useBoostButtonSlideCoroutine = StartCoroutine(AnimateUseBoostButton(true));
+    }
+
+    private void HideUseBoostButtonSlideOut()
+    {
+        if (useBoostButtonRect == null)
+            return;
+
+        if (useBoostButtonSlideCoroutine != null)
+            StopCoroutine(useBoostButtonSlideCoroutine);
+
+        useBoostButtonSlideCoroutine = StartCoroutine(AnimateUseBoostButton(false));
+    }
+
+    private void HideUseBoostButtonInstant()
+    {
+        if (useBoostButtonSlideCoroutine != null)
+        {
+            StopCoroutine(useBoostButtonSlideCoroutine);
+            useBoostButtonSlideCoroutine = null;
+        }
+
+        useBoostButtonShown = false;
+        useBoostButtonWantsShown = false;
+        if (boostBtn != null)
+            boostBtn.SetActive(false);
+    }
+
+    private IEnumerator AnimateUseBoostButton(bool slideIn)
+    {
+        Vector2 hiddenPos = useBoostButtonRestPosition + new Vector2(boostSlideOffsetX, 0f);
+        Vector2 start = slideIn ? hiddenPos : useBoostButtonRect.anchoredPosition;
+        Vector2 end = slideIn ? useBoostButtonRestPosition : hiddenPos;
+
+        if (slideIn)
+        {
+            boostBtn.SetActive(true);
+            useBoostButtonRect.anchoredPosition = hiddenPos;
+        }
+
+        float elapsed = 0f;
+        while (elapsed < boostSlideDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / boostSlideDuration);
+            useBoostButtonRect.anchoredPosition = Vector2.Lerp(start, end, t);
+            yield return null;
+        }
+
+        useBoostButtonRect.anchoredPosition = end;
+
+        if (!slideIn)
+            boostBtn.SetActive(false);
+
+        useBoostButtonShown = slideIn;
+        useBoostButtonSlideCoroutine = null;
+    }
+
     public void OnGameplayStarted()
     {
+        ResolveSceneReferences();
         scoreCalculated = false;
+        CancelScoreUISchedule();
 
         if (ScoreUIScreen != null)
             ScoreUIScreen.SetActive(false);
@@ -241,6 +443,7 @@ public class UIManager : MonoBehaviour
 
         UpdateBoostCounter();
         UpdateBackButton();
+        HideUseBoostButtonInstant();
     }
 
     public void OnBackBtnClick()
@@ -254,6 +457,8 @@ public class UIManager : MonoBehaviour
                 mainMenuCanvas.SetActive(true);
             else
                 Debug.LogError("mainMenuCanvas is not assigned in the UIManager inspector!");
+
+            RefreshMainMenuCoins();
         });
     }
 

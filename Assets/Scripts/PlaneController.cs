@@ -192,6 +192,7 @@ public class PlaneController : MonoBehaviour
         collisionMarker ??= GetComponent<CollisionMarker>() ?? gameObject.AddComponent<CollisionMarker>();
         rampAligner ??= GetComponent<PlaneRampAligner>() ?? FindObjectOfType<PlaneRampAligner>();
         cameraFollow ??= FindObjectOfType<SimpleCameraFollow>();
+        uiManager ??= FindObjectOfType<UIManager>();
 
         if (cameraFollow == null)
         {
@@ -796,6 +797,9 @@ public class PlaneController : MonoBehaviour
         {
             Debug.LogWarning("Camera follow reference is missing. Cannot transition to marker.");
         }
+
+        uiManager ??= FindObjectOfType<UIManager>();
+        uiManager?.OnLandingMarkerPlaced();
     }
 
     public void BoostButton()

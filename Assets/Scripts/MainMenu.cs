@@ -22,8 +22,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public Button boostEnableBtn;
     public TextMeshProUGUI boostCostText;
     public GameObject PlaneBoosters;
-    [Tooltip("Shown when the player cannot afford boosters.")]
-    public GameObject notEnoughCoinsBoost;
     public GameObject notEnoughCoinsU;
     public GameObject notEnoughCoinsS;
     public Button increaseLaunchForceBtn;
@@ -53,6 +51,10 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     [Tooltip("Added to the spawn position Y when the upgrade particle plays.")]
     public float upgradeParticleYOffset = 0f;
 
+    [Header("Boost Button")]
+    [SerializeField] private float boostSlideOffsetX = 500f;
+    [SerializeField] private float boostSlideDuration = 0.4f;
+
     [Header("Timing c")]
     public float cameraTransitionDuration = 1.5f;
     public float particleEffectDuration = 1.0f;
@@ -80,6 +82,16 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private readonly int[] coinMultiplierCosts = { 600, 900, 1200, 1800, 2500, 3500, 5000, 7000, 10000, 15000, 20000 };
     private const int BoostCost = 500;
 
+    private RectTransform boostButtonRect;
+    private Vector2 boostButtonRestPosition;
+    private bool boostButtonRestCaptured;
+    private bool boostButtonShown;
+    private Coroutine boostButtonSlideCoroutine;
+
+    void OnEnable()
+    {
+        RefreshEconomyUI();
+    }
 
     void Start()
     {
@@ -99,8 +111,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
                 currentIndex = Mathf.Max(currentIndex, i + 1);
         }
         taptoplay.SetActive(true);
+        CaptureBoostButtonRestPosition();
         if (boostEnableBtn != null)
-            boostEnableBtn.gameObject.SetActive(true);
+        {
+            boostEnableBtn.gameObject.SetActive(false);
+            boostButtonShown = false;
+        }
 
         // Load launch force level
         LoadLaunchForceLevel();
@@ -121,6 +137,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateCoinMultiplierLevelUI();
         UpdateCoinMultiplierSliderUI();
         UpdateIncreaseCoinMultiplierButtonInteractable();
+        UpdateBoostButtonInteractable();
 
     }
 
@@ -150,16 +167,11 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             return;
         }
 
-        if (playerCoins < currentCost)
+        if (!TrySpendCoins((int)currentCost))
         {
             Debug.Log("Not enough coins!");
-            
             return;
         }
-
-        // Deduct cost
-        playerCoins -= (int)currentCost;
-        PlayerPrefs.SetInt("PlayerCoins", playerCoins);
 
         // Progress and cost update
         clickCount++;
@@ -190,14 +202,11 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         upgradeButton.interactable = false;
         taptoplay.SetActive(false);
         yield return new WaitForSeconds(0.3f);
-        if (boostEnableBtn != null)
-            boostEnableBtn.gameObject.SetActive(false);
+        HideBoostButtonInstant();
         upgradeButton.gameObject.SetActive(false);
         increaseLaunchForceBtn.gameObject.SetActive(false);
         if (increaseCoinMultiplierBtn != null)
             increaseCoinMultiplierBtn.gameObject.SetActive(false);
-        if (notEnoughCoinsBoost != null)
-            notEnoughCoinsBoost.SetActive(false);
         notEnoughCoinsS.SetActive(false);
         if (notEnoughCoinsC != null)
             notEnoughCoinsC.SetActive(false);
@@ -258,8 +267,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         // Step 4: Transition camera back to main menu
         yield return StartCoroutine(cameraManager.TransitionToTarget(cameraManager.mainMenuPosition, cameraTransitionDuration));
         taptoplay.SetActive(true);
-        if (boostEnableBtn != null)
-            boostEnableBtn.gameObject.SetActive(true);
         upgradeButton.gameObject.SetActive(true);
         increaseLaunchForceBtn.gameObject.SetActive(true);
         if (increaseCoinMultiplierBtn != null)
@@ -391,18 +398,108 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
     }
     
+    private void CaptureBoostButtonRestPosition()
+    {
+        if (boostEnableBtn == null)
+            return;
+
+        boostButtonRect = boostEnableBtn.GetComponent<RectTransform>();
+        if (boostButtonRect == null || boostButtonRestCaptured)
+            return;
+
+        boostButtonRestPosition = boostButtonRect.anchoredPosition;
+        boostButtonRestCaptured = true;
+    }
+
     private void UpdateBoostButtonInteractable()
     {
-        if (boostEnableBtn != null)
-        {
-            // Disable button if not enough coins or boosters already active
-            bool boostersInactive = PlaneBoosters == null || !PlaneBoosters.activeSelf;
-            bool canAffordBoost = playerCoins >= BoostCost && boostersInactive;
-            boostEnableBtn.interactable = canAffordBoost;
+        if (boostEnableBtn == null)
+            return;
 
-            if (notEnoughCoinsBoost != null)
-                notEnoughCoinsBoost.SetActive(boostersInactive && playerCoins < BoostCost);
+        CaptureBoostButtonRestPosition();
+        if (boostButtonRect == null)
+            return;
+
+        bool boostersInactive = PlaneBoosters == null || !PlaneBoosters.activeSelf;
+        bool canShowBoost = playerCoins >= BoostCost && boostersInactive;
+        boostEnableBtn.interactable = canShowBoost;
+
+        if (canShowBoost)
+            ShowBoostButtonSlideIn();
+        else
+            HideBoostButtonSlideOut();
+    }
+
+    private void ShowBoostButtonSlideIn()
+    {
+        if (boostButtonRect == null)
+            return;
+
+        boostEnableBtn.gameObject.SetActive(true);
+        if (boostButtonShown && boostButtonSlideCoroutine == null)
+            return;
+
+        if (boostButtonSlideCoroutine != null)
+            StopCoroutine(boostButtonSlideCoroutine);
+
+        boostButtonSlideCoroutine = StartCoroutine(AnimateBoostButton(true));
+    }
+
+    private void HideBoostButtonSlideOut()
+    {
+        if (boostButtonRect == null)
+            return;
+
+        if (!boostButtonShown && !boostEnableBtn.gameObject.activeSelf)
+            return;
+
+        if (boostButtonSlideCoroutine != null)
+            StopCoroutine(boostButtonSlideCoroutine);
+
+        boostButtonSlideCoroutine = StartCoroutine(AnimateBoostButton(false));
+    }
+
+    private void HideBoostButtonInstant()
+    {
+        if (boostButtonSlideCoroutine != null)
+        {
+            StopCoroutine(boostButtonSlideCoroutine);
+            boostButtonSlideCoroutine = null;
         }
+
+        boostButtonShown = false;
+        if (boostEnableBtn != null)
+            boostEnableBtn.gameObject.SetActive(false);
+    }
+
+    private IEnumerator AnimateBoostButton(bool slideIn)
+    {
+        Vector2 hiddenPos = boostButtonRestPosition + new Vector2(boostSlideOffsetX, 0f);
+        Vector2 start = slideIn ? hiddenPos : boostButtonRect.anchoredPosition;
+        Vector2 end = slideIn ? boostButtonRestPosition : hiddenPos;
+
+        if (slideIn)
+        {
+            boostEnableBtn.gameObject.SetActive(true);
+            boostButtonRect.anchoredPosition = hiddenPos;
+        }
+
+        float elapsed = 0f;
+        while (elapsed < boostSlideDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / boostSlideDuration);
+            boostButtonRect.anchoredPosition = Vector2.Lerp(start, end, t);
+            yield return null;
+        }
+
+        boostButtonRect.anchoredPosition = end;
+
+        if (!slideIn)
+            boostEnableBtn.gameObject.SetActive(false);
+
+        boostButtonShown = slideIn;
+        boostButtonSlideCoroutine = null;
     }
 
     private void UpdateIncreaseLaunchForceButtonInteractable()
@@ -486,12 +583,52 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public void CheatCoins()
     {
-        playerCoins += 1000000;
+        CoinManager.EnsureInstance();
+        if (CoinManager.Instance != null)
+            CoinManager.Instance.AddCoins(1000000);
+
+        RefreshEconomyUI();
+    }
+
+    public void RefreshEconomyUI()
+    {
+        SyncPlayerCoins();
         UpdateCoinUI();
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
         UpdateIncreaseCoinMultiplierButtonInteractable();
+    }
+
+    private void SyncPlayerCoins()
+    {
+        CoinManager.EnsureInstance();
+        playerCoins = CoinManager.Instance != null
+            ? CoinManager.Instance.GetCoins()
+            : PlayerPrefs.GetInt("PlayerCoins", 0);
+    }
+
+    private bool TrySpendCoins(int amount)
+    {
+        SyncPlayerCoins();
+        if (playerCoins < amount)
+            return false;
+
+        CoinManager.EnsureInstance();
+        if (CoinManager.Instance != null)
+        {
+            if (!CoinManager.Instance.SpendCoins(amount))
+                return false;
+        }
+        else
+        {
+            playerCoins -= amount;
+            PlayerPrefs.SetInt("PlayerCoins", playerCoins);
+            PlayerPrefs.Save();
+        }
+
+        SyncPlayerCoins();
+        return true;
     }
 
     // -----------------------------
@@ -503,6 +640,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         PlayerPrefs.SetInt("Upgrade_CurrentIndex", currentIndex);
         PlayerPrefs.SetInt("Upgrade_ClickCount", clickCount);
         PlayerPrefs.SetFloat("Upgrade_CurrentCost", currentCost);
+        SyncPlayerCoins();
         PlayerPrefs.SetInt("PlayerCoins", playerCoins);
         PlayerPrefs.Save();
     }
@@ -512,7 +650,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         currentIndex = PlayerPrefs.GetInt("Upgrade_CurrentIndex", 0);
         clickCount = PlayerPrefs.GetInt("Upgrade_ClickCount", 0);
         currentCost = PlayerPrefs.GetFloat("Upgrade_CurrentCost", 10f);
-        playerCoins = PlayerPrefs.GetInt("PlayerCoins", 0);
+        SyncPlayerCoins();
     }
 
     // -----------------------------
@@ -556,12 +694,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         audioManager.btnSFX();
         VibrationManager.Instance.VibrateButtonClick();
         bool boostersInactive = PlaneBoosters == null || !PlaneBoosters.activeSelf;
-        if (playerCoins >= BoostCost && boostersInactive)
+        if (boostersInactive && TrySpendCoins(BoostCost))
         {
-            playerCoins -= BoostCost;
-            PlayerPrefs.SetInt("PlayerCoins", playerCoins);
-            PlayerPrefs.Save();
-            
             // Update coin UI
             UpdateCoinUI();
             
@@ -612,13 +746,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
         
         int currentCostForLevel = launchForceCosts[launchForceLevel - 1];
-        
-        if (playerCoins >= currentCostForLevel)
+
+        if (TrySpendCoins(currentCostForLevel))
         {
-            // Deduct coins
-            playerCoins -= currentCostForLevel;
-            PlayerPrefs.SetInt("PlayerCoins", playerCoins);
-            PlayerPrefs.Save();
             UpdateCoinUI();
 
             // Increase level
@@ -665,15 +795,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
 
         int cost = coinMultiplierCosts[coinMultiplierLevel - 1];
-        if (playerCoins < cost)
+        if (!TrySpendCoins(cost))
         {
             Debug.Log("Not enough coins!");
             return;
         }
 
-        playerCoins -= cost;
-        PlayerPrefs.SetInt("PlayerCoins", playerCoins);
-        PlayerPrefs.Save();
         UpdateCoinUI();
 
         coinMultiplierLevel++;
