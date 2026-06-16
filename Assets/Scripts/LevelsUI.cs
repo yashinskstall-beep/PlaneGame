@@ -99,7 +99,7 @@ public class LevelsUI : MonoBehaviour
                 mainMenu.CloseLevelsPanel();
 
             if (resetProgress)
-                LevelProgress.ResetGameplayProgress();
+                LevelProgress.ResetGameplayProgress(mainMenu != null ? mainMenu.GetUpgradePartNames() : null);
         });
     }
 

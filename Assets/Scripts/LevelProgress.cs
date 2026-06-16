@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -7,6 +8,8 @@ public static class LevelProgress
 {
     public const string CoinsKey = "PlayerCoins";
 
+    private static bool gameplayResetPending;
+
     private static readonly string[] GameplayKeys =
     {
         "Upgrade_CurrentIndex",
@@ -14,6 +17,8 @@ public static class LevelProgress
         "Upgrade_CurrentCost",
         "LaunchForceLevel",
         "LaunchForceMultiplier",
+        "CoinMultiplierLevel",
+        "CoinMultiplier",
         "leftWing_active",
         "rightWing_active",
         "tail_active",
@@ -29,11 +34,32 @@ public static class LevelProgress
         return partObjectName + "_active";
     }
 
-    public static void ResetGameplayProgress()
+    public static void ResetGameplayProgress(IEnumerable<string> partObjectNames = null)
     {
         foreach (string key in GameplayKeys)
             PlayerPrefs.DeleteKey(key);
 
+        if (partObjectNames != null)
+        {
+            foreach (string partName in partObjectNames)
+            {
+                if (string.IsNullOrEmpty(partName))
+                    continue;
+
+                PlayerPrefs.DeleteKey(GetPartActiveKey(partName));
+            }
+        }
+
+        gameplayResetPending = true;
         PlayerPrefs.Save();
+    }
+
+    public static bool ConsumeGameplayResetPending()
+    {
+        if (!gameplayResetPending)
+            return false;
+
+        gameplayResetPending = false;
+        return true;
     }
 }

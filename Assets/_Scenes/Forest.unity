@@ -35,9 +35,9 @@ RenderSettings:
   m_DefaultReflectionMode: 0
   m_DefaultReflectionResolution: 128
   m_ReflectionBounces: 1
-  m_ReflectionIntensity: 0
+  m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
-  m_Sun: {fileID: 0}
+  m_Sun: {fileID: 1583874661}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -968,6 +968,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   hideWhenNoRecord: 1
+  wallMaterialTemplate: {fileID: 0}
 --- !u!114 &515219282 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2844624535822623690, guid: 2fbd472d455b3884cbeaadd144a002c8,
@@ -1604,6 +1605,46 @@ PrefabInstance:
         type: 3}
       propertyPath: m_ReflectionProbeUsage
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8119033197435525484, guid: ce69694b318a60e43991f6da830a6da9,
+        type: 3}
+      propertyPath: m_EnableHeightmapRayTracing
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8377575193469830476, guid: ce69694b318a60e43991f6da830a6da9,
+        type: 3}
+      propertyPath: m_MaterialTemplate
+      value: 
+      objectReference: {fileID: 2100000, guid: a7f3e2d1c4b5980765a43210fedcba98, type: 2}
+    - target: {fileID: 8377575193469830476, guid: ce69694b318a60e43991f6da830a6da9,
+        type: 3}
+      propertyPath: m_ShadowCastingMode
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 8377575193469830476, guid: ce69694b318a60e43991f6da830a6da9,
+        type: 3}
+      propertyPath: m_DrawTreesAndFoliage
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8377575193469830476, guid: ce69694b318a60e43991f6da830a6da9,
+        type: 3}
+      propertyPath: m_ReflectionProbeUsage
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8377575193469830476, guid: ce69694b318a60e43991f6da830a6da9,
+        type: 3}
+      propertyPath: m_BakeLightProbesForTrees
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8377575193469830476, guid: ce69694b318a60e43991f6da830a6da9,
+        type: 3}
+      propertyPath: m_DeringLightProbesForTrees
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8377575193469830476, guid: ce69694b318a60e43991f6da830a6da9,
+        type: 3}
+      propertyPath: m_EnableHeightmapRayTracing
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 9209956919767573928, guid: ce69694b318a60e43991f6da830a6da9,
         type: 3}
@@ -3186,7 +3227,7 @@ Light:
     serializedVersion: 2
     m_Bits: 4294967295
   m_RenderingLayerMask: 1
-  m_Lightmapping: 4
+  m_Lightmapping: 2
   m_LightShadowCasterMode: 0
   m_AreaSize: {x: 1, y: 1}
   m_BounceIntensity: 1
@@ -3575,6 +3616,46 @@ PrefabInstance:
       propertyPath: m_Name
       value: PresistentUI
       objectReference: {fileID: 0}
+    - target: {fileID: 4801040401647278226, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4801040401647278226, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4801040401647278226, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4801040401647278226, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5436679652990859369, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5436679652990859369, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5436679652990859369, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5436679652990859369, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5501427275199570453, guid: 2fbd472d455b3884cbeaadd144a002c8,
         type: 3}
       propertyPath: tail
@@ -3633,6 +3714,26 @@ PrefabInstance:
     - target: {fileID: 5740151395065417169, guid: 2fbd472d455b3884cbeaadd144a002c8,
         type: 3}
       propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6322351051606303889, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6322351051606303889, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6322351051606303889, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6322351051606303889, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7688286564984834350, guid: 2fbd472d455b3884cbeaadd144a002c8,

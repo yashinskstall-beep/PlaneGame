@@ -97,19 +97,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         parts = new List<GameObject> { leftWing, rightWing, tail };
         partFocusPoints = new List<Transform> { leftWingFocusPoint, rightWingFocusPoint, tailFocusPoint };
-        //audioSource = GetComponent<AudioSource>();
-        //audioSource.Stop();
-        // Load saved data
-        LoadProgress();
 
-        ApplyPartStatesFromSave();
+        if (LevelProgress.ConsumeGameplayResetPending())
+            ResetUpgradesForNewLevel();
+        else
+            InitializeFromSavedProgress();
 
-        // Set current index if not loaded
-        for (int i = 0; i < parts.Count; i++)
-        {
-            if (parts[i].activeSelf)
-                currentIndex = Mathf.Max(currentIndex, i + 1);
-        }
         taptoplay.SetActive(true);
         CaptureBoostButtonRestPosition();
         if (boostEnableBtn != null)
@@ -118,11 +111,103 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             boostButtonShown = false;
         }
 
-        // Load launch force level
+        RefreshAllUpgradeUI();
+    }
+
+    public string[] GetUpgradePartNames()
+    {
+        var names = new List<string>(3);
+        if (leftWing != null)
+            names.Add(leftWing.name);
+        if (rightWing != null)
+            names.Add(rightWing.name);
+        if (tail != null)
+            names.Add(tail.name);
+        return names.ToArray();
+    }
+
+    public void ResetUpgradesForNewLevel()
+    {
+        isUpgrading = false;
+        currentIndex = 0;
+        clickCount = 0;
+        currentCost = 10f;
+        launchForceLevel = 1;
+        coinMultiplierLevel = 1;
+
+        if (parts == null)
+            parts = new List<GameObject> { leftWing, rightWing, tail };
+
+        for (int i = 0; i < parts.Count; i++)
+        {
+            if (parts[i] == null)
+                continue;
+
+            parts[i].SetActive(false);
+            PlayerPrefs.DeleteKey(LevelProgress.GetPartActiveKey(parts[i].name));
+        }
+
+        if (PlaneBoosters != null)
+            PlaneBoosters.SetActive(false);
+        if (boostactive != null)
+            boostactive.SetActive(false);
+
+        if (dragLauncher != null)
+            dragLauncher.launchForceMultiplier = launchForceLevels[0];
+
+        PlayerPrefs.SetInt("Upgrade_CurrentIndex", 0);
+        PlayerPrefs.SetInt("Upgrade_ClickCount", 0);
+        PlayerPrefs.SetFloat("Upgrade_CurrentCost", currentCost);
+        PlayerPrefs.SetInt("LaunchForceLevel", 1);
+        PlayerPrefs.SetFloat("LaunchForceMultiplier", launchForceLevels[0]);
+        PlayerPrefs.SetInt("CoinMultiplierLevel", 1);
+        PlayerPrefs.SetFloat("CoinMultiplier", 1f);
+        PlayerPrefs.Save();
+
+        ShowUpgradeButtons();
+        HideUpgradeWarnings();
+        HideBoostButtonInstant();
+        SetLevelsPanelOpen(false);
+        SyncPlayerCoins();
+    }
+
+    private void InitializeFromSavedProgress()
+    {
+        LoadProgress();
+        ApplyPartStatesFromSave();
+
+        for (int i = 0; i < parts.Count; i++)
+        {
+            if (parts[i] != null && parts[i].activeSelf)
+                currentIndex = Mathf.Max(currentIndex, i + 1);
+        }
+
         LoadLaunchForceLevel();
         LoadCoinMultiplierLevel();
-        
-        // Update UI
+    }
+
+    private void ShowUpgradeButtons()
+    {
+        if (upgradeButton != null)
+            upgradeButton.gameObject.SetActive(true);
+        if (increaseLaunchForceBtn != null)
+            increaseLaunchForceBtn.gameObject.SetActive(true);
+        if (increaseCoinMultiplierBtn != null)
+            increaseCoinMultiplierBtn.gameObject.SetActive(true);
+    }
+
+    private void HideUpgradeWarnings()
+    {
+        if (notEnoughCoinsU != null)
+            notEnoughCoinsU.SetActive(false);
+        if (notEnoughCoinsS != null)
+            notEnoughCoinsS.SetActive(false);
+        if (notEnoughCoinsC != null)
+            notEnoughCoinsC.SetActive(false);
+    }
+
+    private void RefreshAllUpgradeUI()
+    {
         UpdateCoinUI();
         UpdateCostUI();
         UpdateSliderUI();
@@ -137,8 +222,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateCoinMultiplierLevelUI();
         UpdateCoinMultiplierSliderUI();
         UpdateIncreaseCoinMultiplierButtonInteractable();
-        UpdateBoostButtonInteractable();
-
     }
 
     public void OnPointerClick(PointerEventData eventData)
