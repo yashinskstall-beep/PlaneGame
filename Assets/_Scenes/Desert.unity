@@ -1585,6 +1585,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   hideWhenNoRecord: 1
+  wallMaterialTemplate: {fileID: 0}
 --- !u!1001 &419996635
 PrefabInstance:
   m_ObjectHideFlags: 0

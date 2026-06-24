@@ -147,7 +147,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 717d8151df0748146a725bf5e5388d3c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  punchScale: {x: 0.5, y: 0.5, z: 0.5}
+  popScaleMultiplier: 1.2
   animationDuration: 0.3
 --- !u!1 &106519863400981263
 GameObject:
@@ -1283,7 +1283,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 717d8151df0748146a725bf5e5388d3c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  punchScale: {x: 1.8, y: 1.8, z: 1.8}
+  popScaleMultiplier: 1.2
   animationDuration: 0.3
 --- !u!1 &1102447704219235721
 GameObject:
@@ -7464,7 +7464,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 717d8151df0748146a725bf5e5388d3c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  punchScale: {x: 1.8, y: 1.8, z: 1.8}
+  popScaleMultiplier: 1.2
   animationDuration: 0.3
 --- !u!1 &5452718807443525063
 GameObject:
@@ -9262,7 +9262,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 717d8151df0748146a725bf5e5388d3c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  punchScale: {x: 1.8, y: 1.8, z: 1.8}
+  popScaleMultiplier: 1.2
   animationDuration: 0.3
 --- !u!1 &7316297955450553995
 GameObject:
@@ -10207,7 +10207,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 717d8151df0748146a725bf5e5388d3c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  punchScale: {x: 1.8, y: 1.8, z: 1.8}
+  popScaleMultiplier: 1.2
   animationDuration: 0.3
 --- !u!1 &8121616169289669951
 GameObject:

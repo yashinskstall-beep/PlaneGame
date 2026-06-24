@@ -22,8 +22,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public Button boostEnableBtn;
     public TextMeshProUGUI boostCostText;
     public GameObject PlaneBoosters;
-    public GameObject notEnoughCoinsU;
-    public GameObject notEnoughCoinsS;
     public Button increaseLaunchForceBtn;
     public TextMeshProUGUI launchForceCostText;
     public TextMeshProUGUI launchForceLevelText;
@@ -33,7 +31,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public TextMeshProUGUI coinMultiplierCostText;
     public TextMeshProUGUI coinMultiplierLevelText;
     public Slider coinMultiplierSlider;
-    public GameObject notEnoughCoinsC;
     public SimpleDragLauncher dragLauncher;
     public GameObject boostactive;
     public GameObject SettingTab;
@@ -90,11 +87,15 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     void OnEnable()
     {
+        ResolveUIReferences();
+        CacheUpgradeButtonTransitions();
+        EnsureUpgradeShakeComponents();
         RefreshEconomyUI();
     }
 
     void Start()
     {
+        ResolveUIReferences();
         parts = new List<GameObject> { leftWing, rightWing, tail };
         partFocusPoints = new List<Transform> { leftWingFocusPoint, rightWingFocusPoint, tailFocusPoint };
 
@@ -105,6 +106,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         taptoplay.SetActive(true);
         CaptureBoostButtonRestPosition();
+        CacheUpgradeButtonTransitions();
+        EnsureUpgradeShakeComponents();
         if (boostEnableBtn != null)
         {
             boostEnableBtn.gameObject.SetActive(false);
@@ -165,7 +168,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         PlayerPrefs.Save();
 
         ShowUpgradeButtons();
-        HideUpgradeWarnings();
         HideBoostButtonInstant();
         SetLevelsPanelOpen(false);
         SyncPlayerCoins();
@@ -196,14 +198,78 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             increaseCoinMultiplierBtn.gameObject.SetActive(true);
     }
 
-    private void HideUpgradeWarnings()
+    private Selectable.Transition upgradeButtonTransition = Selectable.Transition.ColorTint;
+    private Selectable.Transition launchForceButtonTransition = Selectable.Transition.ColorTint;
+    private Selectable.Transition coinMultiplierButtonTransition = Selectable.Transition.ColorTint;
+    private bool upgradeButtonTransitionsCached;
+
+    private void CacheUpgradeButtonTransitions()
     {
-        if (notEnoughCoinsU != null)
-            notEnoughCoinsU.SetActive(false);
-        if (notEnoughCoinsS != null)
-            notEnoughCoinsS.SetActive(false);
-        if (notEnoughCoinsC != null)
-            notEnoughCoinsC.SetActive(false);
+        if (upgradeButtonTransitionsCached)
+            return;
+
+        if (upgradeButton != null)
+            upgradeButtonTransition = upgradeButton.transition;
+        if (increaseLaunchForceBtn != null)
+            launchForceButtonTransition = increaseLaunchForceBtn.transition;
+        if (increaseCoinMultiplierBtn != null)
+            coinMultiplierButtonTransition = increaseCoinMultiplierBtn.transition;
+
+        upgradeButtonTransitionsCached = true;
+    }
+
+    private void ApplyUpgradeButtonState(Button button, Selectable.Transition normalTransition, bool purchasable, bool atMax)
+    {
+        if (button == null)
+            return;
+
+        CacheUpgradeButtonTransitions();
+        bool canPurchase = purchasable && !atMax;
+        button.interactable = !atMax;
+        button.transition = canPurchase ? normalTransition : Selectable.Transition.None;
+
+        ButtonScaleAnimation scaleAnim = button.GetComponent<ButtonScaleAnimation>();
+        if (scaleAnim != null)
+            scaleAnim.enabled = canPurchase;
+
+        if (!canPurchase && button.targetGraphic != null)
+            button.targetGraphic.CrossFadeColor(button.colors.normalColor, 0f, true, true);
+    }
+
+    private void EnsureUpgradeShakeComponents()
+    {
+        EnsureShakeComponent(upgradeButton);
+        EnsureShakeComponent(increaseLaunchForceBtn);
+        EnsureShakeComponent(increaseCoinMultiplierBtn);
+    }
+
+    private static void EnsureShakeComponent(Button button)
+    {
+        if (button != null && button.GetComponent<ButtonShakeAnimation>() == null)
+            button.gameObject.AddComponent<ButtonShakeAnimation>();
+    }
+
+    private void PlayInsufficientCoinsShake(Button button)
+    {
+        if (button == null)
+            return;
+
+        ButtonShakeAnimation shake = button.GetComponent<ButtonShakeAnimation>();
+        if (shake != null)
+            shake.Play();
+
+        if (VibrationManager.Instance != null)
+            VibrationManager.Instance.VibrateShort();
+    }
+
+    private void ResolveUIReferences()
+    {
+        if (costText == null && upgradeButton != null)
+        {
+            Transform costTransform = upgradeButton.transform.Find("Cost");
+            if (costTransform != null)
+                costText = costTransform.GetComponent<TextMeshProUGUI>();
+        }
     }
 
     private void RefreshAllUpgradeUI()
@@ -239,10 +305,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             return;
         }
 
-        //audioSource.Play();
-        audioManager.btnSFX();
-        VibrationManager.Instance.VibrateButtonClick();
-        Debug.Log("audio was Played");
         if (currentIndex >= parts.Count)
         {
             Debug.Log("All parts active — Fully upgraded!");
@@ -250,11 +312,18 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             return;
         }
 
-        if (!TrySpendCoins((int)currentCost))
+        SyncPlayerCoins();
+        if (playerCoins < currentCost)
         {
+            PlayInsufficientCoinsShake(upgradeButton);
             Debug.Log("Not enough coins!");
             return;
         }
+
+        audioManager.btnSFX();
+        VibrationManager.Instance.VibrateButtonClick();
+        if (!TrySpendCoins((int)currentCost))
+            return;
 
         // Progress and cost update
         clickCount++;
@@ -290,10 +359,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         increaseLaunchForceBtn.gameObject.SetActive(false);
         if (increaseCoinMultiplierBtn != null)
             increaseCoinMultiplierBtn.gameObject.SetActive(false);
-        notEnoughCoinsS.SetActive(false);
-        if (notEnoughCoinsC != null)
-            notEnoughCoinsC.SetActive(false);
-        
 
         // Step 1: Transition camera to the part
         if (currentIndex < partFocusPoints.Count && partFocusPoints[currentIndex] != null)
@@ -422,16 +487,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         if (upgradeButton != null)
         {
-            // Disable button if out of coins or fully upgraded
-            bool hasEnoughCoins = playerCoins >= currentCost && currentIndex < parts.Count;
-            upgradeButton.interactable = hasEnoughCoins;
-            
-            // Show/hide not enough coins UI
-            if (notEnoughCoinsU != null)
-            {
-                // Show warning only if not enough coins AND not fully upgraded
-                notEnoughCoinsU.SetActive(!hasEnoughCoins && currentIndex < parts.Count);
-            }
+            bool canAfford = playerCoins >= currentCost && currentIndex < parts.Count;
+            bool atMax = currentIndex >= parts.Count;
+            ApplyUpgradeButtonState(upgradeButton, upgradeButtonTransition, canAfford, atMax);
         }
     }
 
@@ -589,22 +647,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         if (increaseLaunchForceBtn != null)
         {
-            // Disable button if not enough coins or max level reached
-            bool canAffordLaunchForce = false;
             bool isMaxLevel = launchForceLevel >= maxLaunchForceLevel;
-            
-            if (!isMaxLevel)
-            {
-                int currentCostForLevel = launchForceCosts[launchForceLevel - 1];
-                canAffordLaunchForce = playerCoins >= currentCostForLevel;
-            }
-            
-            increaseLaunchForceBtn.interactable = canAffordLaunchForce;
-
-            // Only show "not enough coins" warning if NOT at max level and can't afford
-            if(notEnoughCoinsS != null){
-                notEnoughCoinsS.SetActive(!canAffordLaunchForce && !isMaxLevel);
-            }
+            bool canAfford = playerCoins >= launchForceCosts[launchForceLevel - 1];
+            ApplyUpgradeButtonState(increaseLaunchForceBtn, launchForceButtonTransition, canAfford, isMaxLevel);
         }
     }
 
@@ -650,18 +695,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             return;
 
         bool isMaxLevel = coinMultiplierLevel >= maxCoinMultiplierLevel;
-        bool canAfford = false;
-
-        if (!isMaxLevel)
-        {
-            int cost = coinMultiplierCosts[coinMultiplierLevel - 1];
-            canAfford = playerCoins >= cost;
-        }
-
-        increaseCoinMultiplierBtn.interactable = canAfford;
-
-        if (notEnoughCoinsC != null)
-            notEnoughCoinsC.SetActive(!canAfford && !isMaxLevel);
+        bool canAfford = playerCoins >= coinMultiplierCosts[coinMultiplierLevel - 1];
+        ApplyUpgradeButtonState(increaseCoinMultiplierBtn, coinMultiplierButtonTransition, canAfford, isMaxLevel);
     }
 
     public void CheatCoins()
@@ -675,8 +710,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public void RefreshEconomyUI()
     {
+        ResolveUIReferences();
         SyncPlayerCoins();
         UpdateCoinUI();
+        UpdateCostUI();
+        UpdateLaunchForceCostUI();
+        UpdateCoinMultiplierCostUI();
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
@@ -753,7 +792,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
 
         if (upgradeButton != null)
-            upgradeButton.interactable = false;
+            ApplyUpgradeButtonState(upgradeButton, upgradeButtonTransition, false, true);
     }
 
     // -----------------------------
@@ -819,16 +858,23 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     
     public void IncreaseLaunchForce()
     {
-        audioManager.btnSFX();
-        VibrationManager.Instance.VibrateButtonClick();
-        // Check if already at max level
         if (launchForceLevel >= maxLaunchForceLevel)
         {
             Debug.Log("Launch force already at max level!");
             return;
         }
-        
+
         int currentCostForLevel = launchForceCosts[launchForceLevel - 1];
+        SyncPlayerCoins();
+        if (playerCoins < currentCostForLevel)
+        {
+            PlayInsufficientCoinsShake(increaseLaunchForceBtn);
+            Debug.Log("Not enough coins!");
+            return;
+        }
+
+        audioManager.btnSFX();
+        VibrationManager.Instance.VibrateButtonClick();
 
         if (TrySpendCoins(currentCostForLevel))
         {
@@ -854,10 +900,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
             Debug.Log($"Launch force upgraded to Level {launchForceLevel}! Force: {dragLauncher.launchForceMultiplier}");
         }
-        else
-        {
-            Debug.Log("Not enough coins!");
-        }
     }
 
     private void LoadCoinMultiplierLevel()
@@ -868,9 +910,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public void IncreaseCoinMultiplier()
     {
-        audioManager.btnSFX();
-        VibrationManager.Instance.VibrateButtonClick();
-
         if (coinMultiplierLevel >= maxCoinMultiplierLevel)
         {
             Debug.Log("Coin multiplier already at max level!");
@@ -878,11 +917,19 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
 
         int cost = coinMultiplierCosts[coinMultiplierLevel - 1];
-        if (!TrySpendCoins(cost))
+        SyncPlayerCoins();
+        if (playerCoins < cost)
         {
+            PlayInsufficientCoinsShake(increaseCoinMultiplierBtn);
             Debug.Log("Not enough coins!");
             return;
         }
+
+        audioManager.btnSFX();
+        VibrationManager.Instance.VibrateButtonClick();
+
+        if (!TrySpendCoins(cost))
+            return;
 
         UpdateCoinUI();
 
