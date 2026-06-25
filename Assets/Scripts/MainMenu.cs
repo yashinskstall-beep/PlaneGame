@@ -20,7 +20,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public GameObject taptoplay;
     public Button BackBtn;
     public Button boostEnableBtn;
-    public TextMeshProUGUI boostCostText;
+    //public TextMeshProUGUI boostCostText;
     public GameObject PlaneBoosters;
     public Button increaseLaunchForceBtn;
     public TextMeshProUGUI launchForceCostText;
@@ -66,6 +66,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private int playerCoins;
  // private AudioSource audioSource;
     private bool isUpgrading = false;
+    private Image menuPanelImage;
+
+    public bool IsUpgrading => isUpgrading;
     
     // Launch force level system
     private int launchForceLevel = 1;
@@ -84,6 +87,11 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private bool boostButtonRestCaptured;
     private bool boostButtonShown;
     private Coroutine boostButtonSlideCoroutine;
+
+    void Awake()
+    {
+        menuPanelImage = GetComponent<Image>();
+    }
 
     void OnEnable()
     {
@@ -292,9 +300,35 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public void OnPointerClick(PointerEventData eventData)
     {
+        if (isUpgrading)
+            return;
+
         Debug.Log("Panel clicked");
         cameraManager.TransitionToStartCamPos();
         //audioManager.audioSource.Stop();
+    }
+
+    private void SetMenuTapInputEnabled(bool enabled)
+    {
+        if (menuPanelImage != null)
+            menuPanelImage.raycastTarget = enabled;
+    }
+
+    private void BeginUpgradeInputBlock()
+    {
+        isUpgrading = true;
+        SetMenuTapInputEnabled(false);
+        if (dragLauncher != null)
+            dragLauncher.SetDragEnabled(false);
+    }
+
+    private void EndUpgradeInputBlock()
+    {
+        if (cameraManager != null && cameraManager.MainMenu != null)
+            cameraManager.MainMenu.SetActive(true);
+
+        SetMenuTapInputEnabled(true);
+        isUpgrading = false;
     }
 
     public void ActivateNextPart()
@@ -350,7 +384,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private IEnumerator UpgradeSequence()
     {
-        isUpgrading = true;
+        BeginUpgradeInputBlock();
         upgradeButton.interactable = false;
         taptoplay.SetActive(false);
         yield return new WaitForSeconds(0.3f);
@@ -430,7 +464,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
         UpdateIncreaseCoinMultiplierButtonInteractable();
-        isUpgrading = false;
+        EndUpgradeInputBlock();
     }
 
     // -----------------------------
@@ -495,10 +529,10 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void UpdateBoostCostUI()
     {
-        if (boostCostText != null)
-        {
-            boostCostText.text = BoostCost.ToString();
-        }
+        // if (boostCostText != null)
+        // {
+        //     boostCostText.text = BoostCost.ToString();
+        // }
     }
     
     private void UpdateLaunchForceCostUI()
@@ -888,6 +922,11 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             dragLauncher.launchForceMultiplier = launchForceLevels[launchForceLevel - 1];
             PlayerPrefs.SetFloat("LaunchForceMultiplier", dragLauncher.launchForceMultiplier);
             PlayerPrefs.Save();
+
+            // Re-snap the plane to the ramp rest pose so the new slingshot state
+            // doesn't leave it using an older drag/rotation pose.
+            if (dragLauncher != null)
+                dragLauncher.ResetForNewLaunch();
 
             // Update all UI
             UpdateLaunchForceCostUI();

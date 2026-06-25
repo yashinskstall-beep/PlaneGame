@@ -30,6 +30,10 @@ public class CameraManager : MonoBehaviour
         if (inTransition || startPosition == null)
             return;
 
+        MainMenu mainMenu = MainMenu != null ? MainMenu.GetComponent<MainMenu>() : null;
+        if (mainMenu != null && mainMenu.IsUpgrading)
+            return;
+
         Debug.Log("Transitioning to start position");
         StartCoroutine(TransitionToPosition(startPosition.position, startPosition.rotation, transitionDuration, () =>
         {

@@ -112,6 +112,12 @@ public class PlaneController : MonoBehaviour
     [Tooltip("Height above the ground where the landing flag is spawned.")]
     public float markerYOffset = 0.5f;
 
+    [Header("Fall-Through Safety")]
+    [Tooltip("If the plane falls below this world Y (through terrain), the flight ends and the flag spawns at max travel distance.")]
+    public float fallThroughYThreshold = -37f;
+    [Tooltip("World Y height used as the raycast origin when snapping the flag to terrain after a fall-through.")]
+    public float fallThroughTerrainRaycastHeight = 250f;
+
     [Header("Smoothing Settings")]
     [Tooltip("Input smoothing. Higher = softer stick/keyboard response, less twitchy.")]
     public float inputSmoothness = 25f;
@@ -236,6 +242,8 @@ public class PlaneController : MonoBehaviour
             maxZDistance = currentDistance;
             maxZPosition = transform.position;
         }
+
+        CheckFallThroughTerrain();
         
         bool isOnRamp = false;
         if (rampAligner != null)
@@ -753,15 +761,75 @@ public class PlaneController : MonoBehaviour
 
     private void PlaceMarkerAtCurrentPosition()
     {
+        PlaceMarkerAtTravelDistance(useHighAltitudeRaycast: false);
+    }
+
+    private void CheckFallThroughTerrain()
+    {
+        if (markerPlaced)
+            return;
+
+        SimpleDragLauncher dragLauncher = GetComponent<SimpleDragLauncher>() ?? FindObjectOfType<SimpleDragLauncher>();
+        if (dragLauncher == null || !dragLauncher.released)
+            return;
+
+        if (transform.position.y > fallThroughYThreshold)
+            return;
+
+        HandleFallThroughGameOver();
+    }
+
+    private void HandleFallThroughGameOver()
+    {
+        if (markerPlaced)
+            return;
+
+        markerPlaced = true;
+        Debug.Log($"Plane fell through terrain at Y={transform.position.y:F1}. Ending flight at {maxZDistance:F0}m.");
+
+        StopControlling();
+        StopGlideSound();
+        isGrounded = false;
+
+        if (rb != null)
+        {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
+
+        PlaceMarkerAtTravelDistance(useHighAltitudeRaycast: true);
+    }
+
+    private void PlaceMarkerAtTravelDistance(bool useHighAltitudeRaycast)
+    {
         if (collisionMarker == null || collisionMarker.markerPrefab == null)
             return;
 
-        Vector3 raycastStart = maxZPosition + Vector3.up * 1.0f;
-        Vector3 markerPosition = maxZPosition;
+        Vector3 samplePoint = maxZPosition;
+        Vector3 raycastStart;
+        float raycastDistance;
+        int groundMask = LayerMask.GetMask("Ground");
+        if (groundMask == 0)
+            groundMask = Physics.DefaultRaycastLayers;
+
+        if (useHighAltitudeRaycast)
+        {
+            raycastStart = new Vector3(samplePoint.x, fallThroughTerrainRaycastHeight, samplePoint.z);
+            raycastDistance = fallThroughTerrainRaycastHeight + 100f;
+        }
+        else
+        {
+            raycastStart = samplePoint + Vector3.up * 1.0f;
+            raycastDistance = groundCheckDistance * 4f;
+        }
+
+        Vector3 markerPosition = samplePoint;
         Quaternion markerRotation = Quaternion.identity;
         Vector3 groundNormal = Vector3.up;
 
-        if (Physics.Raycast(raycastStart, Vector3.down, out RaycastHit hit, groundCheckDistance * 4f))
+        if (Physics.Raycast(raycastStart, Vector3.down, out RaycastHit hit, raycastDistance, groundMask, QueryTriggerInteraction.Ignore))
         {
             groundNormal = hit.normal;
             markerPosition = hit.point + groundNormal * markerYOffset;
@@ -769,17 +837,20 @@ public class PlaneController : MonoBehaviour
         }
         else
         {
-            markerPosition = transform.position + Vector3.up * markerYOffset;
+            markerPosition = new Vector3(samplePoint.x, markerYOffset, samplePoint.z);
         }
 
+        if (useHighAltitudeRaycast)
+            transform.position = markerPosition;
+
         GameObject marker = Instantiate(collisionMarker.markerPrefab, markerPosition, markerRotation);
-        audioManager.MarkerSFX();
-        VibrationManager.Instance.VibrateButtonClick();
+        audioManager?.MarkerSFX();
+        VibrationManager.Instance?.VibrateButtonClick();
         placedMarker = marker;
         marker.isStatic = false;
 
         LandingMarker landingMarker = marker.GetComponent<LandingMarker>();
-        if (landingMarker == null && System.Type.GetType("LandingMarker") != null)
+        if (landingMarker == null)
             landingMarker = marker.AddComponent<LandingMarker>();
 
         if (landingMarker != null)
@@ -787,7 +858,6 @@ public class PlaneController : MonoBehaviour
         else
             Destroy(marker, collisionMarker.markerLifetime);
 
-        // Transition the camera to focus on the marker
         if (cameraFollow != null)
         {
             Debug.Log("Transitioning camera to marker");

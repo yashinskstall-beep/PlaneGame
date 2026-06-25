@@ -4537,7 +4537,7 @@ RectTransform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 1255194119054609717}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -6154,7 +6154,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 90}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.1, y: 0.9}
+  m_AnchoredPosition: {x: 0, y: 2.8178}
   m_SizeDelta: {x: 163.0594, y: 343.0001}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2611469055691209005
@@ -9541,8 +9541,6 @@ MonoBehaviour:
   boostEnableBtn: {fileID: 2464884851719964824}
   boostCostText: {fileID: 3352670084832128107}
   PlaneBoosters: {fileID: 0}
-  notEnoughCoinsU: {fileID: 1218953125468505659}
-  notEnoughCoinsS: {fileID: 8200165650866320351}
   increaseLaunchForceBtn: {fileID: 55249058152517855}
   launchForceCostText: {fileID: 134195803505633743}
   launchForceLevelText: {fileID: 7650166578799714008}
@@ -9551,7 +9549,6 @@ MonoBehaviour:
   coinMultiplierCostText: {fileID: 3352670084832128107}
   coinMultiplierLevelText: {fileID: 5773599218614980490}
   coinMultiplierSlider: {fileID: 2611469055691209005}
-  notEnoughCoinsC: {fileID: 1142007527698613365}
   dragLauncher: {fileID: 0}
   boostactive: {fileID: 3891685663288318964}
   SettingTab: {fileID: 2040366667220962930}
@@ -10075,8 +10072,8 @@ RectTransform:
   m_LocalScale: {x: 2.5175047, y: 2.5175047, z: 2.5175047}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 4251319139982637080}
   - {fileID: 3640775580383193242}
+  - {fileID: 4251319139982637080}
   - {fileID: 1034945214080801765}
   - {fileID: 2437550862774076101}
   - {fileID: 2593531060933751208}

@@ -73,8 +73,9 @@ public class DragRotationHandler : MonoBehaviour
     {
         isDragging = false;
         dragVector = Vector3.zero;
-        transform.rotation = initialRotation;
-        targetRotation = initialRotation;
+        Quaternion restRotation = restPosition != null ? restPosition.rotation : initialRotation;
+        transform.rotation = restRotation;
+        targetRotation = restRotation;
     }
 
     void CheckDragging()

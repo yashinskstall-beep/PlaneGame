@@ -1703,6 +1703,11 @@ PrefabInstance:
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
       value: BoostButton
       objectReference: {fileID: 0}
+    - target: {fileID: 741182427269387968, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 827016120625586346, guid: 2fbd472d455b3884cbeaadd144a002c8,
         type: 3}
       propertyPath: m_AnchorMax.y
@@ -1818,6 +1823,26 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5436679652990859369, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5455810335832615054, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5455810335832615054, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5455810335832615054, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5455810335832615054, guid: 2fbd472d455b3884cbeaadd144a002c8,
         type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
@@ -2159,6 +2184,8 @@ MonoBehaviour:
   minImpactForceForDamage: 10
   fallDownForce: 10
   markerYOffset: 0.5
+  fallThroughYThreshold: -37
+  fallThroughTerrainRaycastHeight: 250
   inputSmoothness: 1000
   torqueSmoothness: 1000
   visualRotationSmoothing: 8
