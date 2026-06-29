@@ -118,6 +118,12 @@ public class PlaneController : MonoBehaviour
     [Tooltip("World Y height used as the raycast origin when snapping the flag to terrain after a fall-through.")]
     public float fallThroughTerrainRaycastHeight = 250f;
 
+    [Header("Misfire (Shed Stop)")]
+    [Tooltip("After launch, flights that travel this far or less on the shed count as a misfire.")]
+    public float misfireMaxDistance = 5f;
+    [Tooltip("Speed below which the plane is considered stopped on the shed.")]
+    public float misfireStopSpeed = 0.5f;
+
     [Header("Smoothing Settings")]
     [Tooltip("Input smoothing. Higher = softer stick/keyboard response, less twitchy.")]
     public float inputSmoothness = 25f;
@@ -136,6 +142,8 @@ public class PlaneController : MonoBehaviour
     [Tooltip("UI manager for boost counter and score screen.")]
     public UIManager uiManager;
 
+    private bool blockForwardForceFromInput;
+    
     // Internal state
     private Rigidbody rb;
     [Tooltip("True when player can steer the plane (after leaving the ramp). Read-only at runtime.")]
@@ -169,6 +177,7 @@ public class PlaneController : MonoBehaviour
     private Vector3 maxZPosition;
     [Tooltip("Furthest distance flown this run (Z axis from launch). Used for score and flag position.")]
     public float maxZDistance;
+    public bool LastFlightWasMisfire { get; private set; }
     private bool markerPlaced = false;
     private GameObject placedMarker = null;
     private float lastZPosition;
@@ -234,13 +243,14 @@ public class PlaneController : MonoBehaviour
 
     void FixedUpdate()
     {
-        // Always update the max distance regardless of state
-        // Calculate distance from the original resting position
-        float currentDistance = transform.position.z - startPosition.z;
-        if (currentDistance > maxZDistance)
+        if (!markerPlaced)
         {
-            maxZDistance = currentDistance;
-            maxZPosition = transform.position;
+            float currentDistance = transform.position.z - startPosition.z;
+            if (currentDistance > maxZDistance)
+            {
+                maxZDistance = currentDistance;
+                maxZPosition = transform.position;
+            }
         }
 
         CheckFallThroughTerrain();
@@ -259,9 +269,9 @@ public class PlaneController : MonoBehaviour
         if (wasOnRamp && !isOnRamp)
             StartControlling();
 
-        // Check if plane stopped on ramp
-        if (isOnRamp && !isBeingDragged)
-            CheckIfStoppedOnRamp();
+        // Check if plane stopped on the shed after a weak launch
+        if (!isBeingDragged)
+            CheckIfStoppedOnShed();
 
         wasOnRamp = isOnRamp;
         
@@ -335,6 +345,7 @@ public class PlaneController : MonoBehaviour
         // Don't reset maxZDistance - it accumulates from the resting position
         timeStoppedOnRamp = 0f;
         markerPlaced = false;
+        LastFlightWasMisfire = false;
 
         StartGlideSound();
     }
@@ -406,11 +417,16 @@ public class PlaneController : MonoBehaviour
         horizontalInput = smoothHorizontalInput;
         verticalInput = smoothVerticalInput;
 
+        bool hasInput = !Mathf.Approximately(horizontalInput, 0f) || !Mathf.Approximately(verticalInput, 0f);
+        bool bodyOnly = damageHandler != null && damageHandler.IsBodyOnly();
+        blockForwardForceFromInput = bodyOnly && hasInput;
+
         // Calculate torque
         Vector3 torque = Vector3.zero;
         torque += transform.up * (horizontalInput * turnSpeed * torqueResponseMultiplier);         // Yaw
         torque += transform.forward * (-horizontalInput * bankAngle * torqueResponseMultiplier);   // Roll
-        torque += transform.right * (verticalInput * pitchSpeed * torqueResponseMultiplier);       // Pitch
+        if (!blockForwardForceFromInput)
+            torque += transform.right * (verticalInput * pitchSpeed * torqueResponseMultiplier);   // Pitch
 
         // Auto-level only when:
         // 1. Auto-leveling is enabled
@@ -418,7 +434,6 @@ public class PlaneController : MonoBehaviour
         // 3. The plane is not being dragged (if disableAutoLevelWhenDragging is true)
         // 4. The plane is not upside down or at extreme roll angles (manual control in those cases)
         // 5. The plane is not on a ramp (ramp aligner handles rotation)
-        bool hasInput = !Mathf.Approximately(horizontalInput, 0f) || !Mathf.Approximately(verticalInput, 0f);
         
         // Check if plane is on ramp
         bool isOnRamp = false;
@@ -446,7 +461,8 @@ public class PlaneController : MonoBehaviour
         // Apply damage effects to torque if damage handler exists
         if (damageHandler != null)
         {
-            torque = damageHandler.ModifyTorqueForDamage(torque, horizontalInput, verticalInput);
+            float damageVerticalInput = blockForwardForceFromInput ? 0f : verticalInput;
+            torque = damageHandler.ModifyTorqueForDamage(torque, horizontalInput, damageVerticalInput);
         }
         
         // Smooth torque application
@@ -456,8 +472,8 @@ public class PlaneController : MonoBehaviour
         // Apply air resistance
         ApplyAirResistance();
 
-        // Align velocity with forward direction
-        if (rb.velocity.magnitude > minSpeedForAlignment)
+        // Align velocity with forward direction (disabled for body-only + player input)
+        if (!blockForwardForceFromInput && rb.velocity.magnitude > minSpeedForAlignment)
         {
             // Calculate pitch angle from X axis rotation (local euler angles)
             float pitchAngle = transform.localEulerAngles.x;
@@ -496,6 +512,9 @@ public class PlaneController : MonoBehaviour
         if (!isBoosting || rb == null || boostTargetSpeed <= 0f)
             return;
 
+        if (damageHandler != null && damageHandler.IsBodyOnly())
+            return;
+
         Vector3 direction = rb.velocity.sqrMagnitude > 0.01f
             ? rb.velocity.normalized
             : boostVelocityDirection;
@@ -522,8 +541,8 @@ public class PlaneController : MonoBehaviour
         // Detect if we're diving (positive pitch = nose down)
         bool isDiving = pitchAngle > 5f;
         
-        // Store momentum when diving
-        if (isDiving)
+        // Store momentum when diving (skip dive acceleration when body-only + input)
+        if (isDiving && !blockForwardForceFromInput)
         {
             // Track maximum speed during dive
             maxRecentSpeed = Mathf.Max(maxRecentSpeed, speed);
@@ -534,14 +553,17 @@ public class PlaneController : MonoBehaviour
         }
         else
         {
-            // If we were diving but now pulling up, convert speed to momentum
-            if (wasDiving && pitchAngle < -2f) // Transitioning from dive to climb
+            if (blockForwardForceFromInput)
+            {
+                wasDiving = false;
+                maxRecentSpeed = 0f;
+                storedMomentum = 0f;
+            }
+            else if (wasDiving && pitchAngle < -2f) // Transitioning from dive to climb
             {
                 // Convert speed to stored momentum
                 storedMomentum = maxRecentSpeed * momentumConversionFactor;
                 wasDiving = false;
-                
-                // Debug.Log($"Converted dive speed {maxRecentSpeed:F1} to momentum {storedMomentum:F1}");
                 maxRecentSpeed = 0f;
             }
             
@@ -566,6 +588,9 @@ public class PlaneController : MonoBehaviour
     
     private void ApplyMomentumClimbing(float pitchAngle, float currentSpeed)
     {
+        if (damageHandler != null && damageHandler.IsBodyOnly())
+            return;
+
         // Only apply climbing force if we have stored momentum and are trying to climb
         if (storedMomentum > 0 && pitchAngle < -5f) // Negative pitch = nose up
         {
@@ -727,36 +752,87 @@ public class PlaneController : MonoBehaviour
         }
     }
 
-    private void CheckIfStoppedOnRamp()
+    private void CheckIfStoppedOnShed()
     {
-        if (markerPlaced || rb == null) return;
+        if (markerPlaced || rb == null)
+            return;
 
-        float currentZPosition = transform.position.z;
-        float zVelocity = Mathf.Abs((currentZPosition - lastRampZPosition) / Time.fixedDeltaTime);
-        lastRampZPosition = currentZPosition;
+        SimpleDragLauncher dragLauncher = GetComponent<SimpleDragLauncher>() ?? FindObjectOfType<SimpleDragLauncher>();
+        if (dragLauncher == null || !dragLauncher.released)
+            return;
 
-        // If plane is barely moving on Z-axis
-        if (zVelocity < minZAxisSpeed)
+        if (!IsOnShedAfterLaunch())
         {
-            timeStoppedOnRamp += Time.fixedDeltaTime;
-            Debug.Log($"Ramp Stop Check: zVelocity={zVelocity:F2}, timeStoppedOnRamp={timeStoppedOnRamp:F2}");
-
-            // If stopped for threshold duration, place marker
-            if (timeStoppedOnRamp >= rampStopThreshold)
-            {
-                if (collisionMarker != null)
-                {
-                    Debug.Log("Plane stopped on ramp - placing marker");
-                    PlaceMarkerAtCurrentPosition();
-                    markerPlaced = true;
-                }
-            }
+            timeStoppedOnRamp = 0f;
+            return;
         }
+
+        if (rb.velocity.magnitude >= misfireStopSpeed)
+        {
+            timeStoppedOnRamp = 0f;
+            return;
+        }
+
+        timeStoppedOnRamp += Time.fixedDeltaTime;
+        if (timeStoppedOnRamp < rampStopThreshold)
+            return;
+
+        if (IsMisfireLaunch())
+            HandleMisfireLanding();
         else
         {
-            // Reset timer if plane is moving
-            timeStoppedOnRamp = 0f;
+            PlaceMarkerAtCurrentPosition();
+            markerPlaced = true;
         }
+    }
+
+    private bool IsOnShedAfterLaunch()
+    {
+        if (IsOnRampAligner())
+            return true;
+
+        Vector3 currentFlat = new Vector3(transform.position.x, 0f, transform.position.z);
+        Vector3 startFlat = new Vector3(startPosition.x, 0f, startPosition.z);
+        float distanceFromStart = Vector3.Distance(currentFlat, startFlat);
+        return maxZDistance <= misfireMaxDistance && distanceFromStart <= misfireMaxDistance;
+    }
+
+    private bool IsOnRampAligner()
+    {
+        if (rampAligner == null)
+            return false;
+
+        var field = typeof(PlaneRampAligner).GetField("isAligning",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        return field != null && (bool)field.GetValue(rampAligner);
+    }
+
+    private bool IsMisfireLaunch()
+    {
+        return !exitedRamp || maxZDistance <= misfireMaxDistance;
+    }
+
+    private void HandleMisfireLanding()
+    {
+        if (markerPlaced)
+            return;
+
+        markerPlaced = true;
+        LastFlightWasMisfire = true;
+        maxZDistance = 0f;
+
+        Debug.Log("Misfire: plane stopped on the shed after launch.");
+
+        StopControlling();
+        StopGlideSound();
+
+        if (rb != null)
+        {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        PlaceMarkerAtTravelDistance(useHighAltitudeRaycast: false, samplePointOverride: transform.position);
     }
 
     private void PlaceMarkerAtCurrentPosition()
@@ -802,12 +878,12 @@ public class PlaneController : MonoBehaviour
         PlaceMarkerAtTravelDistance(useHighAltitudeRaycast: true);
     }
 
-    private void PlaceMarkerAtTravelDistance(bool useHighAltitudeRaycast)
+    private void PlaceMarkerAtTravelDistance(bool useHighAltitudeRaycast, Vector3? samplePointOverride = null)
     {
         if (collisionMarker == null || collisionMarker.markerPrefab == null)
             return;
 
-        Vector3 samplePoint = maxZPosition;
+        Vector3 samplePoint = samplePointOverride ?? maxZPosition;
         Vector3 raycastStart;
         float raycastDistance;
         int groundMask = LayerMask.GetMask("Ground");
@@ -880,6 +956,12 @@ public class PlaneController : MonoBehaviour
         
         if (!isBoosting && rb != null && boostUsesRemaining > 0)
         {
+            if (damageHandler != null && damageHandler.IsBodyOnly())
+            {
+                Debug.Log("Boost unavailable: plane has no wings or tail.");
+                return;
+            }
+
             float currentSpeed = rb.velocity.magnitude;
             boostVelocityDirection = currentSpeed > 0.1f
                 ? rb.velocity.normalized

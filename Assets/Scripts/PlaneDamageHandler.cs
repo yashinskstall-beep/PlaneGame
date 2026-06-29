@@ -183,6 +183,17 @@ public class PlaneDamageHandler : MonoBehaviour
     }
     
     /// <summary>
+    /// True when left wing, right wing, and tail are all inactive (body only).
+    /// </summary>
+    public bool IsBodyOnly()
+    {
+        bool leftWingDisabled = leftWing == null || !leftWing.activeSelf;
+        bool rightWingDisabled = rightWing == null || !rightWing.activeSelf;
+        bool tailDisabled = tail == null || !tail.activeSelf;
+        return leftWingDisabled && rightWingDisabled && tailDisabled;
+    }
+
+    /// <summary>
     /// Check if both wings are missing/disabled
     /// </summary>
     /// <returns>True if both wings are disabled, false otherwise</returns>

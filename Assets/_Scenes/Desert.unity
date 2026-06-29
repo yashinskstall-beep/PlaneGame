@@ -2186,6 +2186,8 @@ MonoBehaviour:
   markerYOffset: 0.5
   fallThroughYThreshold: -37
   fallThroughTerrainRaycastHeight: 250
+  misfireMaxDistance: 5
+  misfireStopSpeed: 0.5
   inputSmoothness: 1000
   torqueSmoothness: 1000
   visualRotationSmoothing: 8
@@ -2214,7 +2216,7 @@ MonoBehaviour:
   rotationHandler: {fileID: 549470093}
   lineRenderer: {fileID: 38257090}
   maxDragDistance: 1.2
-  minDragToLaunch: 0.5
+  minDragToLaunch: 0.2
   launchForceMultiplier: 25
   verticalForceMultiplier: 5
   liftDuration: 2

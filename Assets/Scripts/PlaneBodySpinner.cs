@@ -181,7 +181,7 @@ public class PlaneBodySpinner : MonoBehaviour
     /// </summary>
     private void ApplyHorizontalForce()
     {
-        if (rb == null)
+        if (rb == null || damageHandler == null || damageHandler.IsBodyOnly())
             return;
             
         // Apply force in the plane's forward direction (Z-axis)

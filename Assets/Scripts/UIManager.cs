@@ -183,10 +183,17 @@ public class UIManager : MonoBehaviour
         float coinMultiplier = CoinManager.Instance != null
             ? CoinManager.Instance.GetCoinMultiplier()
             : 1f;
-        int coinsEarned = Mathf.RoundToInt(distance * 2 * coinMultiplier);
+        int coinsEarned = planeController.LastFlightWasMisfire
+            ? 0
+            : Mathf.RoundToInt(distance * 2 * coinMultiplier);
 
         if (titleText != null)
-            titleText.text = isGoalReached ? "Congratulations!" : "Nice Flight!";
+        {
+            if (planeController.LastFlightWasMisfire)
+                titleText.text = "Try Again!";
+            else
+                titleText.text = isGoalReached ? "Congratulations!" : "Nice Flight!";
+        }
 
         ScoreUIScreen.SetActive(true);
         scoreCalculated = true;
