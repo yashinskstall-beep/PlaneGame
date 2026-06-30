@@ -51,6 +51,10 @@ public class CoinManager : MonoBehaviour
         }
 
         Instance = this;
+
+        if (transform.parent != null)
+            transform.SetParent(null);
+
         DontDestroyOnLoad(gameObject);
         LoadCoins();
     }
@@ -86,19 +90,18 @@ public class CoinManager : MonoBehaviour
 
     public float GetCoinMultiplier()
     {
-        int level = PlayerPrefs.GetInt("CoinMultiplierLevel", 1);
-        return 1f + (level - 1) * 0.1f;
+        return LevelProgress.GetCoinMultiplierValue();
     }
 
     private void SaveCoins()
     {
-        PlayerPrefs.SetInt("PlayerCoins", coins);
+        PlayerPrefs.SetInt(LevelProgress.CoinsKey, coins);
         PlayerPrefs.Save();
     }
 
     private void LoadCoins()
     {
-        coins = PlayerPrefs.GetInt("PlayerCoins", 0);
+        coins = PlayerPrefs.GetInt(LevelProgress.CoinsKey, 0);
         cheatCoins = coins;
     }
 }

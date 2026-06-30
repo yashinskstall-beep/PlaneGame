@@ -198,7 +198,6 @@ public class UIManager : MonoBehaviour
         ScoreUIScreen.SetActive(true);
         scoreCalculated = true;
         CancelScoreUISchedule();
-        Debug.Log("Score UI activated");
 
         AwardFlightCoins(coinsEarned);
 

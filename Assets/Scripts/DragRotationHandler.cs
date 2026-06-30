@@ -78,6 +78,13 @@ public class DragRotationHandler : MonoBehaviour
         targetRotation = restRotation;
     }
 
+    public void SetTargetToRestPose()
+    {
+        isDragging = false;
+        dragVector = Vector3.zero;
+        targetRotation = restPosition != null ? restPosition.rotation : initialRotation;
+    }
+
     void CheckDragging()
     {
         if (dragLauncher != null && !dragLauncher.DragEnabled)
@@ -191,8 +198,6 @@ public class DragRotationHandler : MonoBehaviour
             // Set the final rotation
             transform.rotation = Quaternion.Euler(0, rotationAngle, 0);
             targetRotation = transform.rotation;
-            
-            Debug.Log($"Launch rotation set: {rotationAngle} degrees");
         }
         else if (dragVector.magnitude >= 0.1f)
         {
@@ -212,8 +217,6 @@ public class DragRotationHandler : MonoBehaviour
             // Set the final rotation
             transform.rotation = Quaternion.Euler(0, rotationAngle, 0);
             targetRotation = transform.rotation;
-            
-            Debug.Log($"Launch rotation set (fallback): {rotationAngle} degrees");
         }
     }
 }

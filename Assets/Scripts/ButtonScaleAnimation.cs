@@ -76,14 +76,39 @@ public class ButtonShakeAnimation : MonoBehaviour
     [Tooltip("Maximum horizontal offset in pixels.")]
     public float shakeStrength = 12f;
 
+    [Tooltip("Play haptic pulses while the button shakes.")]
+    public bool playHaptics = true;
+
+    [Tooltip("Seconds between haptic pulses during a shake.")]
+    public float hapticPulseInterval = 0.09f;
+
     private RectTransform rect;
     private Coroutine shakeCoroutine;
     private Vector2 restPosition;
+    private bool restPositionCaptured;
 
     void Awake()
     {
         rect = GetComponent<RectTransform>();
+        CaptureRestPosition();
+    }
+
+    void OnEnable()
+    {
+        if (rect == null)
+            rect = GetComponent<RectTransform>();
+
+        if (shakeCoroutine == null)
+            CaptureRestPosition();
+    }
+
+    private void CaptureRestPosition()
+    {
+        if (rect == null)
+            return;
+
         restPosition = rect.anchoredPosition;
+        restPositionCaptured = true;
     }
 
     public void Play()
@@ -91,20 +116,41 @@ public class ButtonShakeAnimation : MonoBehaviour
         if (rect == null)
             return;
 
-        if (shakeCoroutine != null)
-            StopCoroutine(shakeCoroutine);
+        if (!restPositionCaptured)
+            CaptureRestPosition();
 
-        restPosition = rect.anchoredPosition;
+        if (shakeCoroutine != null)
+        {
+            StopCoroutine(shakeCoroutine);
+            rect.anchoredPosition = restPosition;
+        }
+
         shakeCoroutine = StartCoroutine(ShakeRoutine());
+    }
+
+    private void PlayShakeHaptic()
+    {
+        if (!playHaptics || VibrationManager.Instance == null)
+            return;
+
+        VibrationManager.Instance.VibrateDenied();
     }
 
     private IEnumerator ShakeRoutine()
     {
         float elapsed = 0f;
+        float nextHapticTime = 0f;
 
         while (elapsed < shakeDuration)
         {
             elapsed += Time.unscaledDeltaTime;
+
+            if (playHaptics && elapsed >= nextHapticTime)
+            {
+                PlayShakeHaptic();
+                nextHapticTime = elapsed + hapticPulseInterval;
+            }
+
             float dampening = 1f - Mathf.Clamp01(elapsed / shakeDuration);
             float offsetX = Mathf.Sin(elapsed * 50f) * shakeStrength * dampening;
             rect.anchoredPosition = restPosition + new Vector2(offsetX, 0f);

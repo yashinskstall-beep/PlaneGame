@@ -25,6 +25,8 @@ public class LevelsUI : MonoBehaviour
         public string speedLabel = "20 \nKM/H";
         [Tooltip("Leave empty to stay in the current scene. Set a name (e.g. Desert) to load another scene.")]
         public string sceneName;
+        [Tooltip("Part object names in the target scene, used to clear unlock save when switching levels.")]
+        public string[] upgradePartNamesForReset;
         public bool unlockedByDefault;
     }
 
@@ -76,14 +78,14 @@ public class LevelsUI : MonoBehaviour
 
         if (IsActiveLevel(index))
         {
-            LoadSceneWithTransition(SceneManager.GetActiveScene().name, resetProgress: false);
+            LoadSceneWithTransition(SceneManager.GetActiveScene().name, resetProgress: false, null);
             return;
         }
 
         string scene = levels[index].sceneName;
         if (!string.IsNullOrEmpty(scene))
         {
-            LoadSceneWithTransition(scene, resetProgress: true);
+            LoadSceneWithTransition(scene, resetProgress: true, levels[index].upgradePartNamesForReset);
             return;
         }
 
@@ -91,7 +93,7 @@ public class LevelsUI : MonoBehaviour
             mainMenu.CloseLevelsPanel();
     }
 
-    private void LoadSceneWithTransition(string sceneName, bool resetProgress)
+    private void LoadSceneWithTransition(string sceneName, bool resetProgress, string[] upgradePartNamesForReset)
     {
         UICircleFadeTransition.EnsureInstance().PlayLoadScene(sceneName, () =>
         {
@@ -99,7 +101,7 @@ public class LevelsUI : MonoBehaviour
                 mainMenu.CloseLevelsPanel();
 
             if (resetProgress)
-                LevelProgress.ResetGameplayProgress(mainMenu != null ? mainMenu.GetUpgradePartNames() : null);
+                LevelProgress.ResetGameplayProgressForScene(sceneName, upgradePartNamesForReset);
         });
     }
 

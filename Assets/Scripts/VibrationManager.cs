@@ -153,6 +153,20 @@ public class VibrationManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Error-style haptic for denied actions (e.g. not enough coins).
+    /// </summary>
+    public void VibrateDenied()
+    {
+        if (!CanVibrate()) return;
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+        Vibrate(80);
+#elif UNITY_IOS && !UNITY_EDITOR
+        _TriggerNotificationError();
+#endif
+    }
+
+    /// <summary>
     /// Medium vibration
     /// </summary>
     public void VibrateMedium()

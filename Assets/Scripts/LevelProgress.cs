@@ -1,8 +1,8 @@
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Only coins persist across levels. All other gameplay progress resets per level load.
+/// Save helpers. Coins are global; upgrade/part progress is per scene.
 /// </summary>
 public static class LevelProgress
 {
@@ -10,43 +10,87 @@ public static class LevelProgress
 
     private static bool gameplayResetPending;
 
-    private static readonly string[] GameplayKeys =
+    public static string GetSceneName()
     {
-        "Upgrade_CurrentIndex",
-        "Upgrade_ClickCount",
-        "Upgrade_CurrentCost",
-        "LaunchForceLevel",
-        "LaunchForceMultiplier",
-        "CoinMultiplierLevel",
-        "CoinMultiplier",
-        "leftWing_active",
-        "rightWing_active",
-        "tail_active",
-        "LeftWing_active",
-        "RightWing_active",
-        "Tail_active",
-        "Left_Wing_active",
-        "Right_Wing_active"
-    };
-
-    public static string GetPartActiveKey(string partObjectName)
-    {
-        return partObjectName + "_active";
+        return SceneManager.GetActiveScene().name;
     }
 
-    public static void ResetGameplayProgress(IEnumerable<string> partObjectNames = null)
+    private static string ScenePrefix(string sceneName = null)
     {
-        foreach (string key in GameplayKeys)
-            PlayerPrefs.DeleteKey(key);
+        return (string.IsNullOrEmpty(sceneName) ? GetSceneName() : sceneName) + "_";
+    }
 
-        if (partObjectNames != null)
+    public static string GetPartActiveKey(string partObjectName, string sceneName = null)
+    {
+        return ScenePrefix(sceneName) + partObjectName + "_active";
+    }
+
+    public static string GetUpgradeCurrentIndexKey(string sceneName = null)
+    {
+        return ScenePrefix(sceneName) + "Upgrade_CurrentIndex";
+    }
+
+    public static string GetUpgradeClickCountKey(string sceneName = null)
+    {
+        return ScenePrefix(sceneName) + "Upgrade_ClickCount";
+    }
+
+    public static string GetUpgradeCurrentCostKey(string sceneName = null)
+    {
+        return ScenePrefix(sceneName) + "Upgrade_CurrentCost";
+    }
+
+    public static string GetLaunchForceLevelKey(string sceneName = null)
+    {
+        return ScenePrefix(sceneName) + "LaunchForceLevel";
+    }
+
+    public static string GetLaunchForceMultiplierKey(string sceneName = null)
+    {
+        return ScenePrefix(sceneName) + "LaunchForceMultiplier";
+    }
+
+    public static string GetLaunchForceClickCountKey(string sceneName = null)
+    {
+        return ScenePrefix(sceneName) + "LaunchForceClickCount";
+    }
+
+    public const string CoinMultiplierLevelKey = "CoinMultiplierLevel";
+    public const string CoinMultiplierClickCountKey = "CoinMultiplierClickCount";
+    public const string CoinMultiplierValueKey = "CoinMultiplier";
+
+    public static int GetCoinMultiplierLevel()
+    {
+        return PlayerPrefs.GetInt(CoinMultiplierLevelKey, 1);
+    }
+
+    public static float GetCoinMultiplierValue()
+    {
+        if (PlayerPrefs.HasKey(CoinMultiplierValueKey))
+            return PlayerPrefs.GetFloat(CoinMultiplierValueKey, 1f);
+
+        int level = GetCoinMultiplierLevel();
+        return 1f + (level - 1) * 0.1f;
+    }
+
+    public static void ResetGameplayProgressForScene(string sceneName, string[] partNames = null)
+    {
+        if (string.IsNullOrEmpty(sceneName))
+            return;
+
+        PlayerPrefs.DeleteKey(GetUpgradeCurrentIndexKey(sceneName));
+        PlayerPrefs.DeleteKey(GetUpgradeClickCountKey(sceneName));
+        PlayerPrefs.DeleteKey(GetUpgradeCurrentCostKey(sceneName));
+        PlayerPrefs.DeleteKey(GetLaunchForceLevelKey(sceneName));
+        PlayerPrefs.DeleteKey(GetLaunchForceMultiplierKey(sceneName));
+        PlayerPrefs.DeleteKey(GetLaunchForceClickCountKey(sceneName));
+
+        if (partNames != null)
         {
-            foreach (string partName in partObjectNames)
+            foreach (string partName in partNames)
             {
-                if (string.IsNullOrEmpty(partName))
-                    continue;
-
-                PlayerPrefs.DeleteKey(GetPartActiveKey(partName));
+                if (!string.IsNullOrEmpty(partName))
+                    PlayerPrefs.DeleteKey(GetPartActiveKey(partName, sceneName));
             }
         }
 

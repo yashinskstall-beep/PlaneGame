@@ -9561,6 +9561,7 @@ MonoBehaviour:
   upgradeParticleEffect: {fileID: 2522031522935134172, guid: 93bb6780ec7e87e46bac8f1fca601cfc,
     type: 3}
   upgradeParticleYOffset: 0
+  upgradeParticleScale: 0.12
   boostSlideOffsetX: 500
   boostSlideDuration: 0.4
   cameraTransitionDuration: 1.5

@@ -9,9 +9,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 {
     [Header("References")]
     public CameraManager cameraManager;
-    public GameObject leftWing;
-    public GameObject rightWing;
-    public GameObject tail;
+    [Tooltip("Per-scene unlockable parts (body stays default). Assign one config per scene.")]
+    public PlaneUpgradeConfig planeUpgradeConfig;
     public TextMeshProUGUI coinText;
     public Slider upgradeSlider;
     public Button upgradeButton;
@@ -38,27 +37,27 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public LevelsUI levelsUI;
     public Button levelBtn;
 
-    [Header("Camera Focus Points")]
-    public Transform leftWingFocusPoint;
-    public Transform rightWingFocusPoint;
-    public Transform tailFocusPoint;
-
-    [Header("Particle Effects")]
-    public GameObject upgradeParticleEffect;
-    [Tooltip("Added to the spawn position Y when the upgrade particle plays.")]
-    public float upgradeParticleYOffset = 0f;
+    public GameObject notEnoughCoinsU;
 
     [Header("Boost Button")]
     [SerializeField] private float boostSlideOffsetX = 500f;
     [SerializeField] private float boostSlideDuration = 0.4f;
 
-    [Header("Timing c")]
+    [Header("Timing")]
     public float cameraTransitionDuration = 1.5f;
     public float particleEffectDuration = 1.0f;
 
+    [Header("Upgrade Particle")]
+    [Tooltip("Spawned at the part when upgrading if PlaneUpgradeConfig has no in-scene VFX. Assign a particle prefab.")]
+    public GameObject upgradeParticleEffect;
+    public float upgradeParticleYOffset = 0f;
+    [Tooltip("Uniform size of the spawned upgrade particle.")]
+    public float upgradeParticleScale = 0.12f;
 
-    private List<GameObject> parts;
-    private List<Transform> partFocusPoints;
+    [Header("Debug")]
+    [SerializeField] private bool debugUpgradeVfx = true;
+
+
     private int currentIndex = 0;
     private int clickCount = 0;
     private const int clicksRequired = 5;
@@ -72,11 +71,13 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     
     // Launch force level system
     private int launchForceLevel = 1;
+    private int launchForceClickCount = 0;
     private const int maxLaunchForceLevel = 3;
     private readonly float[] launchForceLevels = { 25f, 30f, 35f };
     private readonly int[] launchForceCosts = { 700, 1000, 1500 };
 
     private int coinMultiplierLevel = 1;
+    private int coinMultiplierClickCount = 0;
     private const int maxCoinMultiplierLevel = 11;
     private const float coinMultiplierStep = 0.1f;
     private readonly int[] coinMultiplierCosts = { 600, 900, 1200, 1800, 2500, 3500, 5000, 7000, 10000, 15000, 20000 };
@@ -91,10 +92,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     void Awake()
     {
         menuPanelImage = GetComponent<Image>();
+        ResolveSceneReferences();
     }
 
     void OnEnable()
     {
+        ResolveSceneReferences();
         ResolveUIReferences();
         CacheUpgradeButtonTransitions();
         EnsureUpgradeShakeComponents();
@@ -103,9 +106,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     void Start()
     {
+        ResolveSceneReferences();
         ResolveUIReferences();
-        parts = new List<GameObject> { leftWing, rightWing, tail };
-        partFocusPoints = new List<Transform> { leftWingFocusPoint, rightWingFocusPoint, tailFocusPoint };
 
         if (LevelProgress.ConsumeGameplayResetPending())
             ResetUpgradesForNewLevel();
@@ -127,14 +129,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public string[] GetUpgradePartNames()
     {
-        var names = new List<string>(3);
-        if (leftWing != null)
-            names.Add(leftWing.name);
-        if (rightWing != null)
-            names.Add(rightWing.name);
-        if (tail != null)
-            names.Add(tail.name);
-        return names.ToArray();
+        return planeUpgradeConfig != null
+            ? planeUpgradeConfig.GetPartNames()
+            : System.Array.Empty<string>();
     }
 
     public void ResetUpgradesForNewLevel()
@@ -144,18 +141,19 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         clickCount = 0;
         currentCost = 10f;
         launchForceLevel = 1;
+        launchForceClickCount = 0;
         coinMultiplierLevel = 1;
+        coinMultiplierClickCount = 0;
 
-        if (parts == null)
-            parts = new List<GameObject> { leftWing, rightWing, tail };
-
-        for (int i = 0; i < parts.Count; i++)
+        if (planeUpgradeConfig != null)
         {
-            if (parts[i] == null)
-                continue;
+            foreach (PlaneUpgradePartEntry entry in planeUpgradeConfig.upgradeParts)
+            {
+                if (entry?.part != null)
+                    entry.part.SetActive(false);
+            }
 
-            parts[i].SetActive(false);
-            PlayerPrefs.DeleteKey(LevelProgress.GetPartActiveKey(parts[i].name));
+            planeUpgradeConfig.ApplyGlideForCurrentUnlocks();
         }
 
         if (PlaneBoosters != null)
@@ -166,31 +164,33 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (dragLauncher != null)
             dragLauncher.launchForceMultiplier = launchForceLevels[0];
 
-        PlayerPrefs.SetInt("Upgrade_CurrentIndex", 0);
-        PlayerPrefs.SetInt("Upgrade_ClickCount", 0);
-        PlayerPrefs.SetFloat("Upgrade_CurrentCost", currentCost);
-        PlayerPrefs.SetInt("LaunchForceLevel", 1);
-        PlayerPrefs.SetFloat("LaunchForceMultiplier", launchForceLevels[0]);
-        PlayerPrefs.SetInt("CoinMultiplierLevel", 1);
-        PlayerPrefs.SetFloat("CoinMultiplier", 1f);
+        PlayerPrefs.SetInt(LevelProgress.CoinMultiplierLevelKey, 1);
+        PlayerPrefs.SetInt(LevelProgress.CoinMultiplierClickCountKey, 0);
+        PlayerPrefs.SetFloat(LevelProgress.CoinMultiplierValueKey, 1f);
+        SaveLaunchForceProgress();
+        SaveProgress();
         PlayerPrefs.Save();
 
         ShowUpgradeButtons();
         HideBoostButtonInstant();
         SetLevelsPanelOpen(false);
         SyncPlayerCoins();
+        RefreshAllUpgradeUI();
     }
 
     private void InitializeFromSavedProgress()
     {
         LoadProgress();
-        ApplyPartStatesFromSave();
+        MigrateLegacyProgressIfNeeded();
 
-        for (int i = 0; i < parts.Count; i++)
-        {
-            if (parts[i] != null && parts[i].activeSelf)
-                currentIndex = Mathf.Max(currentIndex, i + 1);
-        }
+        if (planeUpgradeConfig != null)
+            planeUpgradeConfig.ApplyPartStatesFromSave();
+
+        ReconcileUpgradeIndexFromParts();
+        currentIndex = Mathf.Clamp(currentIndex, 0, GetUpgradePartCount());
+
+        if (IsFullyUpgraded())
+            SetMaxStateUI();
 
         LoadLaunchForceLevel();
         LoadCoinMultiplierLevel();
@@ -265,9 +265,15 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         ButtonShakeAnimation shake = button.GetComponent<ButtonShakeAnimation>();
         if (shake != null)
             shake.Play();
+    }
 
-        if (VibrationManager.Instance != null)
-            VibrationManager.Instance.VibrateShort();
+    private void ResolveSceneReferences()
+    {
+        if (planeUpgradeConfig == null)
+            planeUpgradeConfig = FindObjectOfType<PlaneUpgradeConfig>();
+
+        if (dragLauncher == null)
+            dragLauncher = FindObjectOfType<SimpleDragLauncher>();
     }
 
     private void ResolveUIReferences()
@@ -305,7 +311,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         Debug.Log("Panel clicked");
         cameraManager.TransitionToStartCamPos();
-        //audioManager.audioSource.Stop();
     }
 
     private void SetMenuTapInputEnabled(bool enabled)
@@ -334,14 +339,10 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public void ActivateNextPart()
     {
         if (isUpgrading)
-        {
-            Debug.Log("Upgrade already in progress!");
             return;
-        }
 
-        if (currentIndex >= parts.Count)
+        if (IsFullyUpgraded())
         {
-            Debug.Log("All parts active — Fully upgraded!");
             SetMaxStateUI();
             return;
         }
@@ -350,14 +351,14 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (playerCoins < currentCost)
         {
             PlayInsufficientCoinsShake(upgradeButton);
-            Debug.Log("Not enough coins!");
             return;
         }
 
-        audioManager.btnSFX();
-        VibrationManager.Instance.VibrateButtonClick();
         if (!TrySpendCoins((int)currentCost))
             return;
+
+        audioManager.btnSFX();
+        VibrationManager.Instance.VibrateButtonClick();
 
         // Progress and cost update
         clickCount++;
@@ -395,51 +396,16 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             increaseCoinMultiplierBtn.gameObject.SetActive(false);
 
         // Step 1: Transition camera to the part
-        if (currentIndex < partFocusPoints.Count && partFocusPoints[currentIndex] != null)
-        {
-            Debug.Log($"Transitioning camera to {parts[currentIndex].name}");
-            yield return StartCoroutine(cameraManager.TransitionToTarget(partFocusPoints[currentIndex], cameraTransitionDuration));
-        }
+        Transform focusPoint = planeUpgradeConfig != null
+            ? planeUpgradeConfig.GetFocusPoint(currentIndex)
+            : null;
+        if (focusPoint != null)
+            yield return StartCoroutine(cameraManager.TransitionToTarget(focusPoint, cameraTransitionDuration));
 
-        // Step 2: Play particle effect
-        if (upgradeParticleEffect != null && currentIndex < parts.Count)
-        {
-            Vector3 partPosition = parts[currentIndex].transform.position;
-            
-            // Adjust particle position based on part type
-            if (currentIndex == 0) // Left wing
-            {
-                partPosition.x -= 0.3f;
-            }
-            else if (currentIndex == 1) // Right wing
-            {
-                partPosition.x += 0.3f;
-            }
-            else if (currentIndex == 2) // Tail
-            {
-                partPosition.z -= 0.4f;
-            }
-
-            partPosition.y += upgradeParticleYOffset;
-
-            audioManager.PlanepartSFX();
-            GameObject particleInstance = Instantiate(upgradeParticleEffect, partPosition, Quaternion.identity);
-            Debug.Log($"Playing particle effect at {parts[currentIndex].name}");
-            
-            // Wait for particle effect duration
-            yield return new WaitForSeconds(particleEffectDuration);
-            
-            // Clean up particle effect
-            Destroy(particleInstance, 2f);
-        }
-
-        // Step 3: Enable the part
-        if (!parts[currentIndex].activeSelf)
-        {
-            parts[currentIndex].SetActive(true);
-            PlayerPrefs.SetInt(LevelProgress.GetPartActiveKey(parts[currentIndex].name), 1);
-            Debug.Log(parts[currentIndex].name + " activated!");
-        }
+        // Step 2: Play upgrade VFX (unlocks part inside routine on the same frame as the effect)
+        GameObject part = planeUpgradeConfig != null ? planeUpgradeConfig.GetPart(currentIndex) : null;
+        audioManager.PlanepartSFX();
+        yield return StartCoroutine(PlayPartUpgradeParticlesRoutine(currentIndex, part));
 
         currentIndex++;
         clickCount = 0;
@@ -453,11 +419,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         increaseLaunchForceBtn.gameObject.SetActive(true);
         if (increaseCoinMultiplierBtn != null)
             increaseCoinMultiplierBtn.gameObject.SetActive(true);
-        // If all parts are now active → show MAX
-        if (currentIndex >= parts.Count)
-        {
+
+        if (IsFullyUpgraded())
             SetMaxStateUI();
-        }
 
         SaveProgress();
         UpdateButtonInteractable();
@@ -471,16 +435,364 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     // 🧠 UI Helpers
     // -----------------------------
 
-    private void ApplyPartStatesFromSave()
+    private int GetUpgradePartCount()
     {
-        for (int i = 0; i < parts.Count; i++)
+        return planeUpgradeConfig != null ? planeUpgradeConfig.PartCount : 0;
+    }
+
+    private bool IsFullyUpgraded()
+    {
+        int partCount = GetUpgradePartCount();
+        return partCount > 0 && currentIndex >= partCount;
+    }
+
+    private void ReconcileUpgradeIndexFromParts()
+    {
+        if (planeUpgradeConfig == null || planeUpgradeConfig.upgradeParts == null)
+            return;
+
+        for (int i = 0; i < planeUpgradeConfig.upgradeParts.Length; i++)
         {
-            if (parts[i] == null)
+            GameObject part = planeUpgradeConfig.GetPart(i);
+            if (part != null && PlaneUpgradeConfig.IsPartUnlocked(part))
+                currentIndex = Mathf.Max(currentIndex, i + 1);
+        }
+    }
+
+    private IEnumerator PlayPartUpgradeParticlesRoutine(int index, GameObject part)
+    {
+        if (part == null)
+        {
+            yield return new WaitForSeconds(particleEffectDuration);
+            yield break;
+        }
+
+        if (!part.activeSelf && planeUpgradeConfig != null)
+            planeUpgradeConfig.UnlockPart(index);
+
+        var spawnedInstances = new List<GameObject>();
+        var particleSystems = new List<ParticleSystem>();
+        var trails = new List<TrailRenderer>();
+
+        TryAddUpgradeParticlePrefab(upgradeParticleEffect, part, spawnedInstances, particleSystems);
+
+        // In-scene particle systems on the part (Wingtrail PS children, etc.)
+        AddParticleSystemsFromRoot(part, particleSystems);
+
+        // Trails are supplementary only — never block smoke from spawning
+        AddTrailsFromRoot(part, trails);
+
+        bool hasParticles = particleSystems.Count > 0;
+        bool hasTrails = trails.Count > 0;
+
+        if (!hasParticles && !hasTrails)
+        {
+            yield return new WaitForSeconds(particleEffectDuration);
+            yield break;
+        }
+
+        ActivateVfxChildren(part);
+        yield return null;
+
+        foreach (ParticleSystem ps in particleSystems)
+        {
+            if (ps == null || !IsSceneInstance(ps.gameObject))
                 continue;
 
-            bool active = PlayerPrefs.GetInt(LevelProgress.GetPartActiveKey(parts[i].name), 0) == 1;
-            parts[i].SetActive(active);
+            ps.gameObject.SetActive(true);
+            var emission = ps.emission;
+            emission.enabled = true;
+            ps.Clear(true);
+            ps.Play(true);
         }
+
+        foreach (TrailRenderer trail in trails)
+        {
+            if (trail == null || !IsSceneInstance(trail.gameObject))
+                continue;
+
+            trail.gameObject.SetActive(true);
+            trail.emitting = false;
+            trail.Clear();
+            trail.emitting = true;
+        }
+
+        float waitDuration = Mathf.Max(
+            particleEffectDuration,
+            GetParticleDuration(particleSystems.ToArray()),
+            GetTrailDuration(trails.ToArray()));
+
+        yield return new WaitForSeconds(waitDuration > 0f ? waitDuration : particleEffectDuration);
+
+        foreach (GameObject spawned in spawnedInstances)
+        {
+            if (spawned != null)
+                Destroy(spawned, 2f);
+        }
+    }
+
+    private void TryAddUpgradeParticlePrefab(
+        GameObject prefab,
+        GameObject part,
+        List<GameObject> spawnedInstances,
+        List<ParticleSystem> particleSystems)
+    {
+        if (prefab == null || part == null)
+            return;
+
+        if (IsSceneInstance(prefab))
+        {
+            EnsureActiveForPlayback(prefab, part);
+            AddParticleSystemsFromRoot(prefab, particleSystems);
+            return;
+        }
+
+        GameObject instance = Instantiate(prefab, part.transform);
+        instance.transform.localPosition = GetUpgradeParticleLocalPosition(part);
+        instance.transform.localRotation = Quaternion.identity;
+        float scale = Mathf.Max(0.01f, upgradeParticleScale);
+        instance.transform.localScale = Vector3.one * scale;
+        instance.SetActive(true);
+        spawnedInstances.Add(instance);
+        AddParticleSystemsFromRoot(instance, particleSystems);
+    }
+
+    private Vector3 GetUpgradeParticleLocalPosition(GameObject part)
+    {
+        if (part == null)
+            return new Vector3(0f, upgradeParticleYOffset, 0f);
+
+        Vector3 localPosition = GetPartVisualCenterLocal(part);
+        localPosition.y += upgradeParticleYOffset;
+        return localPosition;
+    }
+
+    private static Vector3 GetPartVisualCenterLocal(GameObject part)
+    {
+        Transform partTransform = part.transform;
+        bool hasBounds = false;
+        Bounds worldBounds = default;
+
+        foreach (MeshFilter meshFilter in part.GetComponentsInChildren<MeshFilter>(true))
+        {
+            if (meshFilter == null || meshFilter.sharedMesh == null)
+                continue;
+
+            EncapsulateLocalMeshBounds(meshFilter.transform, meshFilter.sharedMesh.bounds, ref worldBounds, ref hasBounds);
+        }
+
+        foreach (SkinnedMeshRenderer skinnedMesh in part.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+        {
+            if (skinnedMesh == null || skinnedMesh.sharedMesh == null)
+                continue;
+
+            EncapsulateLocalMeshBounds(skinnedMesh.transform, skinnedMesh.sharedMesh.bounds, ref worldBounds, ref hasBounds);
+        }
+
+        if (hasBounds)
+            return partTransform.InverseTransformPoint(worldBounds.center);
+
+        foreach (Renderer renderer in part.GetComponentsInChildren<Renderer>(true))
+        {
+            if (renderer == null || renderer is TrailRenderer || renderer is ParticleSystemRenderer)
+                continue;
+
+            if (!hasBounds)
+            {
+                worldBounds = renderer.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                worldBounds.Encapsulate(renderer.bounds);
+            }
+        }
+
+        if (hasBounds)
+            return partTransform.InverseTransformPoint(worldBounds.center);
+
+        foreach (Collider collider in part.GetComponentsInChildren<Collider>(true))
+        {
+            if (collider == null)
+                continue;
+
+            if (!hasBounds)
+            {
+                worldBounds = collider.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                worldBounds.Encapsulate(collider.bounds);
+            }
+        }
+
+        if (hasBounds)
+            return partTransform.InverseTransformPoint(worldBounds.center);
+
+        return Vector3.zero;
+    }
+
+    private static void EncapsulateLocalMeshBounds(
+        Transform meshTransform,
+        Bounds localMeshBounds,
+        ref Bounds worldBounds,
+        ref bool hasBounds)
+    {
+        Vector3 center = localMeshBounds.center;
+        Vector3 extents = localMeshBounds.extents;
+
+        Vector3[] corners =
+        {
+            center + new Vector3(extents.x, extents.y, extents.z),
+            center + new Vector3(extents.x, extents.y, -extents.z),
+            center + new Vector3(extents.x, -extents.y, extents.z),
+            center + new Vector3(extents.x, -extents.y, -extents.z),
+            center + new Vector3(-extents.x, extents.y, extents.z),
+            center + new Vector3(-extents.x, extents.y, -extents.z),
+            center + new Vector3(-extents.x, -extents.y, extents.z),
+            center + new Vector3(-extents.x, -extents.y, -extents.z)
+        };
+
+        foreach (Vector3 localCorner in corners)
+        {
+            Vector3 worldCorner = meshTransform.TransformPoint(localCorner);
+            if (!hasBounds)
+            {
+                worldBounds = new Bounds(worldCorner, Vector3.zero);
+                hasBounds = true;
+            }
+            else
+            {
+                worldBounds.Encapsulate(worldCorner);
+            }
+        }
+    }
+
+    private static void AddParticleSystemsFromRoot(GameObject root, List<ParticleSystem> particleSystems)
+    {
+        if (root == null || particleSystems == null)
+            return;
+
+        foreach (ParticleSystem ps in root.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            if (ps != null && IsSceneInstance(ps.gameObject) && !particleSystems.Contains(ps))
+                particleSystems.Add(ps);
+        }
+    }
+
+    private static void AddTrailsFromRoot(GameObject root, List<TrailRenderer> trails)
+    {
+        if (root == null || trails == null)
+            return;
+
+        foreach (TrailRenderer trail in root.GetComponentsInChildren<TrailRenderer>(true))
+        {
+            if (trail != null && IsSceneInstance(trail.gameObject) && !trails.Contains(trail))
+                trails.Add(trail);
+        }
+    }
+
+    private static bool IsSceneInstance(GameObject go)
+    {
+        return go != null && go.scene.IsValid();
+    }
+
+    private static string GetHierarchyPath(Transform t)
+    {
+        if (t == null)
+            return "null";
+
+        string path = t.name;
+        while (t.parent != null)
+        {
+            t = t.parent;
+            path = t.name + "/" + path;
+        }
+
+        return path;
+    }
+
+    private static void EnsureActiveForPlayback(GameObject target, GameObject stopAtAncestor)
+    {
+        if (target == null)
+            return;
+
+        target.SetActive(true);
+
+        Transform t = target.transform;
+        while (t != null)
+        {
+            if (!t.gameObject.activeSelf)
+                t.gameObject.SetActive(true);
+
+            if (stopAtAncestor != null && t.gameObject == stopAtAncestor)
+                break;
+
+            t = t.parent;
+        }
+    }
+
+    private static int ActivateVfxChildren(GameObject part)
+    {
+        if (part == null)
+            return 0;
+
+        int activated = 0;
+        foreach (Transform child in part.GetComponentsInChildren<Transform>(true))
+        {
+            if (child.gameObject == part)
+                continue;
+
+            bool isVfxChild = child.GetComponent<ParticleSystem>() != null
+                || child.GetComponent<TrailRenderer>() != null;
+
+            if (isVfxChild && !child.gameObject.activeSelf)
+            {
+                child.gameObject.SetActive(true);
+                activated++;
+            }
+        }
+
+        return activated;
+    }
+
+    private static float GetTrailDuration(TrailRenderer[] trails)
+    {
+        if (trails == null || trails.Length == 0)
+            return 0f;
+
+        float maxDuration = 0f;
+        foreach (TrailRenderer trail in trails)
+        {
+            if (trail == null)
+                continue;
+
+            if (trail.time > maxDuration)
+                maxDuration = trail.time;
+        }
+
+        return maxDuration;
+    }
+
+    private static float GetParticleDuration(ParticleSystem[] systems)
+    {
+        if (systems == null || systems.Length == 0)
+            return 0f;
+
+        float maxDuration = 0f;
+        foreach (ParticleSystem ps in systems)
+        {
+            ParticleSystem.MainModule main = ps.main;
+            float lifetime = main.startLifetime.mode == ParticleSystemCurveMode.TwoConstants
+                ? main.startLifetime.constantMax
+                : main.startLifetime.constant;
+            float duration = main.duration + lifetime;
+            if (duration > maxDuration)
+                maxDuration = duration;
+        }
+
+        return maxDuration;
     }
 
     private void UpdateCoinUI()
@@ -493,7 +805,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         if (costText != null)
         {
-            if (currentIndex >= parts.Count)
+            if (IsFullyUpgraded())
                 costText.text = "MAX";
             else
                 costText.text = $"{FormatNumber(currentCost)}";
@@ -504,7 +816,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         if (upgradeSlider != null)
         {
-            if (currentIndex >= parts.Count)
+            if (IsFullyUpgraded())
             {
                 upgradeSlider.value = upgradeSlider.maxValue;
             }
@@ -521,9 +833,14 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         if (upgradeButton != null)
         {
-            bool canAfford = playerCoins >= currentCost && currentIndex < parts.Count;
-            bool atMax = currentIndex >= parts.Count;
+            int partCount = GetUpgradePartCount();
+            bool canAfford = playerCoins >= currentCost && currentIndex < partCount;
+            bool atMax = IsFullyUpgraded();
             ApplyUpgradeButtonState(upgradeButton, upgradeButtonTransition, canAfford, atMax);
+
+            bool hasEnoughCoins = playerCoins >= currentCost && !IsFullyUpgraded();
+            if (notEnoughCoinsU != null)
+                notEnoughCoinsU.SetActive(!hasEnoughCoins && !IsFullyUpgraded());
         }
     }
 
@@ -556,21 +873,39 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     
     private void UpdateLaunchForceSliderUI()
     {
-        if (launchForceSlider != null)
+        if (launchForceSlider == null)
+            return;
+
+        if (launchForceLevel >= maxLaunchForceLevel)
         {
             launchForceSlider.minValue = 0;
             launchForceSlider.maxValue = 1;
-            
-            // Calculate slider value based on level (0 to 1)
-            if (maxLaunchForceLevel > 1)
-            {
-                launchForceSlider.value = (float)(launchForceLevel - 1) / (maxLaunchForceLevel - 1);
-            }
-            else
-            {
-                launchForceSlider.value = 1f;
-            }
+            launchForceSlider.value = 1f;
+            return;
         }
+
+        launchForceSlider.minValue = 0;
+        launchForceSlider.maxValue = clicksRequired;
+        launchForceSlider.value = launchForceClickCount;
+    }
+
+    private int GetLaunchForceClickCost()
+    {
+        if (launchForceLevel >= maxLaunchForceLevel)
+            return 0;
+
+        return launchForceCosts[launchForceLevel - 1];
+    }
+
+    private void SaveLaunchForceProgress()
+    {
+        PlayerPrefs.SetInt(LevelProgress.GetLaunchForceLevelKey(), launchForceLevel);
+        PlayerPrefs.SetInt(LevelProgress.GetLaunchForceClickCountKey(), launchForceClickCount);
+
+        if (dragLauncher != null)
+            PlayerPrefs.SetFloat(LevelProgress.GetLaunchForceMultiplierKey(), dragLauncher.launchForceMultiplier);
+
+        PlayerPrefs.Save();
     }
     
     private void CaptureBoostButtonRestPosition()
@@ -617,6 +952,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (boostButtonSlideCoroutine != null)
             StopCoroutine(boostButtonSlideCoroutine);
 
+        if (!isActiveAndEnabled)
+            return;
+
         boostButtonSlideCoroutine = StartCoroutine(AnimateBoostButton(true));
     }
 
@@ -630,6 +968,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         if (boostButtonSlideCoroutine != null)
             StopCoroutine(boostButtonSlideCoroutine);
+
+        if (!isActiveAndEnabled)
+            return;
 
         boostButtonSlideCoroutine = StartCoroutine(AnimateBoostButton(false));
     }
@@ -682,7 +1023,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (increaseLaunchForceBtn != null)
         {
             bool isMaxLevel = launchForceLevel >= maxLaunchForceLevel;
-            bool canAfford = playerCoins >= launchForceCosts[launchForceLevel - 1];
+            bool canAfford = !isMaxLevel && playerCoins >= GetLaunchForceClickCost();
             ApplyUpgradeButtonState(increaseLaunchForceBtn, launchForceButtonTransition, canAfford, isMaxLevel);
         }
     }
@@ -690,6 +1031,22 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private float GetCoinMultiplierValue()
     {
         return 1f + (coinMultiplierLevel - 1) * coinMultiplierStep;
+    }
+
+    private int GetCoinMultiplierClickCost()
+    {
+        if (coinMultiplierLevel >= maxCoinMultiplierLevel)
+            return 0;
+
+        return coinMultiplierCosts[coinMultiplierLevel - 1];
+    }
+
+    private void SaveCoinMultiplierProgress()
+    {
+        PlayerPrefs.SetInt(LevelProgress.CoinMultiplierLevelKey, coinMultiplierLevel);
+        PlayerPrefs.SetInt(LevelProgress.CoinMultiplierClickCountKey, coinMultiplierClickCount);
+        PlayerPrefs.SetFloat(LevelProgress.CoinMultiplierValueKey, GetCoinMultiplierValue());
+        PlayerPrefs.Save();
     }
 
     private void UpdateCoinMultiplierCostUI()
@@ -714,13 +1071,17 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (coinMultiplierSlider == null)
             return;
 
-        coinMultiplierSlider.minValue = 0;
-        coinMultiplierSlider.maxValue = 1;
-
-        if (maxCoinMultiplierLevel > 1)
-            coinMultiplierSlider.value = (float)(coinMultiplierLevel - 1) / (maxCoinMultiplierLevel - 1);
-        else
+        if (coinMultiplierLevel >= maxCoinMultiplierLevel)
+        {
+            coinMultiplierSlider.minValue = 0;
+            coinMultiplierSlider.maxValue = 1;
             coinMultiplierSlider.value = 1f;
+            return;
+        }
+
+        coinMultiplierSlider.minValue = 0;
+        coinMultiplierSlider.maxValue = clicksRequired;
+        coinMultiplierSlider.value = coinMultiplierClickCount;
     }
 
     private void UpdateIncreaseCoinMultiplierButtonInteractable()
@@ -729,7 +1090,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             return;
 
         bool isMaxLevel = coinMultiplierLevel >= maxCoinMultiplierLevel;
-        bool canAfford = playerCoins >= coinMultiplierCosts[coinMultiplierLevel - 1];
+        bool canAfford = !isMaxLevel && playerCoins >= GetCoinMultiplierClickCost();
         ApplyUpgradeButtonState(increaseCoinMultiplierBtn, coinMultiplierButtonTransition, canAfford, isMaxLevel);
     }
 
@@ -761,7 +1122,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         CoinManager.EnsureInstance();
         playerCoins = CoinManager.Instance != null
             ? CoinManager.Instance.GetCoins()
-            : PlayerPrefs.GetInt("PlayerCoins", 0);
+            : PlayerPrefs.GetInt(LevelProgress.CoinsKey, 0);
     }
 
     private bool TrySpendCoins(int amount)
@@ -779,7 +1140,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         else
         {
             playerCoins -= amount;
-            PlayerPrefs.SetInt("PlayerCoins", playerCoins);
+            PlayerPrefs.SetInt(LevelProgress.CoinsKey, playerCoins);
             PlayerPrefs.Save();
         }
 
@@ -793,20 +1154,48 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void SaveProgress()
     {
-        PlayerPrefs.SetInt("Upgrade_CurrentIndex", currentIndex);
-        PlayerPrefs.SetInt("Upgrade_ClickCount", clickCount);
-        PlayerPrefs.SetFloat("Upgrade_CurrentCost", currentCost);
+        PlayerPrefs.SetInt(LevelProgress.GetUpgradeCurrentIndexKey(), currentIndex);
+        PlayerPrefs.SetInt(LevelProgress.GetUpgradeClickCountKey(), clickCount);
+        PlayerPrefs.SetFloat(LevelProgress.GetUpgradeCurrentCostKey(), currentCost);
         SyncPlayerCoins();
-        PlayerPrefs.SetInt("PlayerCoins", playerCoins);
+        PlayerPrefs.SetInt(LevelProgress.CoinsKey, playerCoins);
         PlayerPrefs.Save();
     }
 
     private void LoadProgress()
     {
-        currentIndex = PlayerPrefs.GetInt("Upgrade_CurrentIndex", 0);
-        clickCount = PlayerPrefs.GetInt("Upgrade_ClickCount", 0);
-        currentCost = PlayerPrefs.GetFloat("Upgrade_CurrentCost", 10f);
+        currentIndex = PlayerPrefs.GetInt(LevelProgress.GetUpgradeCurrentIndexKey(), 0);
+        clickCount = PlayerPrefs.GetInt(LevelProgress.GetUpgradeClickCountKey(), 0);
+        currentCost = PlayerPrefs.GetFloat(LevelProgress.GetUpgradeCurrentCostKey(), 10f);
         SyncPlayerCoins();
+    }
+
+    private void MigrateLegacyProgressIfNeeded()
+    {
+        if (PlayerPrefs.HasKey(LevelProgress.GetUpgradeCurrentIndexKey()))
+            return;
+
+        if (!PlayerPrefs.HasKey("Upgrade_CurrentIndex"))
+            return;
+
+        currentIndex = PlayerPrefs.GetInt("Upgrade_CurrentIndex", currentIndex);
+        clickCount = PlayerPrefs.GetInt("Upgrade_ClickCount", clickCount);
+        currentCost = PlayerPrefs.GetFloat("Upgrade_CurrentCost", currentCost);
+
+        if (planeUpgradeConfig != null)
+        {
+            foreach (PlaneUpgradePartEntry entry in planeUpgradeConfig.upgradeParts)
+            {
+                if (entry?.part == null)
+                    continue;
+
+                string legacyKey = entry.part.name + "_active";
+                if (PlayerPrefs.GetInt(legacyKey, 0) == 1)
+                    PlayerPrefs.SetInt(LevelProgress.GetPartActiveKey(entry.part.name), 1);
+            }
+        }
+
+        SaveProgress();
     }
 
     // -----------------------------
@@ -866,62 +1255,54 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             UpdateButtonInteractable();
             UpdateIncreaseLaunchForceButtonInteractable();
             UpdateIncreaseCoinMultiplierButtonInteractable();
-            
-            Debug.Log($"Boosters enabled! {BoostCost} coins deducted.");
-        }
-        else
-        {
-            Debug.Log("Not enough coins or boosters already active!");
         }
     }
 
     private void LoadLaunchForceLevel()
     {
-        // Load saved launch force level
-        launchForceLevel = PlayerPrefs.GetInt("LaunchForceLevel", 1);
-        
-        // Ensure level is within bounds
+        launchForceLevel = PlayerPrefs.GetInt(LevelProgress.GetLaunchForceLevelKey(), 1);
+        if (!PlayerPrefs.HasKey(LevelProgress.GetLaunchForceLevelKey()) && PlayerPrefs.HasKey("LaunchForceLevel"))
+            launchForceLevel = PlayerPrefs.GetInt("LaunchForceLevel", launchForceLevel);
+
+        launchForceClickCount = PlayerPrefs.GetInt(LevelProgress.GetLaunchForceClickCountKey(), 0);
+
         launchForceLevel = Mathf.Clamp(launchForceLevel, 1, maxLaunchForceLevel);
-        
-        // Set the launch force multiplier based on level
+        launchForceClickCount = Mathf.Clamp(launchForceClickCount, 0, clicksRequired - 1);
+
+        if (launchForceLevel >= maxLaunchForceLevel)
+            launchForceClickCount = 0;
+
         if (dragLauncher != null)
-        {
             dragLauncher.launchForceMultiplier = launchForceLevels[launchForceLevel - 1];
-        }
     }
     
     public void IncreaseLaunchForce()
     {
         if (launchForceLevel >= maxLaunchForceLevel)
-        {
-            Debug.Log("Launch force already at max level!");
             return;
-        }
 
-        int currentCostForLevel = launchForceCosts[launchForceLevel - 1];
+        int clickCost = GetLaunchForceClickCost();
         SyncPlayerCoins();
-        if (playerCoins < currentCostForLevel)
+        if (playerCoins < clickCost)
         {
             PlayInsufficientCoinsShake(increaseLaunchForceBtn);
             Debug.Log("Not enough coins!");
             return;
         }
 
+        if (!TrySpendCoins(clickCost))
+            return;
+
         audioManager.btnSFX();
         VibrationManager.Instance.VibrateButtonClick();
+        UpdateCoinUI();
 
-        if (TrySpendCoins(currentCostForLevel))
+        launchForceClickCount++;
+
+        if (launchForceClickCount >= clicksRequired)
         {
-            UpdateCoinUI();
-
-            // Increase level
+            launchForceClickCount = 0;
             launchForceLevel++;
-            PlayerPrefs.SetInt("LaunchForceLevel", launchForceLevel);
-            
-            // Set new launch force multiplier
-            dragLauncher.launchForceMultiplier = launchForceLevels[launchForceLevel - 1];
-            PlayerPrefs.SetFloat("LaunchForceMultiplier", dragLauncher.launchForceMultiplier);
-            PlayerPrefs.Save();
 
             // Re-snap the plane to the ramp rest pose so the new slingshot state
             // doesn't leave it using an older drag/rotation pose.
@@ -938,24 +1319,38 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             UpdateIncreaseCoinMultiplierButtonInteractable();
 
             Debug.Log($"Launch force upgraded to Level {launchForceLevel}! Force: {dragLauncher.launchForceMultiplier}");
+            if (dragLauncher != null)
+                dragLauncher.launchForceMultiplier = launchForceLevels[launchForceLevel - 1];
         }
+
+        SaveLaunchForceProgress();
+
+        UpdateLaunchForceCostUI();
+        UpdateLaunchForceLevelUI();
+        UpdateLaunchForceSliderUI();
+        UpdateIncreaseLaunchForceButtonInteractable();
+        UpdateButtonInteractable();
+        UpdateBoostButtonInteractable();
+        UpdateIncreaseCoinMultiplierButtonInteractable();
     }
 
     private void LoadCoinMultiplierLevel()
     {
-        coinMultiplierLevel = PlayerPrefs.GetInt("CoinMultiplierLevel", 1);
+        coinMultiplierLevel = PlayerPrefs.GetInt(LevelProgress.CoinMultiplierLevelKey, 1);
+        coinMultiplierClickCount = PlayerPrefs.GetInt(LevelProgress.CoinMultiplierClickCountKey, 0);
         coinMultiplierLevel = Mathf.Clamp(coinMultiplierLevel, 1, maxCoinMultiplierLevel);
+        coinMultiplierClickCount = Mathf.Clamp(coinMultiplierClickCount, 0, clicksRequired - 1);
+
+        if (coinMultiplierLevel >= maxCoinMultiplierLevel)
+            coinMultiplierClickCount = 0;
     }
 
     public void IncreaseCoinMultiplier()
     {
         if (coinMultiplierLevel >= maxCoinMultiplierLevel)
-        {
-            Debug.Log("Coin multiplier already at max level!");
             return;
-        }
 
-        int cost = coinMultiplierCosts[coinMultiplierLevel - 1];
+        int cost = GetCoinMultiplierClickCost();
         SyncPlayerCoins();
         if (playerCoins < cost)
         {
@@ -972,10 +1367,15 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         UpdateCoinUI();
 
-        coinMultiplierLevel++;
-        PlayerPrefs.SetInt("CoinMultiplierLevel", coinMultiplierLevel);
-        PlayerPrefs.SetFloat("CoinMultiplier", GetCoinMultiplierValue());
-        PlayerPrefs.Save();
+        coinMultiplierClickCount++;
+
+        if (coinMultiplierClickCount >= clicksRequired)
+        {
+            coinMultiplierClickCount = 0;
+            coinMultiplierLevel++;
+        }
+
+        SaveCoinMultiplierProgress();
 
         UpdateCoinMultiplierCostUI();
         UpdateCoinMultiplierLevelUI();
@@ -984,8 +1384,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
-
-        Debug.Log($"Coin multiplier upgraded to {GetCoinMultiplierValue():0.#}x (level {coinMultiplierLevel})");
     }
 
     public void SettingBtn(){

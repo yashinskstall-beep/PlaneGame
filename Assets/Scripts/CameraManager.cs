@@ -49,7 +49,6 @@ public class CameraManager : MonoBehaviour
 
         gameStarted = false;
         EndGameplay();
-        Debug.Log("Transitioning to main menu position");
         StartCoroutine(TransitionToPosition(mainMenuPosition.position, mainMenuPosition.rotation, transitionDuration, onComplete));
     }
 
@@ -105,7 +104,6 @@ public class CameraManager : MonoBehaviour
         if (uiManager != null)
             uiManager.OnGameplayStarted();
 
-        Debug.Log("Gameplay started, in-game UI enabled.");
         StartCoroutine(ResetAtStartFlag());
     }
 

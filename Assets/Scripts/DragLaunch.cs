@@ -286,8 +286,13 @@ public class SimpleDragLauncher : MonoBehaviour
     private IEnumerator ReturnToRest()
     {
         Vector3 startPos = cube.position;
+        Quaternion startRot = cube.rotation;
+        Quaternion restRot = restingPoint != null ? restingPoint.rotation : startRot;
         float duration = 0.3f; // Quick animation back to start
         float elapsed = 0f;
+
+        if (rotationHandler != null)
+            rotationHandler.SetTargetToRestPose();
 
         // Also fade out SFX while returning to rest
         if (rubberSource != null && rubberSource.isPlaying)
@@ -298,12 +303,17 @@ public class SimpleDragLauncher : MonoBehaviour
 
         while (elapsed < duration)
         {
-            cube.position = Vector3.Lerp(startPos, restingPoint.position, elapsed / duration);
+            float t = elapsed / duration;
+            cube.position = Vector3.Lerp(startPos, restingPoint.position, t);
+            cube.rotation = Quaternion.Slerp(startRot, restRot, t);
             elapsed += Time.deltaTime;
             yield return null;
         }
 
         cube.position = restingPoint.position;
+        cube.rotation = restRot;
+        if (rotationHandler != null)
+            rotationHandler.ResetToRestPose();
     }
 
     // ---------------- Rubber SFX helpers ----------------

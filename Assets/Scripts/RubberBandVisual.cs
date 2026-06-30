@@ -121,31 +121,23 @@ public class RubberBandVisual : MonoBehaviour
     /// </summary>
     private void UpdateMaterialBasedOnLevel()
     {
-        if (mainMenu == null || levelMaterials == null || levelMaterials.Length == 0)
+        if (levelMaterials == null || levelMaterials.Length == 0)
             return;
-            
-        // Get the current level from MainMenu (using reflection to access private field)
-        int level = PlayerPrefs.GetInt("LaunchForceLevel", 1);
-        
-        // Clamp level to valid range
-        level = Mathf.Clamp(level, 1, 3);
-        
-        // Only update if level changed
-        if (level != currentLevel)
-        {
-            currentLevel = level;
-            
-            // Set the material based on level (level 1 = index 0, level 2 = index 1, etc.)
-            if (levelMaterials[level - 1] != null)
-            {
-                lineRenderer.material = levelMaterials[level - 1];
-                Debug.Log($"Rubber band material updated to Level {level}");
-            }
-        }
-        // if (isDragging)
-        // {
-           
-        // }
+
+        int level = PlayerPrefs.GetInt(LevelProgress.GetLaunchForceLevelKey(), 0);
+        if (level <= 0)
+            level = PlayerPrefs.GetInt("LaunchForceLevel", 1);
+
+        level = Mathf.Clamp(level, 1, levelMaterials.Length);
+        if (level == currentLevel)
+            return;
+
+        currentLevel = level;
+        Material targetMaterial = levelMaterials[level - 1];
+        if (targetMaterial == null)
+            return;
+
+        lineRenderer.material = targetMaterial;
     }
     
     private void HandleInput()
