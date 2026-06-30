@@ -1172,7 +1172,7 @@ MonoBehaviour:
   rotationHandler: {fileID: 549470093}
   lineRenderer: {fileID: 38257090}
   maxDragDistance: 1.2
-  minDragToLaunch: 0.9
+  minDragToLaunch: 0.3
   launchForceMultiplier: 25
   verticalForceMultiplier: 5
   liftDuration: 2

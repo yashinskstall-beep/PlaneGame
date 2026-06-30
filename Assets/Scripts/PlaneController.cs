@@ -185,9 +185,22 @@ public class PlaneController : MonoBehaviour
     private float timeStoppedOnRamp = 0f;
     private const float rampStopThreshold = 1f; // Time in seconds before placing marker
 
+    private static bool IsOutdoorGround(GameObject obj)
+    {
+        return obj != null && obj.CompareTag("Ground");
+    }
+
+    private bool IsOverShedGround()
+    {
+        if (!Physics.Raycast(transform.position, Vector3.down, out RaycastHit hit, groundCheckDistance * 4f,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            return false;
+
+        return hit.collider.CompareTag("Shed ground");
+    }
+
     void Start()
     {
-
        
         rb = GetComponent<Rigidbody>();
         boostUsesRemaining = maxBoostUses;
@@ -618,7 +631,7 @@ public class PlaneController : MonoBehaviour
         float zVelocity = (currentZPosition - lastZPosition) / Time.fixedDeltaTime;
         lastZPosition = currentZPosition;
 
-        if (zVelocity < minZAxisSpeed && !markerPlaced)
+        if (zVelocity < minZAxisSpeed && rb.velocity.magnitude < minGroundSpeed && !markerPlaced)
         {
             if (collisionMarker != null)
             {
@@ -635,6 +648,13 @@ public class PlaneController : MonoBehaviour
             rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             rb.constraints = RigidbodyConstraints.None;
+
+            if (!markerPlaced && collisionMarker != null)
+            {
+                PlaceMarkerAtCurrentPosition();
+                markerPlaced = true;
+            }
+
             isGrounded = false;
         }
         else
@@ -654,7 +674,7 @@ public class PlaneController : MonoBehaviour
 
     void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject.CompareTag("Ground"))
+        if (IsOutdoorGround(collision.gameObject))
         {
             // Handle ground collision regardless of isControlling state
             if (isControlling)
@@ -728,7 +748,7 @@ public class PlaneController : MonoBehaviour
 
     void OnCollisionStay(Collision collision)
     {
-        if (isGrounded && !isControlling && collision.gameObject.CompareTag("Ground"))
+        if (isGrounded && !isControlling && IsOutdoorGround(collision.gameObject))
         {
             Vector3 groundNormal = collision.contacts[0].normal;
             if (rb != null && rb.velocity.magnitude > 0.1f)
@@ -742,7 +762,7 @@ public class PlaneController : MonoBehaviour
 
     void OnCollisionExit(Collision collision)
     {
-        if (isGrounded && !isControlling && collision.gameObject.CompareTag("Ground"))
+        if (isGrounded && !isControlling && IsOutdoorGround(collision.gameObject))
         {
             if (!Physics.Raycast(transform.position, Vector3.down, out _, groundCheckDistance * 2f, LayerMask.GetMask("Ground")))
             {
@@ -781,6 +801,8 @@ public class PlaneController : MonoBehaviour
             HandleMisfireLanding();
         else
         {
+            StopControlling();
+            StopGlideSound();
             PlaceMarkerAtCurrentPosition();
             markerPlaced = true;
         }
@@ -789,6 +811,10 @@ public class PlaneController : MonoBehaviour
     private bool IsOnShedAfterLaunch()
     {
         if (IsOnRampAligner())
+            return true;
+
+        // Shed floor only counts after leaving the ramp; CheckIfStoppedOnShed also requires low speed.
+        if (exitedRamp && IsOverShedGround())
             return true;
 
         Vector3 currentFlat = new Vector3(transform.position.x, 0f, transform.position.z);
