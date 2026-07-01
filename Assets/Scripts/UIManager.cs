@@ -270,6 +270,7 @@ public class UIManager : MonoBehaviour
     public void GoalScreen()
     {
         isGoalReached = true;
+        LevelProgress.MarkSceneCompleted();
         LevelsUI.UnlockLevel(desertLevelIndex);
         ScheduleScoreUI(2f);
     }

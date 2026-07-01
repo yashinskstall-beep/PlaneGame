@@ -55,6 +55,11 @@ public static class LevelProgress
         return ScenePrefix(sceneName) + "LaunchForceClickCount";
     }
 
+    public static string GetSceneCompletedKey(string sceneName = null)
+    {
+        return ScenePrefix(sceneName) + "Completed";
+    }
+
     public const string CoinMultiplierLevelKey = "CoinMultiplierLevel";
     public const string CoinMultiplierClickCountKey = "CoinMultiplierClickCount";
     public const string CoinMultiplierValueKey = "CoinMultiplier";
@@ -71,6 +76,17 @@ public static class LevelProgress
 
         int level = GetCoinMultiplierLevel();
         return 1f + (level - 1) * 0.1f;
+    }
+
+    public static bool HasCompletedScene(string sceneName = null)
+    {
+        return PlayerPrefs.GetInt(GetSceneCompletedKey(sceneName), 0) == 1;
+    }
+
+    public static void MarkSceneCompleted(string sceneName = null)
+    {
+        PlayerPrefs.SetInt(GetSceneCompletedKey(sceneName), 1);
+        PlayerPrefs.Save();
     }
 
     public static void ResetGameplayProgressForScene(string sceneName, string[] partNames = null)

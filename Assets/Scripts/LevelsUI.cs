@@ -1,3 +1,4 @@
+using System.IO;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,6 +12,7 @@ using UnityEngine.SceneManagement;
 public class LevelsUI : MonoBehaviour
 {
     private static LevelsUI instance;
+    private static bool startupSceneResolved;
     private const string UnlockedKeyPrefix = "LevelUnlocked_";
 
     [System.Serializable]
@@ -41,6 +43,12 @@ public class LevelsUI : MonoBehaviour
         SetupButtonListeners();
     }
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void BootstrapHighestUnlockedLevel()
+    {
+        TryLoadHighestUnlockedLevelOnStartup();
+    }
+
     private void OnDestroy()
     {
         if (instance == this)
@@ -52,7 +60,35 @@ public class LevelsUI : MonoBehaviour
         if (mainMenu == null)
             mainMenu = FindObjectOfType<MainMenu>();
 
+        TryLoadHighestUnlockedLevelOnStartup();
         RefreshAllButtons();
+    }
+
+    private static void TryLoadHighestUnlockedLevelOnStartup()
+    {
+        if (startupSceneResolved)
+            return;
+
+        LevelsUI levelsUI = instance ?? FindObjectOfType<LevelsUI>(true);
+        if (levelsUI == null)
+            return;
+
+        string targetScene = levelsUI.GetHighestUnlockedSceneName();
+        if (string.IsNullOrEmpty(targetScene))
+        {
+            startupSceneResolved = true;
+            return;
+        }
+
+        string currentScene = SceneManager.GetActiveScene().name;
+        if (currentScene == targetScene)
+        {
+            startupSceneResolved = true;
+            return;
+        }
+
+        startupSceneResolved = true;
+        SceneManager.LoadScene(targetScene);
     }
 
     private void SetupButtonListeners()
@@ -73,7 +109,7 @@ public class LevelsUI : MonoBehaviour
 
     private void OnLevelClicked(int index)
     {
-        if (!GetVisualState(index))
+        if (!IsLevelSelectable(index))
             return;
 
         if (IsActiveLevel(index))
@@ -82,7 +118,7 @@ public class LevelsUI : MonoBehaviour
             return;
         }
 
-        string scene = levels[index].sceneName;
+        string scene = ResolveSceneNameForLevel(index);
         if (!string.IsNullOrEmpty(scene))
         {
             LoadSceneWithTransition(scene, resetProgress: true, levels[index].upgradePartNamesForReset);
@@ -119,14 +155,14 @@ public class LevelsUI : MonoBehaviour
 
         for (int i = 0; i < levels.Length; i++)
         {
-            string scene = levels[i].sceneName;
+            string scene = ResolveSceneNameForLevel(i);
             if (!string.IsNullOrEmpty(scene) && scene == activeScene)
                 return i;
         }
 
         for (int i = 0; i < levels.Length; i++)
         {
-            if (string.IsNullOrEmpty(levels[i].sceneName) && GetVisualState(i))
+            if (string.IsNullOrEmpty(levels[i].sceneName) && IsLevelSelectable(i))
                 return i;
         }
 
@@ -172,20 +208,78 @@ public class LevelsUI : MonoBehaviour
             return;
 
         for (int i = 0; i < levels.Length; i++)
-            ApplyVisuals(levels[i], GetVisualState(i));
+            ApplyVisuals(levels[i], i);
     }
 
-    private bool GetVisualState(int index)
+    private bool IsLevelUnlockedVisually(int index)
     {
         if (index < 0 || index >= levels.Length)
             return false;
 
-        var data = levels[index];
+        LevelButtonData data = levels[index];
 
         if (index == 0 || data.unlockedByDefault)
             return true;
 
         return PlayerPrefs.GetInt(UnlockedKeyPrefix + index, 0) == 1;
+    }
+
+    private bool IsLevelSelectable(int index)
+    {
+        return IsLevelUnlockedVisually(index) && !IsBlockedUntilCurrentLevelCompleted(index);
+    }
+
+    private bool IsBlockedUntilCurrentLevelCompleted(int targetIndex)
+    {
+        int activeLevelIndex = GetActiveLevelIndex();
+        if (activeLevelIndex != 1 || targetIndex != 0)
+            return false;
+
+        string activeScene = SceneManager.GetActiveScene().name;
+        return !LevelProgress.HasCompletedScene(activeScene);
+    }
+
+    private string GetHighestUnlockedSceneName()
+    {
+        if (levels == null || levels.Length == 0)
+            return GetDefaultSceneNameForBuildIndex(0);
+
+        for (int i = levels.Length - 1; i >= 0; i--)
+        {
+            if (!IsLevelUnlockedVisually(i))
+                continue;
+
+            string scene = ResolveSceneNameForLevel(i);
+            if (!string.IsNullOrEmpty(scene))
+                return scene;
+        }
+
+        return ResolveSceneNameForLevel(0);
+    }
+
+    private string ResolveSceneNameForLevel(int index)
+    {
+        if (levels == null || index < 0 || index >= levels.Length)
+            return string.Empty;
+
+        if (!string.IsNullOrEmpty(levels[index].sceneName))
+            return levels[index].sceneName;
+
+        if (index == 0)
+            return GetDefaultSceneNameForBuildIndex(0);
+
+        return string.Empty;
+    }
+
+    private static string GetDefaultSceneNameForBuildIndex(int buildIndex)
+    {
+        if (SceneManager.sceneCountInBuildSettings <= buildIndex)
+            return SceneManager.GetActiveScene().name;
+
+        string scenePath = SceneUtility.GetScenePathByBuildIndex(buildIndex);
+        return string.IsNullOrEmpty(scenePath)
+            ? SceneManager.GetActiveScene().name
+            : Path.GetFileNameWithoutExtension(scenePath);
     }
 
     private TextMeshProUGUI ResolveNameText(LevelButtonData data)
@@ -209,25 +303,28 @@ public class LevelsUI : MonoBehaviour
         return null;
     }
 
-    private void ApplyVisuals(LevelButtonData data, bool unlocked)
+    private void ApplyVisuals(LevelButtonData data, int index)
     {
         if (data.button == null)
             return;
 
+        bool isUnlocked = IsLevelUnlockedVisually(index);
+        bool isSelectable = IsLevelSelectable(index);
+
         var colors = data.button.colors;
         colors.disabledColor = colors.normalColor;
         data.button.colors = colors;
-        data.button.interactable = unlocked;
+        data.button.interactable = isSelectable;
 
         var background = data.button.GetComponent<Image>();
-        if (unlocked && background != null && unlockedButtonSprite != null)
+        if (isUnlocked && background != null && unlockedButtonSprite != null)
             background.sprite = unlockedButtonSprite;
 
         TextMeshProUGUI nameLabel = ResolveNameText(data);
         if (nameLabel != null)
         {
-            nameLabel.gameObject.SetActive(unlocked);
-            if (unlocked)
+            nameLabel.gameObject.SetActive(isUnlocked);
+            if (isUnlocked)
                 nameLabel.text = data.displayName;
         }
 
@@ -241,7 +338,7 @@ public class LevelsUI : MonoBehaviour
             ? data.lockIcon
             : ResolveLockIcon(data);
         if (lockObject != null)
-            lockObject.SetActive(!unlocked);
+            lockObject.SetActive(!isUnlocked);
     }
 
     private GameObject ResolveLockIcon(LevelButtonData data)
