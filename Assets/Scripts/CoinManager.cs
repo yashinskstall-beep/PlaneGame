@@ -5,7 +5,6 @@ public class CoinManager : MonoBehaviour
     public static CoinManager Instance { get; private set; }
 
     [SerializeField] private int coins;
-    public int cheatCoins;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Bootstrap()
@@ -18,23 +17,18 @@ public class CoinManager : MonoBehaviour
         if (Instance != null)
             return;
 
-        CoinManager existing = FindObjectOfType<CoinManager>(true);
-        if (existing != null)
+        CoinManager[] managers = FindObjectsOfType<CoinManager>(true);
+        foreach (CoinManager manager in managers)
         {
-            existing.InitializeSingleton();
-            return;
+            if (manager.transform.parent == null)
+            {
+                manager.InitializeSingleton();
+                return;
+            }
         }
 
         GameObject go = new GameObject("CoinManager");
         go.AddComponent<CoinManager>();
-    }
-
-    private void OnValidate()
-    {
-        if (Application.isPlaying && coins != cheatCoins)
-        {
-            coins = cheatCoins;
-        }
     }
 
     private void Awake()
@@ -50,11 +44,10 @@ public class CoinManager : MonoBehaviour
             return;
         }
 
-        Instance = this;
-
         if (transform.parent != null)
-            transform.SetParent(null);
+            return;
 
+        Instance = this;
         DontDestroyOnLoad(gameObject);
         LoadCoins();
     }
@@ -65,7 +58,6 @@ public class CoinManager : MonoBehaviour
             return;
 
         coins += amount;
-        cheatCoins = coins;
         SaveCoins();
     }
 
@@ -78,7 +70,6 @@ public class CoinManager : MonoBehaviour
             return false;
 
         coins -= amount;
-        cheatCoins = coins;
         SaveCoins();
         return true;
     }
@@ -102,6 +93,5 @@ public class CoinManager : MonoBehaviour
     private void LoadCoins()
     {
         coins = PlayerPrefs.GetInt(LevelProgress.CoinsKey, 0);
-        cheatCoins = coins;
     }
 }

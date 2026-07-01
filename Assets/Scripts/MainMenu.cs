@@ -55,6 +55,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public float upgradeParticleScale = 0.12f;
 
     [Header("Debug")]
+    [SerializeField] private GameObject cheatCoinsButton;
+    [Tooltip("When enabled, the cheat coins button is also shown on Android builds.")]
+    [SerializeField] private bool showCheatCoinsOnAndroid;
     [SerializeField] private bool debugUpgradeVfx = true;
 
 
@@ -69,12 +72,16 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public bool IsUpgrading => isUpgrading;
     
+    [Header("Launch Force Upgrade")]
+    [SerializeField] private float[] launchForceLevels = { 25f, 30f, 35f };
+    [SerializeField] private int[] launchForceCosts = { 700, 1000, 1500 };
+
     // Launch force level system
     private int launchForceLevel = 1;
     private int launchForceClickCount = 0;
-    private const int maxLaunchForceLevel = 3;
-    private readonly float[] launchForceLevels = { 25f, 30f, 35f };
-    private readonly int[] launchForceCosts = { 700, 1000, 1500 };
+    private int maxLaunchForceLevel => launchForceLevels != null && launchForceLevels.Length > 0
+        ? launchForceLevels.Length
+        : 1;
 
     private int coinMultiplierLevel = 1;
     private int coinMultiplierClickCount = 0;
@@ -93,6 +100,43 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         menuPanelImage = GetComponent<Image>();
         ResolveSceneReferences();
+        EnsureLaunchForceConfig();
+    }
+
+    private void OnValidate()
+    {
+        EnsureLaunchForceConfig();
+    }
+
+    private void EnsureLaunchForceConfig()
+    {
+        if (launchForceLevels == null || launchForceLevels.Length == 0)
+            launchForceLevels = new[] { 25f, 30f, 35f };
+
+        if (launchForceCosts == null || launchForceCosts.Length == 0)
+            launchForceCosts = new[] { 700, 1000, 1500 };
+
+        if (launchForceCosts.Length != launchForceLevels.Length)
+        {
+            int[] resizedCosts = new int[launchForceLevels.Length];
+            for (int i = 0; i < resizedCosts.Length; i++)
+                resizedCosts[i] = i < launchForceCosts.Length ? launchForceCosts[i] : launchForceCosts[launchForceCosts.Length - 1];
+            launchForceCosts = resizedCosts;
+        }
+    }
+
+    private float GetLaunchForceMultiplierForLevel(int level)
+    {
+        EnsureLaunchForceConfig();
+        int index = Mathf.Clamp(level - 1, 0, launchForceLevels.Length - 1);
+        return launchForceLevels[index];
+    }
+
+    private int GetLaunchForceCostForLevel(int level)
+    {
+        EnsureLaunchForceConfig();
+        int index = Mathf.Clamp(level - 1, 0, launchForceCosts.Length - 1);
+        return launchForceCosts[index];
     }
 
     void OnEnable()
@@ -101,6 +145,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         ResolveUIReferences();
         CacheUpgradeButtonTransitions();
         EnsureUpgradeShakeComponents();
+        ApplyCheatCoinsButtonVisibility();
         RefreshEconomyUI();
     }
 
@@ -124,6 +169,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             boostButtonShown = false;
         }
 
+        ApplyCheatCoinsButtonVisibility();
         RefreshAllUpgradeUI();
     }
 
@@ -162,7 +208,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             boostactive.SetActive(false);
 
         if (dragLauncher != null)
-            dragLauncher.launchForceMultiplier = launchForceLevels[0];
+            dragLauncher.launchForceMultiplier = GetLaunchForceMultiplierForLevel(1);
 
         PlayerPrefs.SetInt(LevelProgress.CoinMultiplierLevelKey, 1);
         PlayerPrefs.SetInt(LevelProgress.CoinMultiplierClickCountKey, 0);
@@ -284,6 +330,42 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             if (costTransform != null)
                 costText = costTransform.GetComponent<TextMeshProUGUI>();
         }
+
+        if (dragLauncher == null)
+            dragLauncher = FindObjectOfType<SimpleDragLauncher>();
+
+        if (cheatCoinsButton == null)
+        {
+            Transform cheatButtonTransform = transform.Find("CheatCoinsButton");
+            if (cheatButtonTransform == null)
+            {
+                foreach (Transform child in GetComponentsInChildren<Transform>(true))
+                {
+                    if (child.name == "CheatCoinsButton")
+                    {
+                        cheatButtonTransform = child;
+                        break;
+                    }
+                }
+            }
+
+            if (cheatButtonTransform != null)
+                cheatCoinsButton = cheatButtonTransform.gameObject;
+        }
+    }
+
+    private void ApplyCheatCoinsButtonVisibility()
+    {
+        if (cheatCoinsButton == null)
+            return;
+
+#if UNITY_EDITOR
+        cheatCoinsButton.SetActive(true);
+#elif UNITY_ANDROID
+        cheatCoinsButton.SetActive(showCheatCoinsOnAndroid);
+#else
+        cheatCoinsButton.SetActive(false);
+#endif
     }
 
     private void RefreshAllUpgradeUI()
@@ -859,7 +941,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             if (launchForceLevel >= maxLaunchForceLevel)
                 launchForceCostText.text = "MAX";
             else
-                launchForceCostText.text = launchForceCosts[launchForceLevel - 1].ToString();
+                launchForceCostText.text = GetLaunchForceCostForLevel(launchForceLevel).ToString();
         }
     }
     
@@ -894,7 +976,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (launchForceLevel >= maxLaunchForceLevel)
             return 0;
 
-        return launchForceCosts[launchForceLevel - 1];
+        return GetLaunchForceCostForLevel(launchForceLevel);
     }
 
     private void SaveLaunchForceProgress()
@@ -1273,15 +1355,24 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             launchForceClickCount = 0;
 
         if (dragLauncher != null)
-            dragLauncher.launchForceMultiplier = launchForceLevels[launchForceLevel - 1];
+            dragLauncher.launchForceMultiplier = GetLaunchForceMultiplierForLevel(launchForceLevel);
     }
     
     public void IncreaseLaunchForce()
     {
+        ResolveUIReferences();
+
         if (launchForceLevel >= maxLaunchForceLevel)
             return;
 
         int clickCost = GetLaunchForceClickCost();
+        if (dragLauncher == null)
+        {
+            Debug.LogWarning("Launch force upgrade failed: no SimpleDragLauncher found in scene.");
+            return;
+        }
+
+        int currentCostForLevel = GetLaunchForceCostForLevel(launchForceLevel);
         SyncPlayerCoins();
         if (playerCoins < clickCost)
         {
@@ -1320,7 +1411,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
             Debug.Log($"Launch force upgraded to Level {launchForceLevel}! Force: {dragLauncher.launchForceMultiplier}");
             if (dragLauncher != null)
-                dragLauncher.launchForceMultiplier = launchForceLevels[launchForceLevel - 1];
+                dragLauncher.launchForceMultiplier = GetLaunchForceMultiplierForLevel(launchForceLevel);
         }
 
         SaveLaunchForceProgress();

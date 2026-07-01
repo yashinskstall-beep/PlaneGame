@@ -1149,7 +1149,7 @@ MonoBehaviour:
   torqueSmoothness: 1000
   visualRotationSmoothing: 8
   boostSpeedMultiplier: 0.8
-  boostDuration: 1.5
+  boostDuration: 1.2
   maxBoostUses: 2
   uiManager: {fileID: 278956799}
   isControlling: 0
@@ -1321,22 +1321,22 @@ MonoBehaviour:
     groundDragFactor: 0.98
   - glideDrag: 0.09
     diveDrag: 0.09
-    airResistanceCoefficient: 0
-    velocityResistanceFactor: 0
+    airResistanceCoefficient: 0.04
+    velocityResistanceFactor: 0.02
     orientationResistanceFactor: 0.16
     momentumDecayRate: 0.009
     groundDragFactor: 0.985
   - glideDrag: 0.06
     diveDrag: 0.07
-    airResistanceCoefficient: 0
-    velocityResistanceFactor: 0
+    airResistanceCoefficient: 0.03
+    velocityResistanceFactor: 0.02
     orientationResistanceFactor: 0.12
     momentumDecayRate: 0.006
     groundDragFactor: 0.99
   - glideDrag: 0.04
     diveDrag: 0.05
-    airResistanceCoefficient: 0
-    velocityResistanceFactor: 0
+    airResistanceCoefficient: 0.02
+    velocityResistanceFactor: 0.02
     orientationResistanceFactor: 0.08
     momentumDecayRate: 0.004
     groundDragFactor: 0.993
@@ -4066,6 +4066,11 @@ PrefabInstance:
       propertyPath: increaseCoinMultiplierBtn
       value: 
       objectReference: {fileID: 1926194801}
+    - target: {fileID: 5501427275199570453, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: launchForceLevels.Array.data[2]
+      value: 35
+      objectReference: {fileID: 0}
     - target: {fileID: 5589952435296312781, guid: 2fbd472d455b3884cbeaadd144a002c8,
         type: 3}
       propertyPath: audioManager

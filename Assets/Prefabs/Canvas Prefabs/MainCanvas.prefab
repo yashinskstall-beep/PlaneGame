@@ -4593,7 +4593,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 9223286068353807486}
-  - component: {fileID: 2539680224970484642}
   - component: {fileID: 8538997698777411008}
   - component: {fileID: 605519386041923641}
   - component: {fileID: 1675216374592831520}
@@ -4624,20 +4623,6 @@ RectTransform:
   m_AnchoredPosition: {x: -125, y: -312.5}
   m_SizeDelta: {x: 209.5, y: 86.3}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &2539680224970484642
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3850036247653176452}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dc701ea748a29bd438125129739e0155, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  coins: 0
-  cheatCoins: 100000000
 --- !u!222 &8538997698777411008
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -9562,6 +9547,9 @@ MonoBehaviour:
     type: 3}
   upgradeParticleYOffset: 0
   upgradeParticleScale: 0.12
+  cheatCoinsButton: {fileID: 3850036247653176452}
+  showCheatCoinsOnAndroid: 0
+  debugUpgradeVfx: 1
   boostSlideOffsetX: 500
   boostSlideDuration: 0.4
   cameraTransitionDuration: 1.5
