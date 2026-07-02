@@ -61,12 +61,8 @@ public class SimpleDragLauncher : MonoBehaviour
 
         if (cubeRb != null)
         {
-            if (!cubeRb.isKinematic)
-            {
-                cubeRb.velocity = Vector3.zero;
-                cubeRb.angularVelocity = Vector3.zero;
-            }
-
+            cubeRb.velocity = Vector3.zero;
+            cubeRb.angularVelocity = Vector3.zero;
             cubeRb.isKinematic = true;
             cubeRb.useGravity = false;
         }

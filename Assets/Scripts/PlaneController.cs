@@ -81,15 +81,6 @@ public class PlaneController : MonoBehaviour
     public float velocityResistanceFactor = 0.01f;
     [Tooltip("How much the plane's orientation affects air resistance. Higher values mean more resistance when flying sideways.")]
     public float orientationResistanceFactor = 0.5f;
-    [Tooltip("Extra drag added when pitching up. Steeper climb = more slowdown.")]
-    public float pitchUpDragFactor = 0.12f;
-    [Tooltip("Extra speed-based resistance when pitching up (acts like angle-of-attack drag).")]
-    public float pitchUpResistanceFactor = 0.08f;
-    [Tooltip("How quickly forward speed bleeds off while climbing. Higher = loses speed faster when nose-up.")]
-    public float pitchUpSpeedBleed = 1.25f;
-    [Tooltip("Reduces nose-velocity snapping while climbing so gravity can pull the plane down.")]
-    [Range(0f, 1f)]
-    public float pitchUpAlignmentReduction = 0.65f;
     
     [Header("Momentum Settings")]
     [Tooltip("How efficiently the plane converts diving speed to climbing ability. Higher values allow for better climbing.")]
@@ -497,25 +488,33 @@ public class PlaneController : MonoBehaviour
         // Align velocity with forward direction (disabled for body-only + player input)
         if (!blockForwardForceFromInput && rb.velocity.magnitude > minSpeedForAlignment)
         {
-            float pitchAngle = GetFlightPitchAngle();
-            float alignmentStrength = directionAlignmentStrength;
-
-            // Climbing increases drag and should not keep all speed locked to the nose.
-            if (pitchAngle < -5f)
+            // Calculate pitch angle from X axis rotation (local euler angles)
+            float pitchAngle = transform.localEulerAngles.x;
+            // Normalize to -180 to 180 range
+            if (pitchAngle > 180f) pitchAngle -= 360f;
+            
+            // If plane is pitched up steeply (stalling), reduce forward alignment and allow natural falling
+            if (pitchAngle < -35f) // Pitched up more than 35 degrees
             {
-                float pitchUpFactor = Mathf.Clamp01(Mathf.InverseLerp(-5f, -40f, pitchAngle));
-                alignmentStrength *= 1f - pitchUpFactor * pitchUpAlignmentReduction;
+                // Gradual stall: 35° = 0%, 40° = 50%, 45° = 100%
+                float stallFactor = Mathf.InverseLerp(-35f, -45f, pitchAngle); // 0 at -35°, 1 at -45°
+                
+                // During stall, reduce the alignment strength instead of forcing downward
+                // This lets gravity naturally pull the plane down while maintaining horizontal momentum
+                float reducedAlignmentStrength = directionAlignmentStrength * (1f - stallFactor * 0.9f);
+                
+                Vector3 targetVelocity = transform.forward * rb.velocity.magnitude;
+                rb.velocity = Vector3.Lerp(rb.velocity, targetVelocity, reducedAlignmentStrength * Time.fixedDeltaTime);
+                
+                // Debug log for stall behavior
+                Debug.Log($"STALLING: Pitch = {pitchAngle:F1}°, StallFactor = {stallFactor:F2}, AlignmentStrength = {reducedAlignmentStrength:F2}, Speed = {rb.velocity.magnitude:F1}");
             }
-
-            // Deep stall: let velocity decouple so the plane drops naturally.
-            if (pitchAngle < -35f)
+            else
             {
-                float stallFactor = Mathf.InverseLerp(-35f, -45f, pitchAngle);
-                alignmentStrength *= 1f - stallFactor * 0.9f;
+                // Normal alignment when not stalling
+                Vector3 targetVelocity = transform.forward * rb.velocity.magnitude;
+                rb.velocity = Vector3.Lerp(rb.velocity, targetVelocity, directionAlignmentStrength * Time.fixedDeltaTime);
             }
-
-            Vector3 targetVelocity = transform.forward * rb.velocity.magnitude;
-            rb.velocity = Vector3.Lerp(rb.velocity, targetVelocity, alignmentStrength * Time.fixedDeltaTime);
         }
 
         ApplyBoostSpeedMaintenance();
@@ -539,54 +538,30 @@ public class PlaneController : MonoBehaviour
     /// <summary>
     /// Smooth glide-style speed decay (natural slowdown over time)
     /// </summary>
-    private float GetFlightPitchAngle()
-    {
-        return Vector3.SignedAngle(
-            Vector3.ProjectOnPlane(transform.forward, Vector3.right),
-            Vector3.ProjectOnPlane(Vector3.forward, Vector3.right),
-            Vector3.right);
-    }
-
-    private float GetPitchUpFactor(float pitchAngle)
-    {
-        if (pitchAngle > -5f)
-            return 0f;
-
-        return Mathf.Clamp01(Mathf.InverseLerp(-5f, -45f, pitchAngle));
-    }
-
-    private void ApplyPitchUpSpeedBleed(float pitchAngle)
-    {
-        if (blockForwardForceFromInput || rb == null)
-            return;
-
-        float pitchUpFactor = GetPitchUpFactor(pitchAngle);
-        if (pitchUpFactor <= 0f)
-            return;
-
-        float forwardSpeed = Vector3.Dot(rb.velocity, transform.forward);
-        if (forwardSpeed <= 0f)
-            return;
-
-        float bleed = pitchUpFactor * pitchUpSpeedBleed * Time.fixedDeltaTime;
-        rb.velocity -= transform.forward * (forwardSpeed * bleed);
-    }
-
     private void ApplyAirResistance()
     {
         if (rb == null || rb.velocity.magnitude < 0.1f) return;
 
+        // Calculate base air resistance
         float speed = rb.velocity.magnitude;
-        float pitchAngle = GetFlightPitchAngle();
-        float pitchUpFactor = GetPitchUpFactor(pitchAngle);
+        
+        // Track the plane's orientation (pitch)
+        float pitchAngle = Vector3.SignedAngle(
+            Vector3.ProjectOnPlane(transform.forward, Vector3.right),
+            Vector3.ProjectOnPlane(Vector3.forward, Vector3.right),
+            Vector3.right);
         
         // Detect if we're diving (positive pitch = nose down)
         bool isDiving = pitchAngle > 5f;
         
+        // Store momentum when diving (skip dive acceleration when body-only + input)
         if (isDiving && !blockForwardForceFromInput)
         {
+            // Track maximum speed during dive
             maxRecentSpeed = Mathf.Max(maxRecentSpeed, speed);
             wasDiving = true;
+            
+            // Use less drag when diving to build up speed
             rb.drag = diveDrag;
         }
         else
@@ -597,33 +572,30 @@ public class PlaneController : MonoBehaviour
                 maxRecentSpeed = 0f;
                 storedMomentum = 0f;
             }
-            else if (wasDiving && pitchAngle < -2f)
+            else if (wasDiving && pitchAngle < -2f) // Transitioning from dive to climb
             {
+                // Convert speed to stored momentum
                 storedMomentum = maxRecentSpeed * momentumConversionFactor;
                 wasDiving = false;
                 maxRecentSpeed = 0f;
             }
             
-            float currentGlideDrag = glideDrag;
-            if (pitchUpFactor > 0f)
-                currentGlideDrag += pitchUpFactor * pitchUpDragFactor;
-
-            rb.drag = currentGlideDrag;
+            // Use normal drag when not diving
+            rb.drag = glideDrag;
         }
         
+        // Calculate air resistance
         float velocityResistance = speed * speed * velocityResistanceFactor;
         float dotProduct = Vector3.Dot(transform.forward.normalized, rb.velocity.normalized);
         float alignmentFactor = Mathf.Clamp01(dotProduct);
         float orientationResistance = (1f - alignmentFactor) * orientationResistanceFactor;
-        float pitchResistance = pitchUpFactor * pitchUpResistanceFactor * speed;
-        float totalResistance = airResistanceCoefficient + velocityResistance + orientationResistance + pitchResistance;
+        float totalResistance = airResistanceCoefficient + velocityResistance + orientationResistance;
         
+        // Apply resistance force
         Vector3 resistanceForce = -rb.velocity.normalized * totalResistance;
         rb.AddForce(resistanceForce, ForceMode.Acceleration);
-
-        ApplyPitchUpSpeedBleed(pitchAngle);
         
-        // Only use dive momentum for climb — not when pulling up from level glide.
+        // Apply momentum-based climbing force when climbing
         ApplyMomentumClimbing(pitchAngle, speed);
     }
     
@@ -632,15 +604,22 @@ public class PlaneController : MonoBehaviour
         if (damageHandler != null && damageHandler.IsBodyOnly())
             return;
 
-        // Only after a dive: brief climb assist from stored speed, then gravity takes over.
-        if (storedMomentum <= 0f || pitchAngle > -5f || currentSpeed < minSpeedForClimbing)
-            return;
+        // Only apply climbing force if we have stored momentum and are trying to climb
+        if (storedMomentum > 0 && pitchAngle < -5f) // Negative pitch = nose up
+        {
+            // Calculate climbing force based on stored momentum
+            float climbForce = storedMomentum * 0.8f;
+            
+            // Apply force in the forward-up direction
+            Vector3 climbDirection = (transform.forward + Vector3.up).normalized;
+            rb.AddForce(climbDirection * climbForce, ForceMode.Acceleration);
+            
+            // Gradually reduce stored momentum
+            storedMomentum = Mathf.Max(0, storedMomentum - (momentumDecayRate * 0.5f * Time.fixedDeltaTime * (1 + Mathf.Abs(pitchAngle) * 0.05f)));
 
-        float climbForce = storedMomentum * 0.5f;
-        Vector3 climbDirection = (transform.forward + Vector3.up * 0.35f).normalized;
-        rb.AddForce(climbDirection * climbForce, ForceMode.Acceleration);
-        
-        storedMomentum = Mathf.Max(0f, storedMomentum - momentumDecayRate * Time.fixedDeltaTime);
+            
+            // Debug.Log($"Climbing with momentum: {storedMomentum:F1}, Force: {climbForce:F1}");
+        }
     }
    
 
