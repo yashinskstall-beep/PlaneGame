@@ -505,6 +505,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (IsFullyUpgraded())
             SetMaxStateUI();
 
+        CleanupAllPlaneUpgradeVfx();
+        GetPlaneEffects()?.RefreshFlightTrails();
+
         SaveProgress();
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
@@ -554,22 +557,20 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         var spawnedInstances = new List<GameObject>();
         var particleSystems = new List<ParticleSystem>();
-        var trails = new List<TrailRenderer>();
 
         TryAddUpgradeParticlePrefab(upgradeParticleEffect, part, spawnedInstances, particleSystems);
 
-        // In-scene particle systems on the part (Wingtrail PS children, etc.)
+        // In-scene particle systems on the part (smoke children, etc.)
         AddParticleSystemsFromRoot(part, particleSystems);
 
-        // Trails are supplementary only — never block smoke from spawning
-        AddTrailsFromRoot(part, trails);
+        PlaneEffects planeEffects = GetPlaneEffects();
 
         bool hasParticles = particleSystems.Count > 0;
-        bool hasTrails = trails.Count > 0;
 
-        if (!hasParticles && !hasTrails)
+        if (!hasParticles)
         {
             yield return new WaitForSeconds(particleEffectDuration);
+            planeEffects?.RefreshFlightTrails();
             yield break;
         }
 
@@ -588,21 +589,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             ps.Play(true);
         }
 
-        foreach (TrailRenderer trail in trails)
-        {
-            if (trail == null || !IsSceneInstance(trail.gameObject))
-                continue;
-
-            trail.gameObject.SetActive(true);
-            trail.emitting = false;
-            trail.Clear();
-            trail.emitting = true;
-        }
-
         float waitDuration = Mathf.Max(
             particleEffectDuration,
-            GetParticleDuration(particleSystems.ToArray()),
-            GetTrailDuration(trails.ToArray()));
+            GetParticleDuration(particleSystems.ToArray()));
 
         yield return new WaitForSeconds(waitDuration > 0f ? waitDuration : particleEffectDuration);
 
@@ -611,6 +600,34 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             if (spawned != null)
                 Destroy(spawned, 2f);
         }
+
+        CleanupUpgradeVfx(particleSystems, planeEffects);
+    }
+
+    private PlaneEffects GetPlaneEffects()
+    {
+        if (planeUpgradeConfig == null || planeUpgradeConfig.planeController == null)
+            return null;
+
+        return planeUpgradeConfig.planeController.GetComponent<PlaneEffects>();
+    }
+
+    private static void CleanupUpgradeVfx(
+        List<ParticleSystem> particleSystems,
+        PlaneEffects planeEffects)
+    {
+        if (particleSystems != null)
+        {
+            foreach (ParticleSystem ps in particleSystems)
+            {
+                if (ps == null || !IsSceneInstance(ps.gameObject))
+                    continue;
+
+                ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            }
+        }
+
+        planeEffects?.RefreshFlightTrails();
     }
 
     private void TryAddUpgradeParticlePrefab(
@@ -763,16 +780,17 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
     }
 
-    private static void AddTrailsFromRoot(GameObject root, List<TrailRenderer> trails)
+    private void CleanupAllPlaneUpgradeVfx()
     {
-        if (root == null || trails == null)
+        if (planeUpgradeConfig == null || planeUpgradeConfig.planeController == null)
             return;
 
-        foreach (TrailRenderer trail in root.GetComponentsInChildren<TrailRenderer>(true))
-        {
-            if (trail != null && IsSceneInstance(trail.gameObject) && !trails.Contains(trail))
-                trails.Add(trail);
-        }
+        GameObject plane = planeUpgradeConfig.planeController.gameObject;
+        PlaneEffects planeEffects = plane.GetComponent<PlaneEffects>();
+        var particleSystems = new List<ParticleSystem>();
+
+        AddParticleSystemsFromRoot(plane, particleSystems);
+        CleanupUpgradeVfx(particleSystems, planeEffects);
     }
 
     private static bool IsSceneInstance(GameObject go)
@@ -826,8 +844,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             if (child.gameObject == part)
                 continue;
 
-            bool isVfxChild = child.GetComponent<ParticleSystem>() != null
-                || child.GetComponent<TrailRenderer>() != null;
+            bool isVfxChild = child.GetComponent<ParticleSystem>() != null;
 
             if (isVfxChild && !child.gameObject.activeSelf)
             {
@@ -837,24 +854,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
 
         return activated;
-    }
-
-    private static float GetTrailDuration(TrailRenderer[] trails)
-    {
-        if (trails == null || trails.Length == 0)
-            return 0f;
-
-        float maxDuration = 0f;
-        foreach (TrailRenderer trail in trails)
-        {
-            if (trail == null)
-                continue;
-
-            if (trail.time > maxDuration)
-                maxDuration = trail.time;
-        }
-
-        return maxDuration;
     }
 
     private static float GetParticleDuration(ParticleSystem[] systems)
@@ -1399,6 +1398,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             // doesn't leave it using an older drag/rotation pose.
             if (dragLauncher != null)
                 dragLauncher.ResetForNewLaunch();
+            else
+                GetPlaneEffects()?.RefreshFlightTrails();
 
             // Update all UI
             UpdateLaunchForceCostUI();

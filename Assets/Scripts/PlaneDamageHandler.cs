@@ -37,18 +37,16 @@ public class PlaneDamageHandler : MonoBehaviour
     [Tooltip("Drag applied when all parts are missing")]
     public float allPartsMissingDrag = 0.1f;
     
-    // Reference to the plane controller
     private PlaneController planeController;
     
-    // Store original values to restore if parts are re-enabled
     private float originalTurnSpeed;
     private float originalBankAngle;
     private float originalPitchSpeed;
     private float originalDrag;
+    private float originalAngularDrag;
     
     void Start()
     {
-        // Get the plane controller reference
         planeController = GetComponent<PlaneController>();
         
         if (planeController == null)
@@ -57,7 +55,6 @@ public class PlaneDamageHandler : MonoBehaviour
             return;
         }
         
-        // Store original values
         originalTurnSpeed = planeController.turnSpeed;
         originalBankAngle = planeController.bankAngle;
         originalPitchSpeed = planeController.pitchSpeed;
@@ -66,24 +63,35 @@ public class PlaneDamageHandler : MonoBehaviour
         if (rb != null)
         {
             originalDrag = rb.drag;
+            originalAngularDrag = rb.angularDrag;
         }
     }
     
     void Update()
     {
-        // Check if any parts are disabled and apply effects
         CheckPartsStatus();
+    }
+
+    /// <summary>
+    /// Part is gone from a crash after it was unlocked — not merely locked in the upgrade shop.
+    /// </summary>
+    public static bool IsPartLostInFlight(GameObject part)
+    {
+        if (part == null || part.activeSelf)
+            return false;
+
+        return PlaneUpgradeConfig.IsPartUnlocked(part);
     }
     
     void CheckPartsStatus()
     {
-        if (planeController == null) return;
+        if (planeController == null)
+            return;
         
-        bool leftWingDisabled = leftWing != null && !leftWing.activeSelf;
-        bool rightWingDisabled = rightWing != null && !rightWing.activeSelf;
-        bool tailDisabled = tail != null && !tail.activeSelf;
+        bool leftWingLost = IsPartLostInFlight(leftWing);
+        bool rightWingLost = IsPartLostInFlight(rightWing);
+        bool tailLost = IsPartLostInFlight(tail);
         
-        // Reset to original values first
         planeController.turnSpeed = originalTurnSpeed;
         planeController.bankAngle = originalBankAngle;
         planeController.pitchSpeed = originalPitchSpeed;
@@ -92,35 +100,34 @@ public class PlaneDamageHandler : MonoBehaviour
         if (rb != null)
         {
             rb.drag = originalDrag;
+            rb.angularDrag = originalAngularDrag;
         }
         
-        bool bothWingsMissing = leftWingDisabled && rightWingDisabled;
+        bool bothWingsLost = leftWingLost && rightWingLost;
+        bool singleWingLost = leftWingLost != rightWingLost;
 
-        // Apply tail damage effects
-        if (tailDisabled)
-        {
+        if (singleWingLost && rb != null)
+            rb.angularDrag = originalAngularDrag * 1.75f;
+
+        if (tailLost)
             planeController.pitchSpeed *= tailDamagePitchMultiplier;
-        }
 
-        // Apply additional drag based on missing parts
         if (rb != null)
         {
-            if (leftWingDisabled && rightWingDisabled && tailDisabled)
+            if (leftWingLost && rightWingLost && tailLost)
             {
                 rb.drag = originalDrag + allPartsMissingDrag;
             }
             else
             {
-                // One wing missing: no extra wing drag (same as all wings attached).
-                // Both wings missing: apply the full "no wings" resistance.
                 int dragPartCount = 0;
-                if (bothWingsMissing)
+                if (bothWingsLost)
                     dragPartCount += 2;
-                if (tailDisabled)
+                if (tailLost)
                     dragPartCount++;
 
                 float additionalDrag = additionalDragPerMissingPart * dragPartCount;
-                if (bothWingsMissing)
+                if (bothWingsLost)
                     additionalDrag += bothWingsMissingResistance;
 
                 rb.drag = originalDrag + additionalDrag;
@@ -128,98 +135,77 @@ public class PlaneDamageHandler : MonoBehaviour
         }
     }
     
-    // This method will be called by the PlaneController to modify the torque based on damaged parts
-    public Vector3 ModifyTorqueForDamage(Vector3 originalTorque, float horizontalInput, float verticalInput)
+    public Vector3 GetAdditionalDamageTorque(Transform planeTransform, float horizontalInput, float verticalInput)
     {
-        Vector3 modifiedTorque = originalTorque;
-        
-        bool leftWingDisabled = leftWing != null && !leftWing.activeSelf;
-        bool rightWingDisabled = rightWing != null && !rightWing.activeSelf;
-        bool tailDisabled = tail != null && !tail.activeSelf;
-        
-        // If left wing is disabled
-        if (leftWingDisabled)
+        if (planeTransform == null || planeController == null)
+            return Vector3.zero;
+
+        Vector3 additionalTorque = Vector3.zero;
+
+        bool leftWingLost = IsPartLostInFlight(leftWing);
+        bool rightWingLost = IsPartLostInFlight(rightWing);
+        bool tailLost = IsPartLostInFlight(tail);
+        bool singleWingLost = leftWingLost != rightWingLost;
+        float pitchInput = Mathf.Abs(verticalInput);
+
+        float tiltAmount = wingTiltStrength * 0.03f;
+
+        if (leftWingLost && !rightWingLost)
         {
-            // Add constant tilt to the left (positive around z-axis) - use a smaller value to reduce shaking
-            float tiltAmount = wingTiltStrength * 0.05f; // Reduced from 0.1f to 0.05f for smoother effect
-            modifiedTorque.z += tiltAmount;
-            
-            // If trying to turn left (negative input), increase roll effect but cap it to prevent extreme values
-            if (horizontalInput < 0)
+            additionalTorque += planeTransform.forward * tiltAmount;
+
+            if (horizontalInput < 0f)
             {
-                // Apply multiplier but with a maximum cap to prevent extreme rotation
-                float multipliedTorque = modifiedTorque.z * wingDamageRollMultiplier;
-                modifiedTorque.z = Mathf.Clamp(multipliedTorque, -wingTiltStrength * 0.5f, wingTiltStrength * 0.5f);
+                float rollBoost = -horizontalInput * tiltAmount * wingDamageRollMultiplier;
+                additionalTorque += planeTransform.forward * rollBoost;
             }
         }
-        
-        // If right wing is disabled
-        if (rightWingDisabled)
+
+        if (rightWingLost && !leftWingLost)
         {
-            // Add constant tilt to the right (negative around z-axis) - use a smaller value to reduce shaking
-            float tiltAmount = wingTiltStrength * 0.05f; // Reduced from 0.1f to 0.05f for smoother effect
-            modifiedTorque.z -= tiltAmount;
-            
-            // If trying to turn right (positive input), increase roll effect but cap it to prevent extreme values
-            if (horizontalInput > 0)
+            additionalTorque -= planeTransform.forward * tiltAmount;
+
+            if (horizontalInput > 0f)
             {
-                // Apply multiplier but with a maximum cap to prevent extreme rotation
-                float multipliedTorque = modifiedTorque.z * wingDamageRollMultiplier;
-                modifiedTorque.z = Mathf.Clamp(multipliedTorque, -wingTiltStrength * 0.5f, wingTiltStrength * 0.5f);
+                float rollBoost = horizontalInput * tiltAmount * wingDamageRollMultiplier;
+                additionalTorque -= planeTransform.forward * rollBoost;
             }
         }
-        
-        // If tail is disabled and trying to pitch
-        if (tailDisabled)
+
+        if (tailLost && pitchInput > 0.05f)
         {
-            // Add additional downward pitch (around right axis) but clamp it to prevent extreme values
-            float pitchAdjustment = 0.5f * Mathf.Abs(verticalInput) * planeController.pitchSpeed * planeController.torqueResponseMultiplier;
-            modifiedTorque.x -= pitchAdjustment;
-            // Clamp to prevent extreme pitch values
-            modifiedTorque.x = Mathf.Clamp(modifiedTorque.x, -wingTiltStrength * 0.5f, wingTiltStrength * 0.5f);
+            float pitchAdjustment = 0.35f * pitchInput * planeController.pitchSpeed * planeController.torqueResponseMultiplier;
+            additionalTorque -= planeTransform.right * pitchAdjustment;
         }
-        
-        return modifiedTorque;
-    }
-    
-    /// <summary>
-    /// True when left wing, right wing, and tail are all inactive (body only).
-    /// </summary>
-    public bool IsBodyOnly()
-    {
-        bool leftWingDisabled = leftWing == null || !leftWing.activeSelf;
-        bool rightWingDisabled = rightWing == null || !rightWing.activeSelf;
-        bool tailDisabled = tail == null || !tail.activeSelf;
-        return leftWingDisabled && rightWingDisabled && tailDisabled;
+
+        if (singleWingLost && pitchInput > 0.05f)
+            additionalTorque *= Mathf.Lerp(1f, 0.25f, Mathf.Clamp01(pitchInput));
+
+        return additionalTorque;
     }
 
-    /// <summary>
-    /// Check if both wings are missing/disabled
-    /// </summary>
-    /// <returns>True if both wings are disabled, false otherwise</returns>
+    public bool HasSingleWingMissing()
+    {
+        return IsPartLostInFlight(leftWing) != IsPartLostInFlight(rightWing);
+    }
+    
+    public bool IsBodyOnly()
+    {
+        return IsPartLostInFlight(leftWing) && IsPartLostInFlight(rightWing) && IsPartLostInFlight(tail);
+    }
+
     public bool AreBothWingsMissing()
     {
-        bool leftWingDisabled = leftWing != null && !leftWing.activeSelf;
-        bool rightWingDisabled = rightWing != null && !rightWing.activeSelf;
-        
-        return leftWingDisabled && rightWingDisabled;
+        return IsPartLostInFlight(leftWing) && IsPartLostInFlight(rightWing);
     }
     
-    /// <summary>
-    /// Check if left wing is missing/disabled
-    /// </summary>
-    /// <returns>True if left wing is disabled, false otherwise</returns>
     public bool IsLeftWingMissing()
     {
-        return leftWing != null && !leftWing.activeSelf;
+        return IsPartLostInFlight(leftWing);
     }
     
-    /// <summary>
-    /// Check if right wing is missing/disabled
-    /// </summary>
-    /// <returns>True if right wing is disabled, false otherwise</returns>
     public bool IsRightWingMissing()
     {
-        return rightWing != null && !rightWing.activeSelf;
+        return IsPartLostInFlight(rightWing);
     }
 }

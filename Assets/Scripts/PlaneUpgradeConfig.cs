@@ -94,6 +94,7 @@ public class PlaneUpgradeConfig : MonoBehaviour
         PlayerPrefs.SetInt(LevelProgress.GetPartActiveKey(part.name), 1);
         PlayerPrefs.Save();
         ApplyGlideForCurrentUnlocks();
+        RefreshPlaneEffects();
     }
 
     public void ApplyPartStatesFromSave()
@@ -111,6 +112,7 @@ public class PlaneUpgradeConfig : MonoBehaviour
         }
 
         ApplyGlideForCurrentUnlocks();
+        RefreshPlaneEffects();
     }
 
     public void ApplyGlideForCurrentUnlocks()
@@ -146,5 +148,15 @@ public class PlaneUpgradeConfig : MonoBehaviour
         }
 
         return count;
+    }
+
+    private void RefreshPlaneEffects()
+    {
+        if (planeController == null)
+            return;
+
+        PlaneEffects planeEffects = planeController.GetComponent<PlaneEffects>();
+        if (planeEffects != null)
+            planeEffects.RefreshFlightTrails();
     }
 }
