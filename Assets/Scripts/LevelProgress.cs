@@ -55,6 +55,16 @@ public static class LevelProgress
         return ScenePrefix(sceneName) + "LaunchForceClickCount";
     }
 
+    public static string GetBoostLevelKey(string sceneName = null)
+    {
+        return ScenePrefix(sceneName) + "BoostLevel";
+    }
+
+    public static string GetBoostDurationKey(string sceneName = null)
+    {
+        return ScenePrefix(sceneName) + "BoostDuration";
+    }
+
     public static string GetSceneCompletedKey(string sceneName = null)
     {
         return ScenePrefix(sceneName) + "Completed";
@@ -100,6 +110,8 @@ public static class LevelProgress
         PlayerPrefs.DeleteKey(GetLaunchForceLevelKey(sceneName));
         PlayerPrefs.DeleteKey(GetLaunchForceMultiplierKey(sceneName));
         PlayerPrefs.DeleteKey(GetLaunchForceClickCountKey(sceneName));
+        PlayerPrefs.DeleteKey(GetBoostLevelKey(sceneName));
+        PlayerPrefs.DeleteKey(GetBoostDurationKey(sceneName));
 
         if (partNames != null)
         {

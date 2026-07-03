@@ -19,6 +19,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public GameObject taptoplay;
     public Button BackBtn;
     public Button boostEnableBtn;
+    public GameObject boostEnableBtnParent;
+    public TextMeshProUGUI boostLevelText;
     //public TextMeshProUGUI boostCostText;
     public GameObject PlaneBoosters;
     public Button increaseLaunchForceBtn;
@@ -31,6 +33,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public TextMeshProUGUI coinMultiplierLevelText;
     public Slider coinMultiplierSlider;
     public SimpleDragLauncher dragLauncher;
+    public PlaneController planeController;
     public GameObject boostactive;
     public GameObject SettingTab;
     public GameObject levelsPanel;
@@ -42,6 +45,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     [Header("Boost Button")]
     [SerializeField] private float boostSlideOffsetX = 500f;
     [SerializeField] private float boostSlideDuration = 0.4f;
+    [SerializeField] private float boostMaxLevelHideDelay = 10f;
 
     [Header("Timing")]
     public float cameraTransitionDuration = 1.5f;
@@ -76,6 +80,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     [SerializeField] private float[] launchForceLevels = { 25f, 30f, 35f };
     [SerializeField] private int[] launchForceCosts = { 700, 1000, 1500 };
 
+    [Header("Boost Upgrade")]
+    [Tooltip("Boost level durations. Level 1 uses index 0, level 5 uses index 4.")]
+    [SerializeField] private float[] boostDurations = { 2f, 2.5f, 3f, 3.5f, 4f };
+    [Tooltip("Boost upgrade costs for each level.")]
+    [SerializeField] private int[] boostCosts = { 500, 500, 500, 500, 500 };
+
     // Launch force level system
     private int launchForceLevel = 1;
     private int launchForceClickCount = 0;
@@ -83,29 +93,36 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         ? launchForceLevels.Length
         : 1;
 
+    private int boostLevel = 0;
+    private int maxBoostLevel => boostDurations != null && boostDurations.Length > 0
+        ? boostDurations.Length
+        : 1;
+
     private int coinMultiplierLevel = 1;
     private int coinMultiplierClickCount = 0;
     private const int maxCoinMultiplierLevel = 11;
     private const float coinMultiplierStep = 0.1f;
     private readonly int[] coinMultiplierCosts = { 600, 900, 1200, 1800, 2500, 3500, 5000, 7000, 10000, 15000, 20000 };
-    private const int BoostCost = 500;
 
     private RectTransform boostButtonRect;
     private Vector2 boostButtonRestPosition;
     private bool boostButtonRestCaptured;
     private bool boostButtonShown;
     private Coroutine boostButtonSlideCoroutine;
+    private Coroutine boostButtonMaxLevelHideCoroutine;
 
     void Awake()
     {
         menuPanelImage = GetComponent<Image>();
         ResolveSceneReferences();
         EnsureLaunchForceConfig();
+        EnsureBoostConfig();
     }
 
     private void OnValidate()
     {
         EnsureLaunchForceConfig();
+        EnsureBoostConfig();
     }
 
     private void EnsureLaunchForceConfig()
@@ -139,6 +156,37 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         return launchForceCosts[index];
     }
 
+    private void EnsureBoostConfig()
+    {
+        if (boostDurations == null || boostDurations.Length == 0)
+            boostDurations = new[] { 2f, 2.5f, 3f, 3.5f, 4f };
+
+        if (boostCosts == null || boostCosts.Length == 0)
+            boostCosts = new[] { 500, 500, 500, 500, 500 };
+
+        if (boostCosts.Length != boostDurations.Length)
+        {
+            int[] resizedCosts = new int[boostDurations.Length];
+            for (int i = 0; i < resizedCosts.Length; i++)
+                resizedCosts[i] = i < boostCosts.Length ? boostCosts[i] : boostCosts[boostCosts.Length - 1];
+            boostCosts = resizedCosts;
+        }
+    }
+
+    private float GetBoostDurationForLevel(int level)
+    {
+        EnsureBoostConfig();
+        int index = Mathf.Clamp(level - 1, 0, boostDurations.Length - 1);
+        return boostDurations[index];
+    }
+
+    private int GetBoostCostForLevel(int level)
+    {
+        EnsureBoostConfig();
+        int index = Mathf.Clamp(level - 1, 0, boostCosts.Length - 1);
+        return boostCosts[index];
+    }
+
     void OnEnable()
     {
         ResolveSceneReferences();
@@ -163,11 +211,14 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         CaptureBoostButtonRestPosition();
         CacheUpgradeButtonTransitions();
         EnsureUpgradeShakeComponents();
-        if (boostEnableBtn != null)
+        GameObject boostSlideTarget = GetBoostSlideTarget();
+        if (boostSlideTarget != null)
         {
-            boostEnableBtn.gameObject.SetActive(false);
+            boostSlideTarget.SetActive(false);
             boostButtonShown = false;
         }
+        if (boostEnableBtn != null)
+            boostEnableBtn.gameObject.SetActive(true);
 
         ApplyCheatCoinsButtonVisibility();
         RefreshAllUpgradeUI();
@@ -188,6 +239,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         currentCost = 10f;
         launchForceLevel = 1;
         launchForceClickCount = 0;
+        boostLevel = 0;
         coinMultiplierLevel = 1;
         coinMultiplierClickCount = 0;
 
@@ -207,6 +259,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (boostactive != null)
             boostactive.SetActive(false);
 
+        ApplyBoostSettings();
+
         if (dragLauncher != null)
             dragLauncher.launchForceMultiplier = GetLaunchForceMultiplierForLevel(1);
 
@@ -214,6 +268,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         PlayerPrefs.SetInt(LevelProgress.CoinMultiplierClickCountKey, 0);
         PlayerPrefs.SetFloat(LevelProgress.CoinMultiplierValueKey, 1f);
         SaveLaunchForceProgress();
+        SaveBoostProgress();
         SaveProgress();
         PlayerPrefs.Save();
 
@@ -239,6 +294,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             SetMaxStateUI();
 
         LoadLaunchForceLevel();
+        LoadBoostLevel();
         LoadCoinMultiplierLevel();
     }
 
@@ -320,6 +376,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         if (dragLauncher == null)
             dragLauncher = FindObjectOfType<SimpleDragLauncher>();
+
+        if (planeController == null)
+            planeController = FindObjectOfType<PlaneController>();
     }
 
     private void ResolveUIReferences()
@@ -352,6 +411,51 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             if (cheatButtonTransform != null)
                 cheatCoinsButton = cheatButtonTransform.gameObject;
         }
+
+        ResolveBoostButtonParent();
+        ResolveBoostLevelText();
+    }
+
+    private void ResolveBoostButtonParent()
+    {
+        if (boostEnableBtnParent != null || boostEnableBtn == null)
+            return;
+
+        Transform parent = boostEnableBtn.transform.parent;
+        if (parent == null)
+            return;
+
+        if (parent.name == "BuyBoostParent" || parent.name == "BuyBoostBtnParent")
+            boostEnableBtnParent = parent.gameObject;
+    }
+
+    private GameObject GetBoostSlideTarget()
+    {
+        ResolveBoostButtonParent();
+        return boostEnableBtnParent != null ? boostEnableBtnParent : boostEnableBtn?.gameObject;
+    }
+
+    private void ResolveBoostLevelText()
+    {
+        if (boostLevelText != null || boostEnableBtn == null)
+            return;
+
+        foreach (TextMeshProUGUI tmp in boostEnableBtn.GetComponentsInChildren<TextMeshProUGUI>(true))
+        {
+            if (tmp == null)
+                continue;
+
+            Transform parent = tmp.transform.parent;
+            if (parent != null && parent.name.Contains("Cost"))
+                continue;
+
+            string objectName = tmp.gameObject.name;
+            if (objectName == "Text (TMP)" || objectName == "Level" || objectName == "BoostLevel")
+            {
+                boostLevelText = tmp;
+                return;
+            }
+        }
     }
 
     private void ApplyCheatCoinsButtonVisibility()
@@ -376,6 +480,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
         UpdateBoostCostUI();
+        UpdateBoostLevelUI();
         UpdateLaunchForceCostUI();
         UpdateLaunchForceLevelUI();
         UpdateLaunchForceSliderUI();
@@ -927,10 +1032,25 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void UpdateBoostCostUI()
     {
-        // if (boostCostText != null)
-        // {
-        //     boostCostText.text = BoostCost.ToString();
-        // }
+        // Boost cost text can be reconnected later if needed.
+    }
+
+    private void UpdateBoostLevelUI()
+    {
+        ResolveBoostLevelText();
+        if (boostLevelText == null)
+            return;
+
+        if (boostLevel > 0)
+        {
+            boostLevelText.gameObject.SetActive(true);
+            boostLevelText.text = boostLevel >= maxBoostLevel ? "max" : $"LvL {boostLevel}";
+        }
+        else
+        {
+            boostLevelText.text = string.Empty;
+            boostLevelText.gameObject.SetActive(false);
+        }
     }
     
     private void UpdateLaunchForceCostUI()
@@ -988,13 +1108,54 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         PlayerPrefs.Save();
     }
+
+    private int GetBoostNextCost()
+    {
+        if (boostLevel >= maxBoostLevel)
+            return 0;
+
+        return GetBoostCostForLevel(boostLevel + 1);
+    }
+
+    private void SaveBoostProgress()
+    {
+        PlayerPrefs.SetInt(LevelProgress.GetBoostLevelKey(), boostLevel);
+        PlayerPrefs.SetFloat(LevelProgress.GetBoostDurationKey(), boostLevel > 0 ? GetBoostDurationForLevel(boostLevel) : 0f);
+        PlayerPrefs.Save();
+    }
+
+    private void LoadBoostLevel()
+    {
+        boostLevel = PlayerPrefs.GetInt(LevelProgress.GetBoostLevelKey(), 0);
+        boostLevel = Mathf.Clamp(boostLevel, 0, maxBoostLevel);
+        ApplyBoostSettings();
+    }
+
+    private void ApplyBoostSettings()
+    {
+        ResolveSceneReferences();
+
+        float duration = boostLevel > 0 ? GetBoostDurationForLevel(boostLevel) : 0f;
+        if (planeController != null)
+            planeController.boostDuration = duration;
+
+        bool boostUnlocked = boostLevel > 0;
+        if (PlaneBoosters != null)
+            PlaneBoosters.SetActive(boostUnlocked);
+        if (boostactive != null)
+            boostactive.SetActive(boostUnlocked);
+
+        UpdateBoostLevelUI();
+    }
     
     private void CaptureBoostButtonRestPosition()
     {
-        if (boostEnableBtn == null)
+        ResolveBoostButtonParent();
+        GameObject slideTarget = GetBoostSlideTarget();
+        if (slideTarget == null)
             return;
 
-        boostButtonRect = boostEnableBtn.GetComponent<RectTransform>();
+        boostButtonRect = slideTarget.GetComponent<RectTransform>();
         if (boostButtonRect == null || boostButtonRestCaptured)
             return;
 
@@ -1011,14 +1172,53 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (boostButtonRect == null)
             return;
 
-        bool boostersInactive = PlaneBoosters == null || !PlaneBoosters.activeSelf;
-        bool canShowBoost = playerCoins >= BoostCost && boostersInactive;
-        boostEnableBtn.interactable = canShowBoost;
+        bool isMaxLevel = boostLevel >= maxBoostLevel;
+        bool canAfford = !isMaxLevel && playerCoins >= GetBoostNextCost();
+        boostEnableBtn.interactable = !isMaxLevel;
+        boostEnableBtn.transition = canAfford ? upgradeButtonTransition : Selectable.Transition.None;
 
-        if (canShowBoost)
+        ButtonScaleAnimation scaleAnim = boostEnableBtn.GetComponent<ButtonScaleAnimation>();
+        if (scaleAnim != null)
+            scaleAnim.enabled = canAfford;
+
+        if (!isMaxLevel)
+        {
+            CancelBoostButtonMaxLevelHide();
             ShowBoostButtonSlideIn();
+        }
         else
-            HideBoostButtonSlideOut();
+            ScheduleBoostButtonMaxLevelHide();
+    }
+
+    private void CancelBoostButtonMaxLevelHide()
+    {
+        if (boostButtonMaxLevelHideCoroutine == null)
+            return;
+
+        StopCoroutine(boostButtonMaxLevelHideCoroutine);
+        boostButtonMaxLevelHideCoroutine = null;
+    }
+
+    private void ScheduleBoostButtonMaxLevelHide()
+    {
+        if (boostButtonMaxLevelHideCoroutine != null)
+            return;
+
+        GameObject slideTarget = GetBoostSlideTarget();
+        if (slideTarget == null || (!boostButtonShown && !slideTarget.activeSelf))
+            return;
+
+        if (!isActiveAndEnabled)
+            return;
+
+        boostButtonMaxLevelHideCoroutine = StartCoroutine(HideBoostButtonAfterMaxLevelDelay());
+    }
+
+    private IEnumerator HideBoostButtonAfterMaxLevelDelay()
+    {
+        yield return new WaitForSeconds(boostMaxLevelHideDelay);
+        boostButtonMaxLevelHideCoroutine = null;
+        HideBoostButtonSlideOut();
     }
 
     private void ShowBoostButtonSlideIn()
@@ -1026,7 +1226,14 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (boostButtonRect == null)
             return;
 
-        boostEnableBtn.gameObject.SetActive(true);
+        GameObject slideTarget = GetBoostSlideTarget();
+        if (slideTarget == null)
+            return;
+
+        slideTarget.SetActive(true);
+        if (boostEnableBtn != null)
+            boostEnableBtn.gameObject.SetActive(true);
+
         if (boostButtonShown && boostButtonSlideCoroutine == null)
             return;
 
@@ -1044,7 +1251,11 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (boostButtonRect == null)
             return;
 
-        if (!boostButtonShown && !boostEnableBtn.gameObject.activeSelf)
+        GameObject slideTarget = GetBoostSlideTarget();
+        if (slideTarget == null)
+            return;
+
+        if (!boostButtonShown && !slideTarget.activeSelf)
             return;
 
         if (boostButtonSlideCoroutine != null)
@@ -1058,6 +1269,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void HideBoostButtonInstant()
     {
+        CancelBoostButtonMaxLevelHide();
+
         if (boostButtonSlideCoroutine != null)
         {
             StopCoroutine(boostButtonSlideCoroutine);
@@ -1065,19 +1278,26 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
 
         boostButtonShown = false;
-        if (boostEnableBtn != null)
-            boostEnableBtn.gameObject.SetActive(false);
+        GameObject slideTarget = GetBoostSlideTarget();
+        if (slideTarget != null)
+            slideTarget.SetActive(false);
     }
 
     private IEnumerator AnimateBoostButton(bool slideIn)
     {
+        GameObject slideTarget = GetBoostSlideTarget();
+        if (slideTarget == null)
+            yield break;
+
         Vector2 hiddenPos = boostButtonRestPosition + new Vector2(boostSlideOffsetX, 0f);
         Vector2 start = slideIn ? hiddenPos : boostButtonRect.anchoredPosition;
         Vector2 end = slideIn ? boostButtonRestPosition : hiddenPos;
 
         if (slideIn)
         {
-            boostEnableBtn.gameObject.SetActive(true);
+            slideTarget.SetActive(true);
+            if (boostEnableBtn != null)
+                boostEnableBtn.gameObject.SetActive(true);
             boostButtonRect.anchoredPosition = hiddenPos;
         }
 
@@ -1093,7 +1313,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         boostButtonRect.anchoredPosition = end;
 
         if (!slideIn)
-            boostEnableBtn.gameObject.SetActive(false);
+            slideTarget.SetActive(false);
 
         boostButtonShown = slideIn;
         boostButtonSlideCoroutine = null;
@@ -1316,27 +1536,34 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public void BoostEnableBtn()
     {
-        //audioSource.Play();
+        if (boostLevel >= maxBoostLevel)
+            return;
+
+        int cost = GetBoostNextCost();
+        SyncPlayerCoins();
+        if (playerCoins < cost)
+        {
+            PlayInsufficientCoinsShake(boostEnableBtn);
+            Debug.Log("Not enough coins!");
+            return;
+        }
+
+        if (!TrySpendCoins(cost))
+            return;
+
         audioManager.btnSFX();
         VibrationManager.Instance.VibrateButtonClick();
-        bool boostersInactive = PlaneBoosters == null || !PlaneBoosters.activeSelf;
-        if (boostersInactive && TrySpendCoins(BoostCost))
-        {
-            // Update coin UI
-            UpdateCoinUI();
-            
-            if (PlaneBoosters != null)
-                PlaneBoosters.SetActive(true);
-            if (boostactive != null)
-                boostactive.SetActive(true);
-            
-            // Update all button interactability and UI
-            UpdateBoostCostUI();
-            UpdateBoostButtonInteractable();
-            UpdateButtonInteractable();
-            UpdateIncreaseLaunchForceButtonInteractable();
-            UpdateIncreaseCoinMultiplierButtonInteractable();
-        }
+        UpdateCoinUI();
+
+        boostLevel++;
+        ApplyBoostSettings();
+        SaveBoostProgress();
+
+        UpdateBoostCostUI();
+        UpdateBoostButtonInteractable();
+        UpdateButtonInteractable();
+        UpdateIncreaseLaunchForceButtonInteractable();
+        UpdateIncreaseCoinMultiplierButtonInteractable();
     }
 
     private void LoadLaunchForceLevel()
