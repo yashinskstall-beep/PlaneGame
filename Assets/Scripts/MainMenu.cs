@@ -4,6 +4,19 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.Serialization;
+
+[System.Serializable]
+public class UpgradeAdVisualSet
+{
+    [Tooltip("Drag the whole coin/price section (e.g. CostS). Not the coin image or text alone.")]
+    [FormerlySerializedAs("coinRow")]
+    public GameObject coinSection;
+
+    [Tooltip("Drag the whole AD section (parent with background + icon + FREE text). Not children separately.")]
+    [FormerlySerializedAs("adRow")]
+    public GameObject adSection;
+}
 
 public class MainMenu : MonoBehaviour, IPointerClickHandler
 {
@@ -39,6 +52,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public GameObject notEnoughCoinsU;
 
+    [Header("Rewarded Ad Upgrades")]
+    [Tooltip("Assign whole sections only: CostS → Coin Section, AD → Ad Section.")]
+    public UpgradeAdVisualSet planeUpgradeAdVisuals = new UpgradeAdVisualSet();
+    public UpgradeAdVisualSet launchForceUpgradeAdVisuals = new UpgradeAdVisualSet();
+    public UpgradeAdVisualSet coinMultiplierUpgradeAdVisuals = new UpgradeAdVisualSet();
+
     [Header("Boost Button")]
     [SerializeField] private float boostSlideOffsetX = 500f;
     [SerializeField] private float boostSlideDuration = 0.4f;
@@ -60,7 +79,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     [SerializeField] private bool showCheatCoinsOnAndroid;
     [SerializeField] private bool debugUpgradeVfx = true;
 
-
     private int currentIndex = 0;
     private int clickCount = 0;
     private const int clicksRequired = 5;
@@ -75,10 +93,13 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     [Header("Launch Force Upgrade")]
     [SerializeField] private float[] launchForceLevels = { 25f, 30f, 35f };
     [SerializeField] private int[] launchForceCosts = { 700, 1000, 1500 };
+    [Tooltip("Optional slingshot band visual. Auto-resolved from drag launcher if empty.")]
+    public RubberBandVisual rubberBandVisual;
 
     // Launch force level system
     private int launchForceLevel = 1;
     private int launchForceClickCount = 0;
+    private float launchForceCurrentCost = 700f;
     private int maxLaunchForceLevel => launchForceLevels != null && launchForceLevels.Length > 0
         ? launchForceLevels.Length
         : 1;
@@ -89,6 +110,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private const float coinMultiplierStep = 0.1f;
     private readonly int[] coinMultiplierCosts = { 600, 900, 1200, 1800, 2500, 3500, 5000, 7000, 10000, 15000, 20000 };
     private const int BoostCost = 500;
+
+    private static readonly Color UpgradeCostAffordableColor = Color.white;
+    private static readonly Color UpgradeCostUnaffordableColor = new Color(1f, 0.55f, 0.55f);
 
     private RectTransform boostButtonRect;
     private Vector2 boostButtonRestPosition;
@@ -145,6 +169,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         ResolveUIReferences();
         CacheUpgradeButtonTransitions();
         EnsureUpgradeShakeComponents();
+        ResetUpgradeAdUiForMainMenu();
+        SetupRewardedAdUpgrades();
         ApplyCheatCoinsButtonVisibility();
         RefreshEconomyUI();
     }
@@ -170,6 +196,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
 
         ApplyCheatCoinsButtonVisibility();
+        SetupRewardedAdUpgrades();
         RefreshAllUpgradeUI();
     }
 
@@ -188,6 +215,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         currentCost = 10f;
         launchForceLevel = 1;
         launchForceClickCount = 0;
+        launchForceCurrentCost = GetLaunchForceCostForLevel(1);
         coinMultiplierLevel = 1;
         coinMultiplierClickCount = 0;
 
@@ -210,6 +238,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (dragLauncher != null)
             dragLauncher.launchForceMultiplier = GetLaunchForceMultiplierForLevel(1);
 
+        GetRubberBandVisual()?.ApplyLaunchForceLevel(1);
+
         PlayerPrefs.SetInt(LevelProgress.CoinMultiplierLevelKey, 1);
         PlayerPrefs.SetInt(LevelProgress.CoinMultiplierClickCountKey, 0);
         PlayerPrefs.SetFloat(LevelProgress.CoinMultiplierValueKey, 1f);
@@ -220,6 +250,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         ShowUpgradeButtons();
         HideBoostButtonInstant();
         SetLevelsPanelOpen(false);
+        adEligibleUpgradeButton = null;
+        ClearAllUpgradeAdOffersAndRefresh();
         SyncPlayerCoins();
         RefreshAllUpgradeUI();
     }
@@ -240,6 +272,40 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         LoadLaunchForceLevel();
         LoadCoinMultiplierLevel();
+        MigrateUpgradeAdsUnlockedFromProgress();
+    }
+
+    private void MigrateUpgradeAdsUnlockedFromProgress()
+    {
+        if (LevelProgress.AreUpgradeAdsUnlocked())
+            return;
+
+        bool hasUpgradeProgress = clickCount > 0
+            || currentIndex > 0
+            || launchForceClickCount > 0
+            || launchForceLevel > 1
+            || coinMultiplierClickCount > 0
+            || coinMultiplierLevel > 1;
+
+        if (hasUpgradeProgress)
+            LevelProgress.MarkUpgradeAdsUnlocked();
+    }
+
+    private bool AreUpgradeAdsUnlocked()
+    {
+        return LevelProgress.AreUpgradeAdsUnlocked();
+    }
+
+    private void MarkUpgradeAdsUnlocked()
+    {
+        LevelProgress.MarkUpgradeAdsUnlocked();
+    }
+
+    private void ResetUpgradeAdUiForMainMenu()
+    {
+        adEligibleUpgradeButton = null;
+        ClearAllUpgradeAdOffers();
+        ResetUpgradeAdVisuals();
     }
 
     private void ShowUpgradeButtons()
@@ -256,6 +322,113 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private Selectable.Transition launchForceButtonTransition = Selectable.Transition.ColorTint;
     private Selectable.Transition coinMultiplierButtonTransition = Selectable.Transition.ColorTint;
     private bool upgradeButtonTransitionsCached;
+
+    private enum UpgradeAdOfferType
+    {
+        PlanePart,
+        LaunchForce,
+        CoinMultiplier
+    }
+
+    private bool planeUpgradeAdRevealed;
+    private bool launchForceUpgradeAdRevealed;
+    private bool coinMultiplierUpgradeAdRevealed;
+    private bool isShowingUpgradeAd;
+
+    /// <summary>
+    /// Only this upgrade button may show an ad — set after the player spends coins on it
+    /// and can no longer afford the next click on the same button.
+    /// </summary>
+    private UpgradeAdOfferType? adEligibleUpgradeButton;
+
+    private bool IsUpgradeAdRevealed(UpgradeAdOfferType offerType)
+    {
+        switch (offerType)
+        {
+            case UpgradeAdOfferType.PlanePart:
+                return planeUpgradeAdRevealed;
+            case UpgradeAdOfferType.LaunchForce:
+                return launchForceUpgradeAdRevealed;
+            case UpgradeAdOfferType.CoinMultiplier:
+                return coinMultiplierUpgradeAdRevealed;
+            default:
+                return false;
+        }
+    }
+
+    private void SetUpgradeAdRevealed(UpgradeAdOfferType offerType, bool revealed)
+    {
+        switch (offerType)
+        {
+            case UpgradeAdOfferType.PlanePart:
+                planeUpgradeAdRevealed = revealed;
+                break;
+            case UpgradeAdOfferType.LaunchForce:
+                launchForceUpgradeAdRevealed = revealed;
+                break;
+            case UpgradeAdOfferType.CoinMultiplier:
+                coinMultiplierUpgradeAdRevealed = revealed;
+                break;
+        }
+    }
+
+    private void ClearAllUpgradeAdOffers()
+    {
+        planeUpgradeAdRevealed = false;
+        launchForceUpgradeAdRevealed = false;
+        coinMultiplierUpgradeAdRevealed = false;
+    }
+
+    private bool IsUpgradeAtMax(UpgradeAdOfferType offerType)
+    {
+        switch (offerType)
+        {
+            case UpgradeAdOfferType.PlanePart:
+                return IsFullyUpgraded();
+            case UpgradeAdOfferType.LaunchForce:
+                return launchForceLevel >= maxLaunchForceLevel;
+            case UpgradeAdOfferType.CoinMultiplier:
+                return coinMultiplierLevel >= maxCoinMultiplierLevel;
+            default:
+                return true;
+        }
+    }
+
+    private void UpdateAdEligibilityAfterPaidUpgrade(UpgradeAdOfferType offerType)
+    {
+        SyncPlayerCoins();
+        MarkUpgradeAdsUnlocked();
+
+        ClearAllUpgradeAdOffers();
+        adEligibleUpgradeButton = null;
+
+        if (!IsUpgradeAtMax(offerType) && !CanAffordUpgrade(offerType))
+        {
+            adEligibleUpgradeButton = offerType;
+            SetUpgradeAdRevealed(offerType, true);
+        }
+
+        RefreshUpgradeAdStates();
+    }
+
+    /// <summary>
+    /// After a full unlock (wing, slingshot level, etc.) ads stay off until the player
+    /// spends coins on a normal upgrade click again.
+    /// </summary>
+    private void SuppressAdAfterFullUpgrade(UpgradeAdOfferType offerType)
+    {
+        if (adEligibleUpgradeButton == offerType)
+            adEligibleUpgradeButton = null;
+
+        SetUpgradeAdRevealed(offerType, false);
+        RefreshUpgradeAdStates();
+    }
+
+    private void ClearUpgradeAdOffer(UpgradeAdOfferType offerType)
+    {
+        SetUpgradeAdRevealed(offerType, false);
+        RefreshUpgradeAdStates();
+    }
 
     private void CacheUpgradeButtonTransitions()
     {
@@ -290,6 +463,20 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             button.targetGraphic.CrossFadeColor(button.colors.normalColor, 0f, true, true);
     }
 
+    private void ApplyUpgradeButtonAdModeState(Button button, Selectable.Transition normalTransition)
+    {
+        if (button == null)
+            return;
+
+        CacheUpgradeButtonTransitions();
+        button.interactable = true;
+        button.transition = normalTransition;
+
+        ButtonScaleAnimation scaleAnim = button.GetComponent<ButtonScaleAnimation>();
+        if (scaleAnim != null)
+            scaleAnim.enabled = true;
+    }
+
     private void EnsureUpgradeShakeComponents()
     {
         EnsureShakeComponent(upgradeButton);
@@ -303,14 +490,402 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             button.gameObject.AddComponent<ButtonShakeAnimation>();
     }
 
-    private void PlayInsufficientCoinsShake(Button button)
+    private void PlayInsufficientCoinsShake(Button button, System.Action onComplete = null)
     {
         if (button == null)
+        {
+            onComplete?.Invoke();
             return;
+        }
 
         ButtonShakeAnimation shake = button.GetComponent<ButtonShakeAnimation>();
         if (shake != null)
-            shake.Play();
+            shake.Play(onComplete);
+        else
+            onComplete?.Invoke();
+    }
+
+    private void EnsureRewardedAdManager()
+    {
+        if (RewardedAdManager.Instance == null)
+        {
+            GameObject adManagerObject = new GameObject("RewardedAdManager");
+            adManagerObject.AddComponent<RewardedAdManager>();
+        }
+    }
+
+    private void SetupRewardedAdUpgrades()
+    {
+        EnsureRewardedAdManager();
+        ResolveUpgradeAdVisuals(planeUpgradeAdVisuals, upgradeButton);
+        ResolveUpgradeAdVisuals(launchForceUpgradeAdVisuals, increaseLaunchForceBtn);
+        ResolveUpgradeAdVisuals(coinMultiplierUpgradeAdVisuals, increaseCoinMultiplierBtn);
+        ClearAllUpgradeAdOffers();
+        ResetUpgradeAdVisuals();
+    }
+
+    private static void ResolveUpgradeAdVisuals(UpgradeAdVisualSet visuals, Button button)
+    {
+        if (visuals == null || button == null)
+            return;
+
+        if (visuals.coinSection == null)
+        {
+            Transform coinSectionTransform = FindUpgradeButtonChild(button.transform, "CostS", "Cost", "CoinRow");
+            if (coinSectionTransform == null)
+                coinSectionTransform = FindUpgradeButtonChild(button.transform, "CoinIcon", "CoinImage", "Costb");
+
+            if (coinSectionTransform != null)
+                visuals.coinSection = coinSectionTransform.gameObject;
+        }
+
+        if (visuals.adSection == null)
+        {
+            Transform adSectionTransform = FindUpgradeButtonChild(button.transform, "AD", "AdRow", "AdIcon");
+            if (adSectionTransform != null)
+                visuals.adSection = adSectionTransform.gameObject;
+        }
+    }
+
+    private static Transform FindUpgradeButtonChild(Transform parent, params string[] names)
+    {
+        if (parent == null)
+            return null;
+
+        foreach (string childName in names)
+        {
+            Transform child = parent.Find(childName);
+            if (child != null)
+                return child;
+        }
+
+        return null;
+    }
+
+    private void ResetUpgradeAdVisuals()
+    {
+        ApplyUpgradeAdVisual(planeUpgradeAdVisuals, false);
+        ApplyUpgradeAdVisual(launchForceUpgradeAdVisuals, false);
+        ApplyUpgradeAdVisual(coinMultiplierUpgradeAdVisuals, false);
+    }
+
+    private static void ApplyUpgradeAdVisual(UpgradeAdVisualSet visuals, bool showAdRow)
+    {
+        if (visuals == null)
+            return;
+
+        if (visuals.coinSection != null)
+            visuals.coinSection.SetActive(!showAdRow);
+
+        if (visuals.adSection != null)
+            visuals.adSection.SetActive(showAdRow);
+    }
+
+    private void ClearAllUpgradeAdOffersAndRefresh()
+    {
+        ClearAllUpgradeAdOffers();
+        RefreshUpgradeAdStates();
+    }
+
+    private void HandleInsufficientCoinsClick(Button button, UpgradeAdOfferType offerType)
+    {
+        if (IsUpgradeInAdMode(offerType))
+        {
+            TryShowUpgradeRewardedAd(offerType);
+            return;
+        }
+
+        OnInsufficientCoinsForUpgrade(button, offerType);
+    }
+
+    private void OnInsufficientCoinsForUpgrade(Button button, UpgradeAdOfferType offerType)
+    {
+        PlayInsufficientCoinsShake(button, () =>
+        {
+            SyncPlayerCoins();
+            if (IsUpgradeAdBlocked(offerType) || CanAffordUpgrade(offerType))
+                return;
+
+            if (adEligibleUpgradeButton != offerType)
+                return;
+
+            SetUpgradeAdRevealed(offerType, true);
+            RefreshUpgradeAdStates();
+        });
+    }
+
+    private bool CanAffordUpgrade(UpgradeAdOfferType offerType)
+    {
+        switch (offerType)
+        {
+            case UpgradeAdOfferType.PlanePart:
+                return playerCoins >= currentCost;
+            case UpgradeAdOfferType.LaunchForce:
+                return playerCoins >= GetLaunchForceClickCost();
+            case UpgradeAdOfferType.CoinMultiplier:
+                return playerCoins >= GetCoinMultiplierClickCost();
+            default:
+                return false;
+        }
+    }
+
+    private bool IsUpgradeInAdMode(UpgradeAdOfferType offerType)
+    {
+        if (adEligibleUpgradeButton != offerType)
+            return false;
+
+        if (!IsUpgradeAdRevealed(offerType) || isUpgrading || isShowingUpgradeAd)
+            return false;
+
+        if (RewardedAdManager.Instance == null || !RewardedAdManager.Instance.IsRewardedAdReady())
+            return false;
+
+        if (IsUpgradeAdBlocked(offerType))
+            return false;
+
+        SyncPlayerCoins();
+
+        switch (offerType)
+        {
+            case UpgradeAdOfferType.PlanePart:
+                return !IsFullyUpgraded() && playerCoins < currentCost;
+            case UpgradeAdOfferType.LaunchForce:
+                return launchForceLevel < maxLaunchForceLevel && playerCoins < GetLaunchForceClickCost();
+            case UpgradeAdOfferType.CoinMultiplier:
+                return coinMultiplierLevel < maxCoinMultiplierLevel && playerCoins < GetCoinMultiplierClickCost();
+            default:
+                return false;
+        }
+    }
+
+    private void RefreshUpgradeAdStates()
+    {
+        SyncPlayerCoins();
+
+        if (planeUpgradeAdRevealed && (IsFullyUpgraded() || CanAffordUpgrade(UpgradeAdOfferType.PlanePart)))
+        {
+            planeUpgradeAdRevealed = false;
+            if (adEligibleUpgradeButton == UpgradeAdOfferType.PlanePart)
+                adEligibleUpgradeButton = null;
+        }
+
+        if (launchForceUpgradeAdRevealed && (launchForceLevel >= maxLaunchForceLevel || CanAffordUpgrade(UpgradeAdOfferType.LaunchForce)))
+        {
+            launchForceUpgradeAdRevealed = false;
+            if (adEligibleUpgradeButton == UpgradeAdOfferType.LaunchForce)
+                adEligibleUpgradeButton = null;
+        }
+
+        if (coinMultiplierUpgradeAdRevealed && (coinMultiplierLevel >= maxCoinMultiplierLevel || CanAffordUpgrade(UpgradeAdOfferType.CoinMultiplier)))
+        {
+            coinMultiplierUpgradeAdRevealed = false;
+            if (adEligibleUpgradeButton == UpgradeAdOfferType.CoinMultiplier)
+                adEligibleUpgradeButton = null;
+        }
+
+        bool planeAdMode = IsUpgradeInAdMode(UpgradeAdOfferType.PlanePart);
+        bool launchForceAdMode = IsUpgradeInAdMode(UpgradeAdOfferType.LaunchForce);
+        bool coinMultiplierAdMode = IsUpgradeInAdMode(UpgradeAdOfferType.CoinMultiplier);
+
+        ApplyUpgradeAdVisual(planeUpgradeAdVisuals, planeAdMode);
+        ApplyUpgradeAdVisual(launchForceUpgradeAdVisuals, launchForceAdMode);
+        ApplyUpgradeAdVisual(coinMultiplierUpgradeAdVisuals, coinMultiplierAdMode);
+
+        if (upgradeButton != null)
+        {
+            int partCount = GetUpgradePartCount();
+            bool canAfford = playerCoins >= currentCost && currentIndex < partCount;
+            bool atMax = IsFullyUpgraded();
+
+            if (planeAdMode)
+                ApplyUpgradeButtonAdModeState(upgradeButton, upgradeButtonTransition);
+            else
+                ApplyUpgradeButtonState(upgradeButton, upgradeButtonTransition, canAfford, atMax);
+        }
+
+        if (increaseLaunchForceBtn != null)
+        {
+            bool isMaxLevel = launchForceLevel >= maxLaunchForceLevel;
+            bool canAfford = !isMaxLevel && playerCoins >= GetLaunchForceClickCost();
+
+            if (launchForceAdMode)
+                ApplyUpgradeButtonAdModeState(increaseLaunchForceBtn, launchForceButtonTransition);
+            else
+                ApplyUpgradeButtonState(increaseLaunchForceBtn, launchForceButtonTransition, canAfford, isMaxLevel);
+        }
+
+        if (increaseCoinMultiplierBtn != null)
+        {
+            bool isMaxLevel = coinMultiplierLevel >= maxCoinMultiplierLevel;
+            bool canAfford = !isMaxLevel && playerCoins >= GetCoinMultiplierClickCost();
+
+            if (coinMultiplierAdMode)
+                ApplyUpgradeButtonAdModeState(increaseCoinMultiplierBtn, coinMultiplierButtonTransition);
+            else
+                ApplyUpgradeButtonState(increaseCoinMultiplierBtn, coinMultiplierButtonTransition, canAfford, isMaxLevel);
+        }
+    }
+
+    private bool IsUpgradeAdBlocked(UpgradeAdOfferType offerType)
+    {
+        if (isUpgrading || isShowingUpgradeAd || RewardedAdManager.Instance == null)
+            return true;
+
+        switch (offerType)
+        {
+            case UpgradeAdOfferType.PlanePart:
+                return IsFullyUpgraded();
+            case UpgradeAdOfferType.LaunchForce:
+                return launchForceLevel >= maxLaunchForceLevel;
+            case UpgradeAdOfferType.CoinMultiplier:
+                return coinMultiplierLevel >= maxCoinMultiplierLevel;
+            default:
+                return true;
+        }
+    }
+
+    private void TryShowUpgradeRewardedAd(UpgradeAdOfferType offerType)
+    {
+        if (isUpgrading || isShowingUpgradeAd || !IsUpgradeInAdMode(offerType))
+            return;
+
+        UpgradeAdOfferType savedOffer = offerType;
+        isShowingUpgradeAd = true;
+        SetUpgradeAdRevealed(offerType, false);
+        RefreshUpgradeAdStates();
+
+        RewardedAdManager.Instance.ShowRewardedAd(success =>
+        {
+            isShowingUpgradeAd = false;
+
+            if (success)
+                GrantFreeUpgradeClick(savedOffer);
+            else
+            {
+                SetUpgradeAdRevealed(savedOffer, true);
+                RefreshUpgradeAdStates();
+            }
+        });
+    }
+
+    private void GrantFreeUpgradeClick(UpgradeAdOfferType offerType)
+    {
+        switch (offerType)
+        {
+            case UpgradeAdOfferType.PlanePart:
+                GrantFreePlaneUpgradeClick();
+                break;
+            case UpgradeAdOfferType.LaunchForce:
+                GrantFreeLaunchForceUpgradeClick();
+                break;
+            case UpgradeAdOfferType.CoinMultiplier:
+                GrantFreeCoinMultiplierUpgradeClick();
+                break;
+        }
+
+        if (adEligibleUpgradeButton == offerType
+            && !IsUpgradeAtMax(offerType)
+            && !CanAffordUpgrade(offerType))
+        {
+            SetUpgradeAdRevealed(offerType, true);
+        }
+
+        RefreshUpgradeAdStates();
+    }
+
+    private void GrantFreePlaneUpgradeClick()
+    {
+        if (isUpgrading || IsFullyUpgraded())
+            return;
+
+        if (audioManager != null)
+            audioManager.btnSFX();
+        if (VibrationManager.Instance != null)
+            VibrationManager.Instance.VibrateButtonClick();
+
+        clickCount++;
+        currentCost *= 1.5f;
+
+        UpdateCoinUI();
+        UpdateCostUI();
+        UpdateSliderUI();
+        UpdateBoostButtonInteractable();
+        UpdateIncreaseLaunchForceButtonInteractable();
+        UpdateIncreaseCoinMultiplierButtonInteractable();
+
+        if (clickCount >= clicksRequired)
+        {
+            SuppressAdAfterFullUpgrade(UpgradeAdOfferType.PlanePart);
+            StartCoroutine(UpgradeSequence());
+        }
+        else
+        {
+            SaveProgress();
+            UpdateButtonInteractable();
+        }
+    }
+
+    private void GrantFreeLaunchForceUpgradeClick()
+    {
+        if (isUpgrading || launchForceLevel >= maxLaunchForceLevel || dragLauncher == null)
+            return;
+
+        if (audioManager != null)
+            audioManager.btnSFX();
+        if (VibrationManager.Instance != null)
+            VibrationManager.Instance.VibrateButtonClick();
+
+        launchForceClickCount++;
+        launchForceCurrentCost *= 1.5f;
+
+        UpdateLaunchForceCostUI();
+        UpdateLaunchForceLevelUI();
+        UpdateLaunchForceSliderUI();
+        UpdateIncreaseLaunchForceButtonInteractable();
+        UpdateButtonInteractable();
+        UpdateBoostButtonInteractable();
+        UpdateIncreaseCoinMultiplierButtonInteractable();
+
+        if (launchForceClickCount >= clicksRequired)
+        {
+            SuppressAdAfterFullUpgrade(UpgradeAdOfferType.LaunchForce);
+            StartCoroutine(LaunchForceUpgradeSequence());
+        }
+        else
+            SaveLaunchForceProgress();
+    }
+
+    private void GrantFreeCoinMultiplierUpgradeClick()
+    {
+        if (isUpgrading || coinMultiplierLevel >= maxCoinMultiplierLevel)
+            return;
+
+        if (audioManager != null)
+            audioManager.btnSFX();
+        if (VibrationManager.Instance != null)
+            VibrationManager.Instance.VibrateButtonClick();
+
+        coinMultiplierClickCount++;
+        bool leveledUp = coinMultiplierClickCount >= clicksRequired;
+
+        if (leveledUp)
+        {
+            coinMultiplierClickCount = 0;
+            coinMultiplierLevel++;
+        }
+
+        SaveCoinMultiplierProgress();
+
+        UpdateCoinMultiplierCostUI();
+        UpdateCoinMultiplierLevelUI();
+        UpdateCoinMultiplierSliderUI();
+        UpdateIncreaseCoinMultiplierButtonInteractable();
+        UpdateButtonInteractable();
+        UpdateBoostButtonInteractable();
+        UpdateIncreaseLaunchForceButtonInteractable();
+
+        if (leveledUp)
+            SuppressAdAfterFullUpgrade(UpgradeAdOfferType.CoinMultiplier);
     }
 
     private void ResolveSceneReferences()
@@ -320,16 +895,16 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         if (dragLauncher == null)
             dragLauncher = FindObjectOfType<SimpleDragLauncher>();
+
+        if (rubberBandVisual == null && dragLauncher != null && dragLauncher.lineRenderer != null)
+            rubberBandVisual = dragLauncher.lineRenderer;
     }
 
     private void ResolveUIReferences()
     {
-        if (costText == null && upgradeButton != null)
-        {
-            Transform costTransform = upgradeButton.transform.Find("Cost");
-            if (costTransform != null)
-                costText = costTransform.GetComponent<TextMeshProUGUI>();
-        }
+        ResolveUpgradeCostText(ref costText, upgradeButton, planeUpgradeAdVisuals);
+        ResolveUpgradeCostText(ref launchForceCostText, increaseLaunchForceBtn, launchForceUpgradeAdVisuals);
+        ResolveUpgradeCostText(ref coinMultiplierCostText, increaseCoinMultiplierBtn, coinMultiplierUpgradeAdVisuals);
 
         if (dragLauncher == null)
             dragLauncher = FindObjectOfType<SimpleDragLauncher>();
@@ -352,6 +927,33 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             if (cheatButtonTransform != null)
                 cheatCoinsButton = cheatButtonTransform.gameObject;
         }
+
+        ResolveUpgradeAdVisuals(planeUpgradeAdVisuals, upgradeButton);
+        ResolveUpgradeAdVisuals(launchForceUpgradeAdVisuals, increaseLaunchForceBtn);
+        ResolveUpgradeAdVisuals(coinMultiplierUpgradeAdVisuals, increaseCoinMultiplierBtn);
+    }
+
+    private static void ResolveUpgradeCostText(
+        ref TextMeshProUGUI costTextField,
+        Button button,
+        UpgradeAdVisualSet adVisuals)
+    {
+        if (costTextField != null || button == null)
+            return;
+
+        if (adVisuals?.coinSection != null)
+        {
+            costTextField = adVisuals.coinSection.GetComponent<TextMeshProUGUI>();
+            if (costTextField == null)
+                costTextField = adVisuals.coinSection.GetComponentInChildren<TextMeshProUGUI>(true);
+        }
+
+        if (costTextField != null)
+            return;
+
+        Transform costTransform = FindUpgradeButtonChild(button.transform, "CostS", "Cost", "Costb");
+        if (costTransform != null)
+            costTextField = costTransform.GetComponent<TextMeshProUGUI>();
     }
 
     private void ApplyCheatCoinsButtonVisibility()
@@ -384,6 +986,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateCoinMultiplierLevelUI();
         UpdateCoinMultiplierSliderUI();
         UpdateIncreaseCoinMultiplierButtonInteractable();
+        RefreshUpgradeAdStates();
+        RefreshUpgradeCostColors();
     }
 
     public void OnPointerClick(PointerEventData eventData)
@@ -391,7 +995,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (isUpgrading)
             return;
 
-        Debug.Log("Panel clicked");
         cameraManager.TransitionToStartCamPos();
     }
 
@@ -432,7 +1035,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         SyncPlayerCoins();
         if (playerCoins < currentCost)
         {
-            PlayInsufficientCoinsShake(upgradeButton);
+            HandleInsufficientCoinsClick(upgradeButton, UpgradeAdOfferType.PlanePart);
             return;
         }
 
@@ -456,12 +1059,14 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         // Activate part if complete
         if (clickCount >= clicksRequired)
         {
+            SuppressAdAfterFullUpgrade(UpgradeAdOfferType.PlanePart);
             StartCoroutine(UpgradeSequence());
         }
         else
         {
             SaveProgress();
             UpdateButtonInteractable();
+            UpdateAdEligibilityAfterPaidUpgrade(UpgradeAdOfferType.PlanePart);
         }
     }
 
@@ -513,7 +1118,158 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
         UpdateIncreaseCoinMultiplierButtonInteractable();
+        SuppressAdAfterFullUpgrade(UpgradeAdOfferType.PlanePart);
         EndUpgradeInputBlock();
+    }
+
+    private IEnumerator LaunchForceUpgradeSequence()
+    {
+        BeginUpgradeInputBlock();
+        increaseLaunchForceBtn.interactable = false;
+        taptoplay.SetActive(false);
+        yield return new WaitForSeconds(0.3f);
+        HideBoostButtonInstant();
+        upgradeButton.gameObject.SetActive(false);
+        increaseLaunchForceBtn.gameObject.SetActive(false);
+        if (increaseCoinMultiplierBtn != null)
+            increaseCoinMultiplierBtn.gameObject.SetActive(false);
+
+        // Step 1: Transition camera to the slingshot
+        Transform focusPoint = GetSlingshotCameraFocus();
+        if (focusPoint != null)
+            yield return StartCoroutine(cameraManager.TransitionToTarget(focusPoint, cameraTransitionDuration));
+
+        // Step 2: Play upgrade VFX (applies slingshot level inside routine, same as part unlock)
+        GameObject slingshotTarget = GetSlingshotUpgradeTarget();
+        audioManager.PlanepartSFX();
+        yield return StartCoroutine(PlaySlingshotUpgradeParticlesRoutine(slingshotTarget));
+
+        launchForceClickCount = 0;
+        launchForceCurrentCost = GetLaunchForceCostForLevel(launchForceLevel);
+        UpdateLaunchForceSliderUI();
+        UpdateLaunchForceLevelUI();
+        UpdateLaunchForceCostUI();
+
+        // Step 3: Transition camera back to main menu
+        yield return StartCoroutine(cameraManager.TransitionToTarget(cameraManager.mainMenuPosition, cameraTransitionDuration));
+        taptoplay.SetActive(true);
+        upgradeButton.gameObject.SetActive(true);
+        increaseLaunchForceBtn.gameObject.SetActive(true);
+        if (increaseCoinMultiplierBtn != null)
+            increaseCoinMultiplierBtn.gameObject.SetActive(true);
+
+        SaveLaunchForceProgress();
+        UpdateButtonInteractable();
+        UpdateBoostButtonInteractable();
+        UpdateIncreaseLaunchForceButtonInteractable();
+        UpdateIncreaseCoinMultiplierButtonInteractable();
+        SuppressAdAfterFullUpgrade(UpgradeAdOfferType.LaunchForce);
+        EndUpgradeInputBlock();
+
+        Debug.Log($"Launch force upgraded to Level {launchForceLevel}! Force: {GetLaunchForceMultiplierForLevel(launchForceLevel)}");
+    }
+
+    private GameObject GetSlingshotUpgradeTarget()
+    {
+        RubberBandVisual band = GetRubberBandVisual();
+        if (band != null)
+            return band.gameObject;
+
+        if (dragLauncher != null && dragLauncher.restingPoint != null)
+            return dragLauncher.restingPoint.gameObject;
+
+        return null;
+    }
+
+    private void ApplySlingshotUpgradeLevel()
+    {
+        launchForceLevel = Mathf.Clamp(launchForceLevel + 1, 1, maxLaunchForceLevel);
+
+        if (dragLauncher != null)
+        {
+            dragLauncher.launchForceMultiplier = GetLaunchForceMultiplierForLevel(launchForceLevel);
+            dragLauncher.ResetForNewLaunch();
+        }
+
+        GetRubberBandVisual()?.ApplyLaunchForceLevel(launchForceLevel);
+    }
+
+    private IEnumerator PlaySlingshotUpgradeParticlesRoutine(GameObject slingshotTarget)
+    {
+        if (slingshotTarget == null)
+        {
+            ApplySlingshotUpgradeLevel();
+            yield return new WaitForSeconds(particleEffectDuration);
+            yield break;
+        }
+
+        ApplySlingshotUpgradeLevel();
+
+        var spawnedInstances = new List<GameObject>();
+        var particleSystems = new List<ParticleSystem>();
+
+        TryAddUpgradeParticlePrefab(upgradeParticleEffect, slingshotTarget, spawnedInstances, particleSystems);
+        AddParticleSystemsFromRoot(slingshotTarget, particleSystems);
+
+        bool hasParticles = particleSystems.Count > 0;
+
+        if (!hasParticles)
+        {
+            yield return new WaitForSeconds(particleEffectDuration);
+            yield break;
+        }
+
+        ActivateVfxChildren(slingshotTarget);
+        yield return null;
+
+        foreach (ParticleSystem ps in particleSystems)
+        {
+            if (ps == null || !IsSceneInstance(ps.gameObject))
+                continue;
+
+            ps.gameObject.SetActive(true);
+            var emission = ps.emission;
+            emission.enabled = true;
+            ps.Clear(true);
+            ps.Play(true);
+        }
+
+        float waitDuration = Mathf.Max(
+            particleEffectDuration,
+            GetParticleDuration(particleSystems.ToArray()));
+
+        yield return new WaitForSeconds(waitDuration > 0f ? waitDuration : particleEffectDuration);
+
+        foreach (GameObject spawned in spawnedInstances)
+        {
+            if (spawned != null)
+                Destroy(spawned, 2f);
+        }
+
+        foreach (ParticleSystem ps in particleSystems)
+        {
+            if (ps == null || !IsSceneInstance(ps.gameObject))
+                continue;
+
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+    }
+
+    private Transform GetSlingshotCameraFocus()
+    {
+        if (cameraManager != null)
+            return cameraManager.GetSlingshotCameraPosition();
+        return null;
+    }
+
+    private RubberBandVisual GetRubberBandVisual()
+    {
+        ResolveUIReferences();
+        if (rubberBandVisual != null)
+            return rubberBandVisual;
+
+        rubberBandVisual = FindObjectOfType<RubberBandVisual>();
+        return rubberBandVisual;
     }
 
     // -----------------------------
@@ -884,13 +1640,45 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void UpdateCostUI()
     {
+        if (costText == null)
+            return;
+
+        SyncPlayerCoins();
+        bool atMax = IsFullyUpgraded();
+        bool canAfford = playerCoins >= currentCost;
+        string amount = atMax ? "MAX" : FormatNumber(currentCost);
+        costText.text = amount;
+        ApplyUpgradeCostTextColor(costText, canAfford, atMax);
+    }
+
+    private static void ApplyUpgradeCostTextColor(TextMeshProUGUI text, bool canAfford, bool atMax)
+    {
+        if (text == null)
+            return;
+
+        Color targetColor = !atMax && !canAfford
+            ? UpgradeCostUnaffordableColor
+            : UpgradeCostAffordableColor;
+
+        text.enableVertexGradient = false;
+        text.color = targetColor;
+        // LuckiestGuy SDF ignores vertex color; drive the material face color instead.
+        text.faceColor = targetColor;
+        text.ForceMeshUpdate(true, true);
+    }
+
+    private void RefreshUpgradeCostColors()
+    {
+        SyncPlayerCoins();
+
         if (costText != null)
-        {
-            if (IsFullyUpgraded())
-                costText.text = "MAX";
-            else
-                costText.text = $"{FormatNumber(currentCost)}";
-        }
+            ApplyUpgradeCostTextColor(costText, playerCoins >= currentCost, IsFullyUpgraded());
+
+        if (launchForceCostText != null)
+            ApplyUpgradeCostTextColor(launchForceCostText, playerCoins >= GetLaunchForceClickCost(), launchForceLevel >= maxLaunchForceLevel);
+
+        if (coinMultiplierCostText != null)
+            ApplyUpgradeCostTextColor(coinMultiplierCostText, playerCoins >= GetCoinMultiplierClickCost(), coinMultiplierLevel >= maxCoinMultiplierLevel);
     }
 
     private void UpdateSliderUI()
@@ -914,15 +1702,13 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         if (upgradeButton != null)
         {
-            int partCount = GetUpgradePartCount();
-            bool canAfford = playerCoins >= currentCost && currentIndex < partCount;
-            bool atMax = IsFullyUpgraded();
-            ApplyUpgradeButtonState(upgradeButton, upgradeButtonTransition, canAfford, atMax);
-
             bool hasEnoughCoins = playerCoins >= currentCost && !IsFullyUpgraded();
+            bool planeAdMode = IsUpgradeInAdMode(UpgradeAdOfferType.PlanePart);
             if (notEnoughCoinsU != null)
-                notEnoughCoinsU.SetActive(!hasEnoughCoins && !IsFullyUpgraded());
+                notEnoughCoinsU.SetActive(!hasEnoughCoins && !IsFullyUpgraded() && !planeAdMode);
         }
+
+        RefreshUpgradeAdStates();
     }
 
     private void UpdateBoostCostUI()
@@ -935,13 +1721,15 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     
     private void UpdateLaunchForceCostUI()
     {
-        if (launchForceCostText != null)
-        {
-            if (launchForceLevel >= maxLaunchForceLevel)
-                launchForceCostText.text = "MAX";
-            else
-                launchForceCostText.text = GetLaunchForceCostForLevel(launchForceLevel).ToString();
-        }
+        if (launchForceCostText == null)
+            return;
+
+        SyncPlayerCoins();
+        bool atMax = launchForceLevel >= maxLaunchForceLevel;
+        bool canAfford = playerCoins >= GetLaunchForceClickCost();
+        string amount = atMax ? "MAX" : FormatNumber(launchForceCurrentCost);
+        launchForceCostText.text = amount;
+        ApplyUpgradeCostTextColor(launchForceCostText, canAfford, atMax);
     }
     
     private void UpdateLaunchForceLevelUI()
@@ -975,13 +1763,14 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (launchForceLevel >= maxLaunchForceLevel)
             return 0;
 
-        return GetLaunchForceCostForLevel(launchForceLevel);
+        return Mathf.Max(1, Mathf.RoundToInt(launchForceCurrentCost));
     }
 
     private void SaveLaunchForceProgress()
     {
         PlayerPrefs.SetInt(LevelProgress.GetLaunchForceLevelKey(), launchForceLevel);
         PlayerPrefs.SetInt(LevelProgress.GetLaunchForceClickCountKey(), launchForceClickCount);
+        PlayerPrefs.SetFloat(LevelProgress.GetLaunchForceCurrentCostKey(), launchForceCurrentCost);
 
         if (dragLauncher != null)
             PlayerPrefs.SetFloat(LevelProgress.GetLaunchForceMultiplierKey(), dragLauncher.launchForceMultiplier);
@@ -1101,12 +1890,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void UpdateIncreaseLaunchForceButtonInteractable()
     {
-        if (increaseLaunchForceBtn != null)
-        {
-            bool isMaxLevel = launchForceLevel >= maxLaunchForceLevel;
-            bool canAfford = !isMaxLevel && playerCoins >= GetLaunchForceClickCost();
-            ApplyUpgradeButtonState(increaseLaunchForceBtn, launchForceButtonTransition, canAfford, isMaxLevel);
-        }
+        RefreshUpgradeAdStates();
     }
 
     private float GetCoinMultiplierValue()
@@ -1135,10 +1919,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (coinMultiplierCostText == null)
             return;
 
-        if (coinMultiplierLevel >= maxCoinMultiplierLevel)
-            coinMultiplierCostText.text = "MAX";
-        else
-            coinMultiplierCostText.text = coinMultiplierCosts[coinMultiplierLevel - 1].ToString();
+        SyncPlayerCoins();
+        bool atMax = coinMultiplierLevel >= maxCoinMultiplierLevel;
+        bool canAfford = playerCoins >= GetCoinMultiplierClickCost();
+        string amount = atMax ? "MAX" : coinMultiplierCosts[coinMultiplierLevel - 1].ToString();
+        coinMultiplierCostText.text = amount;
+        ApplyUpgradeCostTextColor(coinMultiplierCostText, canAfford, atMax);
     }
 
     private void UpdateCoinMultiplierLevelUI()
@@ -1167,12 +1953,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void UpdateIncreaseCoinMultiplierButtonInteractable()
     {
-        if (increaseCoinMultiplierBtn == null)
-            return;
-
-        bool isMaxLevel = coinMultiplierLevel >= maxCoinMultiplierLevel;
-        bool canAfford = !isMaxLevel && playerCoins >= GetCoinMultiplierClickCost();
-        ApplyUpgradeButtonState(increaseCoinMultiplierBtn, coinMultiplierButtonTransition, canAfford, isMaxLevel);
+        RefreshUpgradeAdStates();
     }
 
     public void CheatCoins()
@@ -1196,6 +1977,17 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
         UpdateIncreaseCoinMultiplierButtonInteractable();
+        RefreshUpgradeAdStates();
+        RefreshUpgradeCostColors();
+    }
+
+    /// <summary>
+    /// Called when the main menu is shown again after gameplay.
+    /// </summary>
+    public void OnReturnedToMainMenu()
+    {
+        ResetUpgradeAdUiForMainMenu();
+        RefreshEconomyUI();
     }
 
     private void SyncPlayerCoins()
@@ -1286,7 +2078,10 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private void SetMaxStateUI()
     {
         if (costText != null)
+        {
             costText.text = "MAX";
+            ApplyUpgradeCostTextColor(costText, false, true);
+        }
 
         if (upgradeSlider != null)
         {
@@ -1353,12 +2148,21 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (launchForceLevel >= maxLaunchForceLevel)
             launchForceClickCount = 0;
 
+        launchForceCurrentCost = PlayerPrefs.GetFloat(
+            LevelProgress.GetLaunchForceCurrentCostKey(),
+            GetLaunchForceCostForLevel(launchForceLevel));
+
         if (dragLauncher != null)
             dragLauncher.launchForceMultiplier = GetLaunchForceMultiplierForLevel(launchForceLevel);
+
+        GetRubberBandVisual()?.ApplyLaunchForceLevel(launchForceLevel);
     }
     
     public void IncreaseLaunchForce()
     {
+        if (isUpgrading)
+            return;
+
         ResolveUIReferences();
 
         if (launchForceLevel >= maxLaunchForceLevel)
@@ -1371,12 +2175,10 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             return;
         }
 
-        int currentCostForLevel = GetLaunchForceCostForLevel(launchForceLevel);
         SyncPlayerCoins();
         if (playerCoins < clickCost)
         {
-            PlayInsufficientCoinsShake(increaseLaunchForceBtn);
-            Debug.Log("Not enough coins!");
+            HandleInsufficientCoinsClick(increaseLaunchForceBtn, UpgradeAdOfferType.LaunchForce);
             return;
         }
 
@@ -1388,34 +2190,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateCoinUI();
 
         launchForceClickCount++;
-
-        if (launchForceClickCount >= clicksRequired)
-        {
-            launchForceClickCount = 0;
-            launchForceLevel++;
-
-            // Re-snap the plane to the ramp rest pose so the new slingshot state
-            // doesn't leave it using an older drag/rotation pose.
-            if (dragLauncher != null)
-                dragLauncher.ResetForNewLaunch();
-            else
-                GetPlaneEffects()?.RefreshFlightTrails();
-
-            // Update all UI
-            UpdateLaunchForceCostUI();
-            UpdateLaunchForceLevelUI();
-            UpdateLaunchForceSliderUI();
-            UpdateIncreaseLaunchForceButtonInteractable();
-            UpdateButtonInteractable();
-            UpdateBoostButtonInteractable();
-            UpdateIncreaseCoinMultiplierButtonInteractable();
-
-            Debug.Log($"Launch force upgraded to Level {launchForceLevel}! Force: {dragLauncher.launchForceMultiplier}");
-            if (dragLauncher != null)
-                dragLauncher.launchForceMultiplier = GetLaunchForceMultiplierForLevel(launchForceLevel);
-        }
-
-        SaveLaunchForceProgress();
+        launchForceCurrentCost *= 1.5f;
 
         UpdateLaunchForceCostUI();
         UpdateLaunchForceLevelUI();
@@ -1424,6 +2199,16 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
         UpdateIncreaseCoinMultiplierButtonInteractable();
+
+        if (launchForceClickCount >= clicksRequired)
+        {
+            SuppressAdAfterFullUpgrade(UpgradeAdOfferType.LaunchForce);
+            StartCoroutine(LaunchForceUpgradeSequence());
+            return;
+        }
+
+        SaveLaunchForceProgress();
+        UpdateAdEligibilityAfterPaidUpgrade(UpgradeAdOfferType.LaunchForce);
     }
 
     private void LoadCoinMultiplierLevel()
@@ -1439,6 +2224,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public void IncreaseCoinMultiplier()
     {
+        if (isUpgrading)
+            return;
+
         if (coinMultiplierLevel >= maxCoinMultiplierLevel)
             return;
 
@@ -1446,8 +2234,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         SyncPlayerCoins();
         if (playerCoins < cost)
         {
-            PlayInsufficientCoinsShake(increaseCoinMultiplierBtn);
-            Debug.Log("Not enough coins!");
+            HandleInsufficientCoinsClick(increaseCoinMultiplierBtn, UpgradeAdOfferType.CoinMultiplier);
             return;
         }
 
@@ -1460,8 +2247,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateCoinUI();
 
         coinMultiplierClickCount++;
+        bool leveledUp = coinMultiplierClickCount >= clicksRequired;
 
-        if (coinMultiplierClickCount >= clicksRequired)
+        if (leveledUp)
         {
             coinMultiplierClickCount = 0;
             coinMultiplierLevel++;
@@ -1476,6 +2264,11 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
+
+        if (leveledUp)
+            SuppressAdAfterFullUpgrade(UpgradeAdOfferType.CoinMultiplier);
+        else
+            UpdateAdEligibilityAfterPaidUpgrade(UpgradeAdOfferType.CoinMultiplier);
     }
 
     public void SettingBtn(){

@@ -5,6 +5,8 @@ public class CameraManager : MonoBehaviour
 {
     public Transform mainMenuPosition;
     public Transform startPosition;
+    [Tooltip("Camera focus when upgrading the slingshot. Falls back to SlingshotCamPos in scene, then startPosition.")]
+    public Transform slingshotCameraPosition;
     public float transitionDuration = 2.0f;
     private Camera mainCamera;
     private bool inTransition = false;
@@ -17,12 +19,31 @@ public class CameraManager : MonoBehaviour
     void Start()
     {
         mainCamera = Camera.main;
+        ResolveSlingshotCameraPosition();
         if (mainMenuPosition != null)
         {
             mainCamera.transform.position = mainMenuPosition.position;
             mainCamera.transform.rotation = mainMenuPosition.rotation;
         }
         airPlane.gameObject.GetComponent<Collider>().enabled = false;
+    }
+
+    public Transform GetSlingshotCameraPosition()
+    {
+        ResolveSlingshotCameraPosition();
+        if (slingshotCameraPosition != null)
+            return slingshotCameraPosition;
+        return startPosition;
+    }
+
+    private void ResolveSlingshotCameraPosition()
+    {
+        if (slingshotCameraPosition != null)
+            return;
+
+        GameObject found = GameObject.Find("SlingshotCamPos");
+        if (found != null)
+            slingshotCameraPosition = found.transform;
     }
 
     public void TransitionToStartCamPos(System.Action onComplete = null)
@@ -34,7 +55,6 @@ public class CameraManager : MonoBehaviour
         if (mainMenu != null && mainMenu.IsUpgrading)
             return;
 
-        Debug.Log("Transitioning to start position");
         StartCoroutine(TransitionToPosition(startPosition.position, startPosition.rotation, transitionDuration, () =>
         {
             BeginGameplay();

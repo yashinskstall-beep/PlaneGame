@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -31,6 +32,12 @@ public class RubberBandVisual : MonoBehaviour
     [Header("Level Materials")]
     [Tooltip("Materials for each launch force level (Level 1, Level 2, Level 3)")]
     public Material[] levelMaterials = new Material[3];
+
+    [Header("Level Colors")]
+    [Tooltip("Optional relaxed colors per launch force level.")]
+    public Color[] relaxedColorsByLevel;
+    [Tooltip("Optional stretched colors per launch force level.")]
+    public Color[] stretchedColorsByLevel;
     
     [Header("References")]
     public MainMenu mainMenu;
@@ -50,6 +57,20 @@ public class RubberBandVisual : MonoBehaviour
     private Vector3 dragStartPos;
     private float dragDistance;
     private int currentLevel = 1;
+
+    private static readonly Color[] DefaultRelaxedColors =
+    {
+        new Color(0.8f, 0.2f, 0.2f, 0.8f),
+        new Color(0.95f, 0.55f, 0.1f, 0.9f),
+        new Color(0.55f, 0.2f, 0.95f, 0.9f)
+    };
+
+    private static readonly Color[] DefaultStretchedColors =
+    {
+        new Color(1f, 0.5f, 0.5f, 0.8f),
+        new Color(1f, 0.85f, 0.35f, 0.9f),
+        new Color(0.8f, 0.55f, 1f, 0.9f)
+    };
 
     private void Awake()
     {
@@ -98,6 +119,15 @@ public class RubberBandVisual : MonoBehaviour
         positions = new Vector3[bandSegments + 2];
     }
 
+    private void Start()
+    {
+        int savedLevel = PlayerPrefs.GetInt(LevelProgress.GetLaunchForceLevelKey(), 0);
+        if (savedLevel <= 0)
+            savedLevel = PlayerPrefs.GetInt("LaunchForceLevel", 1);
+
+        ApplyLaunchForceLevel(savedLevel);
+    }
+
     private void Update()
     {
         if (planeObject == null || leftAnchor == null || rightAnchor == null)
@@ -121,43 +151,85 @@ public class RubberBandVisual : MonoBehaviour
     /// </summary>
     private void UpdateMaterialBasedOnLevel()
     {
-        if (levelMaterials == null || levelMaterials.Length == 0)
-            return;
-
         int level = PlayerPrefs.GetInt(LevelProgress.GetLaunchForceLevelKey(), 0);
         if (level <= 0)
             level = PlayerPrefs.GetInt("LaunchForceLevel", 1);
 
-        level = Mathf.Clamp(level, 1, levelMaterials.Length);
         if (level == currentLevel)
             return;
 
-        currentLevel = level;
-        Material targetMaterial = levelMaterials[level - 1];
-        if (targetMaterial == null)
-            return;
+        ApplyLaunchForceLevel(level);
+    }
 
-        lineRenderer.material = targetMaterial;
+    public void ApplyLaunchForceLevel(int level)
+    {
+        if (lineRenderer == null)
+            lineRenderer = GetComponent<LineRenderer>();
+
+        int maxLevel = Mathf.Max(1, levelMaterials != null ? levelMaterials.Length : 1);
+        level = Mathf.Clamp(level, 1, maxLevel);
+        currentLevel = level;
+
+        if (levelMaterials != null && levelMaterials.Length >= level)
+        {
+            Material targetMaterial = levelMaterials[level - 1];
+            if (targetMaterial != null)
+                lineRenderer.material = targetMaterial;
+        }
+
+        relaxedColor = GetLevelColor(relaxedColorsByLevel, DefaultRelaxedColors, level);
+        stretchedColor = GetLevelColor(stretchedColorsByLevel, DefaultStretchedColors, level);
+
+        lineRenderer.startColor = relaxedColor;
+        lineRenderer.endColor = relaxedColor;
+    }
+
+    public IEnumerator PlayUpgradePulse(float duration = 0.35f)
+    {
+        if (lineRenderer == null)
+            yield break;
+
+        Color start = relaxedColor;
+        Color pulse = Color.Lerp(start, Color.white, 0.65f);
+        float half = Mathf.Max(0.05f, duration * 0.5f);
+        float elapsed = 0f;
+
+        while (elapsed < half)
+        {
+            elapsed += Time.deltaTime;
+            Color c = Color.Lerp(start, pulse, elapsed / half);
+            lineRenderer.startColor = c;
+            lineRenderer.endColor = c;
+            yield return null;
+        }
+
+        elapsed = 0f;
+        while (elapsed < half)
+        {
+            elapsed += Time.deltaTime;
+            Color c = Color.Lerp(pulse, relaxedColor, elapsed / half);
+            lineRenderer.startColor = c;
+            lineRenderer.endColor = c;
+            yield return null;
+        }
+
+        lineRenderer.startColor = relaxedColor;
+        lineRenderer.endColor = relaxedColor;
+    }
+
+    private static Color GetLevelColor(Color[] customColors, Color[] defaults, int level)
+    {
+        if (customColors != null && customColors.Length >= level)
+            return customColors[level - 1];
+
+        if (defaults != null && defaults.Length >= level)
+            return defaults[level - 1];
+
+        return defaults != null && defaults.Length > 0 ? defaults[0] : Color.red;
     }
     
     private void HandleInput()
     {
-        // Start dragging when mouse button is pressed down
-        // if (Input.GetMouseButtonDown(0))
-        // {
-        //     Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-        //     if (Physics.Raycast(ray, out RaycastHit hit))
-        //     {
-        //         // Check if we hit the plane object
-        //         if (hit.transform == planeObject)
-        //         {
-        //             isDragging = true;
-        //             dragStartPos = planeObject.position;
-        //             lineRenderer.enabled = true; // Show the band when dragging starts
-        //         }
-        //     }
-        // }
-        
         // Continue dragging when mouse button is held down
         if (isDragging && Input.GetMouseButton(0))
         {
@@ -168,7 +240,6 @@ public class RubberBandVisual : MonoBehaviour
         if (Input.GetMouseButtonUp(0) && isDragging)
         {
             isDragging = false;
-            // Hide the band on release
         }
     }
     

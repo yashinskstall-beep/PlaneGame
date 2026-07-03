@@ -55,6 +55,11 @@ public static class LevelProgress
         return ScenePrefix(sceneName) + "LaunchForceClickCount";
     }
 
+    public static string GetLaunchForceCurrentCostKey(string sceneName = null)
+    {
+        return ScenePrefix(sceneName) + "LaunchForceCurrentCost";
+    }
+
     public static string GetSceneCompletedKey(string sceneName = null)
     {
         return ScenePrefix(sceneName) + "Completed";
@@ -63,6 +68,26 @@ public static class LevelProgress
     public const string CoinMultiplierLevelKey = "CoinMultiplierLevel";
     public const string CoinMultiplierClickCountKey = "CoinMultiplierClickCount";
     public const string CoinMultiplierValueKey = "CoinMultiplier";
+
+    /// <summary>
+    /// True after the player has paid coins for at least one upgrade click (any upgrade button).
+    /// Rewarded upgrade ads only appear after this is unlocked.
+    /// </summary>
+    public const string UpgradeAdsUnlockedKey = "UpgradeAdsUnlocked";
+
+    public static bool AreUpgradeAdsUnlocked()
+    {
+        return PlayerPrefs.GetInt(UpgradeAdsUnlockedKey, 0) == 1;
+    }
+
+    public static void MarkUpgradeAdsUnlocked()
+    {
+        if (PlayerPrefs.GetInt(UpgradeAdsUnlockedKey, 0) == 1)
+            return;
+
+        PlayerPrefs.SetInt(UpgradeAdsUnlockedKey, 1);
+        PlayerPrefs.Save();
+    }
 
     public static int GetCoinMultiplierLevel()
     {
@@ -100,6 +125,7 @@ public static class LevelProgress
         PlayerPrefs.DeleteKey(GetLaunchForceLevelKey(sceneName));
         PlayerPrefs.DeleteKey(GetLaunchForceMultiplierKey(sceneName));
         PlayerPrefs.DeleteKey(GetLaunchForceClickCountKey(sceneName));
+        PlayerPrefs.DeleteKey(GetLaunchForceCurrentCostKey(sceneName));
 
         if (partNames != null)
         {

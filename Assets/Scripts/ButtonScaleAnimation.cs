@@ -111,10 +111,13 @@ public class ButtonShakeAnimation : MonoBehaviour
         restPositionCaptured = true;
     }
 
-    public void Play()
+    public void Play(System.Action onComplete = null)
     {
         if (rect == null)
+        {
+            onComplete?.Invoke();
             return;
+        }
 
         if (!restPositionCaptured)
             CaptureRestPosition();
@@ -125,7 +128,7 @@ public class ButtonShakeAnimation : MonoBehaviour
             rect.anchoredPosition = restPosition;
         }
 
-        shakeCoroutine = StartCoroutine(ShakeRoutine());
+        shakeCoroutine = StartCoroutine(ShakeRoutine(onComplete));
     }
 
     private void PlayShakeHaptic()
@@ -136,7 +139,7 @@ public class ButtonShakeAnimation : MonoBehaviour
         VibrationManager.Instance.VibrateDenied();
     }
 
-    private IEnumerator ShakeRoutine()
+    private IEnumerator ShakeRoutine(System.Action onComplete)
     {
         float elapsed = 0f;
         float nextHapticTime = 0f;
@@ -159,5 +162,6 @@ public class ButtonShakeAnimation : MonoBehaviour
 
         rect.anchoredPosition = restPosition;
         shakeCoroutine = null;
+        onComplete?.Invoke();
     }
 }

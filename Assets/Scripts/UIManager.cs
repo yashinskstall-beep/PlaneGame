@@ -229,7 +229,7 @@ public class UIManager : MonoBehaviour
     {
         MainMenu mainMenu = FindObjectOfType<MainMenu>(true);
         if (mainMenu != null)
-            mainMenu.RefreshEconomyUI();
+            mainMenu.OnReturnedToMainMenu();
     }
 
     public void RestartGame()
@@ -262,7 +262,7 @@ public class UIManager : MonoBehaviour
         var mainMenu = FindObjectOfType<MainMenu>(true);
         if (mainMenu != null)
         {
-            mainMenu.RefreshEconomyUI();
+            mainMenu.OnReturnedToMainMenu();
             mainMenu.SetLevelsPanelOpen(true);
         }
     }
