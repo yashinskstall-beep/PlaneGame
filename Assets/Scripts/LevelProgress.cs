@@ -110,7 +110,7 @@ public static class LevelProgress
             return PlayerPrefs.GetFloat(CoinMultiplierValueKey, 1f);
 
         int level = GetCoinMultiplierLevel();
-        return 1f + (level - 1) * 0.1f;
+        return 1f + (level - 1) * 0.2f;
     }
 
     public static bool HasCompletedScene(string sceneName = null)

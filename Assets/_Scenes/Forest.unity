@@ -3850,6 +3850,16 @@ PrefabInstance:
       propertyPath: m_Name
       value: CanvasUI
       objectReference: {fileID: 0}
+    - target: {fileID: 1979036817927931650, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_text
+      value: 1X
+      objectReference: {fileID: 0}
+    - target: {fileID: 1979036817927931650, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_margin.z
+      value: 49.32912
+      objectReference: {fileID: 0}
     - target: {fileID: 2582287090924031817, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: m_text

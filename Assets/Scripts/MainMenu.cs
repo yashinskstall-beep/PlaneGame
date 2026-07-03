@@ -123,8 +123,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private int coinMultiplierLevel = 1;
     private int coinMultiplierClickCount = 0;
-    private const int maxCoinMultiplierLevel = 11;
-    private const float coinMultiplierStep = 0.1f;
+    private const float maxCoinMultiplierValue = 10f;
+    private const float coinMultiplierStep = 0.2f;
 
     private static readonly Color UpgradeCostAffordableColor = Color.white;
     private static readonly Color UpgradeCostUnaffordableColor = new Color(1f, 0.55f, 0.55f);
@@ -480,7 +480,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             case UpgradeAdOfferType.LaunchForce:
                 return launchForceLevel >= maxLaunchForceLevel;
             case UpgradeAdOfferType.CoinMultiplier:
-                return coinMultiplierLevel >= maxCoinMultiplierLevel;
+                return IsCoinMultiplierMax();
             default:
                 return true;
         }
@@ -692,9 +692,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void OnInsufficientCoinsForUpgrade(Button button, UpgradeAdOfferType offerType)
     {
+        RefreshAllUpgradeCostUI();
+
         PlayInsufficientCoinsShake(button, () =>
         {
             SyncPlayerCoins();
+            RefreshAllUpgradeCostUI();
             if (IsUpgradeAdBlocked(offerType) || CanAffordUpgrade(offerType))
                 return;
 
@@ -711,7 +714,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         switch (offerType)
         {
             case UpgradeAdOfferType.PlanePart:
-                return playerCoins >= currentCost;
+                return playerCoins >= GetPlaneUpgradeClickCost();
             case UpgradeAdOfferType.LaunchForce:
                 return playerCoins >= GetLaunchForceClickCost();
             case UpgradeAdOfferType.CoinMultiplier:
@@ -744,7 +747,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             case UpgradeAdOfferType.LaunchForce:
                 return launchForceLevel < maxLaunchForceLevel && playerCoins < GetLaunchForceClickCost();
             case UpgradeAdOfferType.CoinMultiplier:
-                return coinMultiplierLevel < maxCoinMultiplierLevel && playerCoins < GetCoinMultiplierClickCost();
+                return !IsCoinMultiplierMax() && playerCoins < GetCoinMultiplierClickCost();
             default:
                 return false;
         }
@@ -768,7 +771,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
                 adEligibleUpgradeButton = null;
         }
 
-        if (coinMultiplierUpgradeAdRevealed && (coinMultiplierLevel >= maxCoinMultiplierLevel || CanAffordUpgrade(UpgradeAdOfferType.CoinMultiplier)))
+        if (coinMultiplierUpgradeAdRevealed && (IsCoinMultiplierMax() || CanAffordUpgrade(UpgradeAdOfferType.CoinMultiplier)))
         {
             coinMultiplierUpgradeAdRevealed = false;
             if (adEligibleUpgradeButton == UpgradeAdOfferType.CoinMultiplier)
@@ -808,7 +811,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         if (increaseCoinMultiplierBtn != null)
         {
-            bool isMaxLevel = coinMultiplierLevel >= maxCoinMultiplierLevel;
+            bool isMaxLevel = IsCoinMultiplierMax();
             bool canAfford = !isMaxLevel && playerCoins >= GetCoinMultiplierClickCost();
 
             if (coinMultiplierAdMode)
@@ -830,7 +833,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             case UpgradeAdOfferType.LaunchForce:
                 return launchForceLevel >= maxLaunchForceLevel;
             case UpgradeAdOfferType.CoinMultiplier:
-                return coinMultiplierLevel >= maxCoinMultiplierLevel;
+                return IsCoinMultiplierMax();
             default:
                 return true;
         }
@@ -899,7 +902,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         RefreshPlaneUpgradeCost();
 
         UpdateCoinUI();
-        UpdateCostUI();
+        RefreshAllUpgradeCostUI();
         UpdateSliderUI();
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
@@ -930,7 +933,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         launchForceClickCount++;
         RefreshLaunchForceUpgradeCost();
 
-        UpdateLaunchForceCostUI();
+        RefreshAllUpgradeCostUI();
         UpdateLaunchForceLevelUI();
         UpdateLaunchForceSliderUI();
         UpdateIncreaseLaunchForceButtonInteractable();
@@ -949,7 +952,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void GrantFreeCoinMultiplierUpgradeClick()
     {
-        if (isUpgrading || coinMultiplierLevel >= maxCoinMultiplierLevel)
+        if (isUpgrading || IsCoinMultiplierMax())
             return;
 
         if (audioManager != null)
@@ -958,17 +961,18 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             VibrationManager.Instance.VibrateButtonClick();
 
         coinMultiplierClickCount++;
-        bool leveledUp = coinMultiplierClickCount >= clicksRequired;
+        bool batchComplete = coinMultiplierClickCount >= clicksRequired;
 
-        if (leveledUp)
+        if (batchComplete)
         {
             coinMultiplierClickCount = 0;
             coinMultiplierLevel++;
         }
 
+        ClampCoinMultiplierProgress();
         SaveCoinMultiplierProgress();
 
-        UpdateCoinMultiplierCostUI();
+        RefreshAllUpgradeCostUI();
         UpdateCoinMultiplierLevelUI();
         UpdateCoinMultiplierSliderUI();
         UpdateIncreaseCoinMultiplierButtonInteractable();
@@ -976,8 +980,10 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
 
-        if (leveledUp)
+        if (batchComplete || IsCoinMultiplierMax())
             SuppressAdAfterFullUpgrade(UpgradeAdOfferType.CoinMultiplier);
+        else
+            UpdateAdEligibilityAfterPaidUpgrade(UpgradeAdOfferType.CoinMultiplier);
     }
 
     private void ResolveSceneReferences()
@@ -1114,22 +1120,19 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private void RefreshAllUpgradeUI()
     {
         UpdateCoinUI();
-        UpdateCostUI();
+        RefreshAllUpgradeCostUI();
         UpdateSliderUI();
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
         UpdateBoostCostUI();
         UpdateBoostLevelUI();
-        UpdateLaunchForceCostUI();
         UpdateLaunchForceLevelUI();
         UpdateLaunchForceSliderUI();
         UpdateIncreaseLaunchForceButtonInteractable();
-        UpdateCoinMultiplierCostUI();
         UpdateCoinMultiplierLevelUI();
         UpdateCoinMultiplierSliderUI();
         UpdateIncreaseCoinMultiplierButtonInteractable();
         RefreshUpgradeAdStates();
-        RefreshUpgradeCostColors();
     }
 
     public void OnPointerClick(PointerEventData eventData)
@@ -1176,7 +1179,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         SyncPlayerCoins();
         RefreshPlaneUpgradeCost();
-        if (playerCoins < currentCost)
+        if (playerCoins < GetPlaneUpgradeClickCost())
         {
             HandleInsufficientCoinsClick(upgradeButton, UpgradeAdOfferType.PlanePart);
             return;
@@ -1193,7 +1196,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         RefreshPlaneUpgradeCost();
 
         UpdateCoinUI();
-        UpdateCostUI();
+        RefreshAllUpgradeCostUI();
         UpdateSliderUI();
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
@@ -1240,7 +1243,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         currentIndex++;
         clickCount = 0;
         UpdateSliderUI();
-        UpdateCostUI();
+        RefreshAllUpgradeCostUI();
 
         // Step 4: Transition camera back to main menu
         yield return StartCoroutine(cameraManager.TransitionToTarget(cameraManager.mainMenuPosition, cameraTransitionDuration));
@@ -1291,7 +1294,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         RefreshLaunchForceUpgradeCost();
         UpdateLaunchForceSliderUI();
         UpdateLaunchForceLevelUI();
-        UpdateLaunchForceCostUI();
+        RefreshAllUpgradeCostUI();
 
         // Step 3: Transition camera back to main menu
         yield return StartCoroutine(cameraManager.TransitionToTarget(cameraManager.mainMenuPosition, cameraTransitionDuration));
@@ -1789,7 +1792,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         SyncPlayerCoins();
         RefreshPlaneUpgradeCost();
         bool atMax = IsFullyUpgraded();
-        bool canAfford = playerCoins >= currentCost;
+        bool canAfford = playerCoins >= GetPlaneUpgradeClickCost();
         string amount = atMax ? "MAX" : FormatNumber(currentCost);
         costText.text = amount;
         ApplyUpgradeCostTextColor(costText, canAfford, atMax);
@@ -1811,18 +1814,14 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         text.ForceMeshUpdate(true, true);
     }
 
-    private void RefreshUpgradeCostColors()
+    private void RefreshAllUpgradeCostUI()
     {
         SyncPlayerCoins();
-
-        if (costText != null)
-            ApplyUpgradeCostTextColor(costText, playerCoins >= currentCost, IsFullyUpgraded());
-
-        if (launchForceCostText != null)
-            ApplyUpgradeCostTextColor(launchForceCostText, playerCoins >= GetLaunchForceClickCost(), launchForceLevel >= maxLaunchForceLevel);
-
-        if (coinMultiplierCostText != null)
-            ApplyUpgradeCostTextColor(coinMultiplierCostText, playerCoins >= GetCoinMultiplierClickCost(), coinMultiplierLevel >= maxCoinMultiplierLevel);
+        RefreshPlaneUpgradeCost();
+        RefreshLaunchForceUpgradeCost();
+        UpdateCostUI();
+        UpdateLaunchForceCostUI();
+        UpdateCoinMultiplierCostUI();
     }
 
     private void UpdateSliderUI()
@@ -2153,17 +2152,49 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         RefreshUpgradeAdStates();
     }
 
+    private int GetMaxCoinMultiplierTotalClicks()
+    {
+        return Mathf.RoundToInt((maxCoinMultiplierValue - 1f) / coinMultiplierStep);
+    }
+
+    private bool IsCoinMultiplierMax()
+    {
+        return GetCoinMultiplierTotalClicks() >= GetMaxCoinMultiplierTotalClicks();
+    }
+
+    private void ClampCoinMultiplierProgress()
+    {
+        int maxClicks = GetMaxCoinMultiplierTotalClicks();
+        int totalClicks = Mathf.Clamp(GetCoinMultiplierTotalClicks(), 0, maxClicks);
+        coinMultiplierLevel = totalClicks / clicksRequired + 1;
+        coinMultiplierClickCount = totalClicks % clicksRequired;
+    }
+
+    private int GetCoinMultiplierTotalClicks()
+    {
+        return (coinMultiplierLevel - 1) * clicksRequired + coinMultiplierClickCount;
+    }
+
+    private static string FormatCoinMultiplierDisplay(float value)
+    {
+        float rounded = Mathf.Round(value * 10f) / 10f;
+        if (Mathf.Approximately(rounded, Mathf.Round(rounded)))
+            return $"{Mathf.RoundToInt(rounded)}x";
+
+        return $"{rounded:0.#}x";
+    }
+
     private float GetCoinMultiplierValue()
     {
-        return 1f + (coinMultiplierLevel - 1) * coinMultiplierStep;
+        return 1f + GetCoinMultiplierTotalClicks() * coinMultiplierStep;
     }
 
     private int GetCoinMultiplierClickCost()
     {
-        if (coinMultiplierLevel >= maxCoinMultiplierLevel)
+        if (IsCoinMultiplierMax())
             return 0;
 
-        return GetTrackedUpgradeCost(UpgradeCostStart, coinMultiplierLevel - 1);
+        return GetTrackedUpgradeCost(UpgradeCostStart, GetCoinMultiplierTotalClicks());
     }
 
     private void SaveCoinMultiplierProgress()
@@ -2180,7 +2211,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             return;
 
         SyncPlayerCoins();
-        bool atMax = coinMultiplierLevel >= maxCoinMultiplierLevel;
+        bool atMax = IsCoinMultiplierMax();
         bool canAfford = playerCoins >= GetCoinMultiplierClickCost();
         string amount = atMax ? "MAX" : FormatNumber(GetCoinMultiplierClickCost());
         coinMultiplierCostText.text = amount;
@@ -2190,7 +2221,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private void UpdateCoinMultiplierLevelUI()
     {
         if (coinMultiplierLevelText != null)
-            coinMultiplierLevelText.text = $"{GetCoinMultiplierValue():0.#}x";
+            coinMultiplierLevelText.text = FormatCoinMultiplierDisplay(GetCoinMultiplierValue());
     }
 
     private void UpdateCoinMultiplierSliderUI()
@@ -2198,7 +2229,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (coinMultiplierSlider == null)
             return;
 
-        if (coinMultiplierLevel >= maxCoinMultiplierLevel)
+        if (IsCoinMultiplierMax())
         {
             coinMultiplierSlider.minValue = 0;
             coinMultiplierSlider.maxValue = 1;
@@ -2230,15 +2261,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         ResolveUIReferences();
         SyncPlayerCoins();
         UpdateCoinUI();
-        UpdateCostUI();
-        UpdateLaunchForceCostUI();
-        UpdateCoinMultiplierCostUI();
+        RefreshAllUpgradeCostUI();
         UpdateButtonInteractable();
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
         UpdateIncreaseCoinMultiplierButtonInteractable();
         RefreshUpgradeAdStates();
-        RefreshUpgradeCostColors();
     }
 
     /// <summary>
@@ -2361,13 +2389,25 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private string FormatNumber(float num)
     {
-        if (num >= 1_000_000_000)
-            return (num / 1_000_000_000f).ToString("0.#") + "B";
-        if (num >= 1_000_000)
-            return (num / 1_000_000f).ToString("0.#") + "M";
-        if (num >= 1_000)
-            return (num / 1_000f).ToString("0.#") + "K";
-        return num.ToString("0");
+        if (num >= 1_000_000_000f)
+            return FormatCompactValue(num / 1_000_000_000f, "b");
+        if (num >= 1_000_000f)
+            return FormatCompactValue(num / 1_000_000f, "m");
+        if (num >= 1_000f)
+            return FormatCompactValue(num / 1_000f, "k");
+        return Mathf.RoundToInt(num).ToString();
+    }
+
+    private static string FormatCompactValue(float value, string suffix)
+    {
+        float roundedToHundredths = Mathf.Round(value * 100f) / 100f;
+        if (Mathf.Approximately(roundedToHundredths, Mathf.Round(roundedToHundredths)))
+            return $"{Mathf.RoundToInt(roundedToHundredths)}{suffix}";
+
+        if (Mathf.Approximately(value * 10f, Mathf.Round(value * 10f)))
+            return $"{Mathf.Round(value * 10f) / 10f:0.#}{suffix}";
+
+        return $"{roundedToHundredths:0.##}{suffix}";
     }
 
     public void BoostEnableBtn()
@@ -2461,7 +2501,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         launchForceClickCount++;
         RefreshLaunchForceUpgradeCost();
 
-        UpdateLaunchForceCostUI();
+        RefreshAllUpgradeCostUI();
         UpdateLaunchForceLevelUI();
         UpdateLaunchForceSliderUI();
         UpdateIncreaseLaunchForceButtonInteractable();
@@ -2484,11 +2524,17 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         coinMultiplierLevel = PlayerPrefs.GetInt(LevelProgress.CoinMultiplierLevelKey, 1);
         coinMultiplierClickCount = PlayerPrefs.GetInt(LevelProgress.CoinMultiplierClickCountKey, 0);
-        coinMultiplierLevel = Mathf.Clamp(coinMultiplierLevel, 1, maxCoinMultiplierLevel);
-        coinMultiplierClickCount = Mathf.Clamp(coinMultiplierClickCount, 0, clicksRequired - 1);
 
-        if (coinMultiplierLevel >= maxCoinMultiplierLevel)
-            coinMultiplierClickCount = 0;
+        if (PlayerPrefs.HasKey(LevelProgress.CoinMultiplierValueKey))
+        {
+            float savedValue = PlayerPrefs.GetFloat(LevelProgress.CoinMultiplierValueKey, 1f);
+            int totalClicks = Mathf.RoundToInt((savedValue - 1f) / coinMultiplierStep);
+            totalClicks = Mathf.Max(0, totalClicks);
+            coinMultiplierLevel = totalClicks / clicksRequired + 1;
+            coinMultiplierClickCount = totalClicks % clicksRequired;
+        }
+
+        ClampCoinMultiplierProgress();
     }
 
     public void IncreaseCoinMultiplier()
@@ -2496,7 +2542,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (isUpgrading)
             return;
 
-        if (coinMultiplierLevel >= maxCoinMultiplierLevel)
+        if (IsCoinMultiplierMax())
             return;
 
         int cost = GetCoinMultiplierClickCost();
@@ -2516,17 +2562,18 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateCoinUI();
 
         coinMultiplierClickCount++;
-        bool leveledUp = coinMultiplierClickCount >= clicksRequired;
+        bool batchComplete = coinMultiplierClickCount >= clicksRequired;
 
-        if (leveledUp)
+        if (batchComplete)
         {
             coinMultiplierClickCount = 0;
             coinMultiplierLevel++;
         }
 
+        ClampCoinMultiplierProgress();
         SaveCoinMultiplierProgress();
 
-        UpdateCoinMultiplierCostUI();
+        RefreshAllUpgradeCostUI();
         UpdateCoinMultiplierLevelUI();
         UpdateCoinMultiplierSliderUI();
         UpdateIncreaseCoinMultiplierButtonInteractable();
@@ -2534,7 +2581,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateBoostButtonInteractable();
         UpdateIncreaseLaunchForceButtonInteractable();
 
-        if (leveledUp)
+        if (batchComplete || IsCoinMultiplierMax())
             SuppressAdAfterFullUpgrade(UpgradeAdOfferType.CoinMultiplier);
         else
             UpdateAdEligibilityAfterPaidUpgrade(UpgradeAdOfferType.CoinMultiplier);
