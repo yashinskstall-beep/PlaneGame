@@ -5717,7 +5717,7 @@ MonoBehaviour:
   upgradeParticleEffect: {fileID: 2522031522935134172, guid: 93bb6780ec7e87e46bac8f1fca601cfc,
     type: 3}
   upgradeParticleYOffset: 0
-  upgradeParticleScale: 0.12
+  upgradeParticleScale: 1
   cheatCoinsButton: {fileID: 7251148230480090393}
   showCheatCoinsOnAndroid: 0
   debugUpgradeVfx: 1

@@ -5,6 +5,8 @@ public class PlaneUpgradePartEntry
 {
     public GameObject part;
     public Transform cameraFocusPoint;
+    [Tooltip("Smoke/VFX child under this part (e.g. UpgradeSmoke). Drag the child here, or leave empty to auto-find.")]
+    public Transform upgradeVfxPoint;
 }
 
 [System.Serializable]
@@ -76,6 +78,90 @@ public class PlaneUpgradeConfig : MonoBehaviour
         return entry.part != null ? entry.part.transform : null;
     }
 
+    public Transform GetVfxAnchor(int index)
+    {
+        if (upgradeParts == null || index < 0 || index >= upgradeParts.Length)
+            return null;
+
+        PlaneUpgradePartEntry entry = upgradeParts[index];
+        if (entry == null)
+            return null;
+
+        if (entry.upgradeVfxPoint != null)
+            return entry.upgradeVfxPoint;
+
+        if (entry.cameraFocusPoint != null)
+            return entry.cameraFocusPoint;
+
+        return entry.part != null ? entry.part.transform : null;
+    }
+
+    public GameObject GetUpgradeVfxRoot(int index)
+    {
+        if (upgradeParts == null || index < 0 || index >= upgradeParts.Length)
+            return null;
+
+        PlaneUpgradePartEntry entry = upgradeParts[index];
+        if (entry?.part == null)
+            return null;
+
+        if (entry.upgradeVfxPoint != null && entry.upgradeVfxPoint.gameObject != entry.part)
+            return entry.upgradeVfxPoint.gameObject;
+
+        Transform namedChild = entry.part.transform.Find("UpgradeSmoke");
+        if (namedChild != null && namedChild.gameObject != entry.part)
+            return namedChild.gameObject;
+
+        foreach (ParticleSystem ps in entry.part.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            if (ps == null || ps.transform == entry.part.transform)
+                continue;
+
+            if (!ps.transform.IsChildOf(entry.part.transform))
+                continue;
+
+            return ps.gameObject;
+        }
+
+        return null;
+    }
+
+    public void SuppressAllUpgradeVfx()
+    {
+        if (upgradeParts == null)
+            return;
+
+        for (int i = 0; i < upgradeParts.Length; i++)
+        {
+            PlaneUpgradePartEntry entry = upgradeParts[i];
+            if (entry?.part == null)
+                continue;
+
+            StopAndHideUpgradeVfx(entry.part, GetUpgradeVfxRoot(i));
+        }
+    }
+
+    public static void StopAndHideUpgradeVfx(GameObject part, GameObject vfxRoot)
+    {
+        if (vfxRoot == null)
+            return;
+
+        foreach (ParticleSystem ps in vfxRoot.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            if (ps == null)
+                continue;
+
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        // Never disable the unlocked part — only hide a dedicated smoke child.
+        if (part != null && vfxRoot != part && vfxRoot.transform.IsChildOf(part.transform))
+            vfxRoot.SetActive(false);
+
+        if (part != null && IsPartUnlocked(part))
+            part.SetActive(true);
+    }
+
     public static bool IsPartUnlocked(GameObject part)
     {
         if (part == null)
@@ -113,6 +199,7 @@ public class PlaneUpgradeConfig : MonoBehaviour
 
         ApplyGlideForCurrentUnlocks();
         RefreshPlaneEffects();
+        SuppressAllUpgradeVfx();
     }
 
     public void ApplyGlideForCurrentUnlocks()

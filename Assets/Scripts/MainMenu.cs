@@ -71,11 +71,11 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public float particleEffectDuration = 1.0f;
 
     [Header("Upgrade Particle")]
-    [Tooltip("Spawned at the part when upgrading if PlaneUpgradeConfig has no in-scene VFX. Assign a particle prefab.")]
+    [Tooltip("Optional fallback if a part has no in-scene smoke child. Leave empty when each part has its own UpgradeSmoke child.")]
     public GameObject upgradeParticleEffect;
     public float upgradeParticleYOffset = 0f;
     [Tooltip("Uniform size of the spawned upgrade particle.")]
-    public float upgradeParticleScale = 0.12f;
+    public float upgradeParticleScale = 1f;
 
     [Header("Debug")]
     [SerializeField] private GameObject cheatCoinsButton;
@@ -101,6 +101,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     [SerializeField] private int[] launchForceCosts = { 50, 175, 300 };
     [Tooltip("Optional slingshot band visual. Auto-resolved from drag launcher if empty.")]
     public RubberBandVisual rubberBandVisual;
+    [Tooltip("Optional slingshot smoke spawn point. Auto-finds SlingshotCamPos if empty.")]
+    public Transform slingshotUpgradeVfxPoint;
 
     [Header("Boost Upgrade")]
     [Tooltip("Boost level durations. Level 1 uses index 0, level 5 uses index 4.")]
@@ -285,6 +287,38 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         ApplyCheatCoinsButtonVisibility();
         SetupRewardedAdUpgrades();
         RefreshAllUpgradeUI();
+        LogUpgradeVfxStartup();
+    }
+
+    private void LogUpgradeVfxStartup()
+    {
+        if (!debugUpgradeVfx)
+            return;
+
+        string prefabInfo = upgradeParticleEffect != null
+            ? $"{upgradeParticleEffect.name} (sceneInstance={IsSceneInstance(upgradeParticleEffect)})"
+            : "NOT ASSIGNED";
+
+        int partCount = planeUpgradeConfig != null ? planeUpgradeConfig.PartCount : 0;
+        Debug.Log(
+            $"[UpgradeVFX] Startup: prefab={prefabInfo}, scale={upgradeParticleScale}, yOffset={upgradeParticleYOffset}, " +
+            $"planeUpgradeConfig={(planeUpgradeConfig != null ? planeUpgradeConfig.name : "NULL")}, partCount={partCount}",
+            this);
+
+        if (planeUpgradeConfig == null || partCount == 0)
+            Debug.LogWarning("[UpgradeVFX] Startup: PlaneUpgradeConfig missing or has no upgrade parts.", this);
+
+        if (planeUpgradeConfig != null)
+        {
+            for (int i = 0; i < planeUpgradeConfig.PartCount; i++)
+            {
+                GameObject part = planeUpgradeConfig.GetPart(i);
+                GameObject vfx = planeUpgradeConfig.GetUpgradeVfxRoot(i);
+                Debug.Log(
+                    $"[UpgradeVFX] Startup part[{i}]: part='{part?.name ?? "null"}' vfxChild='{vfx?.name ?? "NOT FOUND"}'",
+                    this);
+            }
+        }
     }
 
     public string[] GetUpgradePartNames()
@@ -365,6 +399,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         LoadBoostLevel();
         LoadCoinMultiplierLevel();
         MigrateUpgradeAdsUnlockedFromProgress();
+        planeUpgradeConfig?.SuppressAllUpgradeVfx();
     }
 
     private void MigrateUpgradeAdsUnlockedFromProgress()
@@ -1232,6 +1267,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         Transform focusPoint = planeUpgradeConfig != null
             ? planeUpgradeConfig.GetFocusPoint(currentIndex)
             : null;
+        LogUpgradeVfx($"UpgradeSequence start: partIndex={currentIndex}, focus='{GetHierarchyPath(focusPoint)}', prefab={(upgradeParticleEffect != null ? upgradeParticleEffect.name : "NULL")}");
         if (focusPoint != null)
             yield return StartCoroutine(cameraManager.TransitionToTarget(focusPoint, cameraTransitionDuration));
 
@@ -1327,6 +1363,47 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         return null;
     }
 
+    private GameObject GetSlingshotUpgradeVfxRoot(GameObject slingshotTarget)
+    {
+        if (slingshotUpgradeVfxPoint != null)
+            return slingshotUpgradeVfxPoint.gameObject;
+
+        if (slingshotTarget == null)
+            return null;
+
+        Transform namedChild = slingshotTarget.transform.Find("UpgradeSmoke");
+        if (namedChild != null)
+            return namedChild.gameObject;
+
+        foreach (ParticleSystem ps in slingshotTarget.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            if (ps == null || ps.transform == slingshotTarget.transform)
+                continue;
+
+            return ps.gameObject;
+        }
+
+        return null;
+    }
+
+    private void CollectInSceneUpgradeVfx(
+        GameObject vfxRoot,
+        GameObject activationRoot,
+        List<ParticleSystem> particleSystems)
+    {
+        if (vfxRoot == null || particleSystems == null)
+            return;
+
+        EnsureActiveForPlayback(vfxRoot, activationRoot);
+        vfxRoot.SetActive(true);
+        AddParticleSystemsFromRoot(vfxRoot, particleSystems);
+    }
+
+    private static void HideUpgradeVfxRoot(GameObject part, GameObject vfxRoot)
+    {
+        PlaneUpgradeConfig.StopAndHideUpgradeVfx(part, vfxRoot);
+    }
+
     private void ApplySlingshotUpgradeLevel()
     {
         launchForceLevel = Mathf.Clamp(launchForceLevel + 1, 1, maxLaunchForceLevel);
@@ -1351,34 +1428,39 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         ApplySlingshotUpgradeLevel();
 
+        GameObject vfxRoot = GetSlingshotUpgradeVfxRoot(slingshotTarget);
         var spawnedInstances = new List<GameObject>();
         var particleSystems = new List<ParticleSystem>();
 
-        TryAddUpgradeParticlePrefab(upgradeParticleEffect, slingshotTarget, spawnedInstances, particleSystems);
-        AddParticleSystemsFromRoot(slingshotTarget, particleSystems);
-
-        bool hasParticles = particleSystems.Count > 0;
-
-        if (!hasParticles)
+        if (vfxRoot != null)
         {
+            CollectInSceneUpgradeVfx(vfxRoot, slingshotTarget, particleSystems);
+            LogUpgradeVfx($"Slingshot: using in-scene VFX '{vfxRoot.name}' under '{GetHierarchyPath(vfxRoot.transform)}'.");
+        }
+        else if (upgradeParticleEffect != null)
+        {
+            Transform anchor = slingshotUpgradeVfxPoint != null
+                ? slingshotUpgradeVfxPoint
+                : slingshotTarget.transform;
+            TryAddUpgradeParticlePrefab(upgradeParticleEffect, anchor, slingshotTarget, spawnedInstances, particleSystems);
+            LogUpgradeVfxWarning("Slingshot: no UpgradeSmoke child found — used spawn fallback.");
+        }
+
+        if (particleSystems.Count == 0)
+        {
+            LogUpgradeVfxWarning("Slingshot: no particle systems to play.");
             yield return new WaitForSeconds(particleEffectDuration);
             yield break;
         }
 
-        ActivateVfxChildren(slingshotTarget);
         yield return null;
 
-        foreach (ParticleSystem ps in particleSystems)
-        {
-            if (ps == null || !IsSceneInstance(ps.gameObject))
-                continue;
+        var activationRoots = new List<GameObject> { slingshotTarget };
+        if (vfxRoot != null)
+            activationRoots.Add(vfxRoot);
+        activationRoots.AddRange(spawnedInstances);
 
-            ps.gameObject.SetActive(true);
-            var emission = ps.emission;
-            emission.enabled = true;
-            ps.Clear(true);
-            ps.Play(true);
-        }
+        PlayCollectedUpgradeParticles(particleSystems, activationRoots, $"Slingshot {slingshotTarget.name}");
 
         float waitDuration = Mathf.Max(
             particleEffectDuration,
@@ -1399,6 +1481,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
             ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         }
+
+        HideUpgradeVfxRoot(slingshotTarget, vfxRoot);
     }
 
     private Transform GetSlingshotCameraFocus()
@@ -1450,51 +1534,64 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         if (part == null)
         {
+            LogUpgradeVfxWarning($"Part upgrade index {index}: part GameObject is NULL (check PlaneUpgradeConfig.upgradeParts).");
             yield return new WaitForSeconds(particleEffectDuration);
             yield break;
         }
 
-        if (!part.activeSelf && planeUpgradeConfig != null)
+        bool wasInactive = !part.activeSelf;
+        if (wasInactive && planeUpgradeConfig != null)
             planeUpgradeConfig.UnlockPart(index);
 
+        GameObject vfxRoot = planeUpgradeConfig != null ? planeUpgradeConfig.GetUpgradeVfxRoot(index) : null;
         var spawnedInstances = new List<GameObject>();
         var particleSystems = new List<ParticleSystem>();
 
-        TryAddUpgradeParticlePrefab(upgradeParticleEffect, part, spawnedInstances, particleSystems);
+        LogUpgradeVfx(
+            $"Part upgrade index {index}: part='{part.name}' active={part.activeSelf} (wasInactive={wasInactive}), " +
+            $"vfxChild='{(vfxRoot != null ? GetHierarchyPath(vfxRoot.transform) : "NOT FOUND")}'");
 
-        // In-scene particle systems on the part (smoke children, etc.)
-        AddParticleSystemsFromRoot(part, particleSystems);
+        if (vfxRoot != null)
+            CollectInSceneUpgradeVfx(vfxRoot, part, particleSystems);
+        else if (upgradeParticleEffect != null)
+        {
+            Transform anchor = planeUpgradeConfig != null
+                ? planeUpgradeConfig.GetVfxAnchor(index)
+                : part.transform;
+            if (anchor == null)
+                anchor = part.transform;
+
+            TryAddUpgradeParticlePrefab(upgradeParticleEffect, anchor, part, spawnedInstances, particleSystems);
+            LogUpgradeVfxWarning($"Part upgrade index {index}: no smoke child on part — used spawn fallback.");
+        }
 
         PlaneEffects planeEffects = GetPlaneEffects();
 
-        bool hasParticles = particleSystems.Count > 0;
-
-        if (!hasParticles)
+        if (particleSystems.Count == 0)
         {
+            LogUpgradeVfxWarning($"Part upgrade index {index}: NO particle systems found on part child.");
             yield return new WaitForSeconds(particleEffectDuration);
             planeEffects?.RefreshFlightTrails();
             yield break;
         }
 
-        ActivateVfxChildren(part);
+        var activationRoots = new List<GameObject> { part };
+        if (vfxRoot != null)
+            activationRoots.Add(vfxRoot);
+        activationRoots.AddRange(spawnedInstances);
+
         yield return null;
 
-        foreach (ParticleSystem ps in particleSystems)
-        {
-            if (ps == null || !IsSceneInstance(ps.gameObject))
-                continue;
+        int playedCount = PlayCollectedUpgradeParticles(particleSystems, activationRoots, $"Part[{index}] {part.name}");
 
-            ps.gameObject.SetActive(true);
-            var emission = ps.emission;
-            emission.enabled = true;
-            ps.Clear(true);
-            ps.Play(true);
-        }
+        if (playedCount == 0)
+            LogUpgradeVfxWarning($"Part upgrade index {index}: particle systems were listed ({particleSystems.Count}) but none played.");
 
         float waitDuration = Mathf.Max(
             particleEffectDuration,
             GetParticleDuration(particleSystems.ToArray()));
 
+        LogUpgradeVfx($"Part upgrade index {index}: waiting {waitDuration:F2}s for particles.");
         yield return new WaitForSeconds(waitDuration > 0f ? waitDuration : particleEffectDuration);
 
         foreach (GameObject spawned in spawnedInstances)
@@ -1504,6 +1601,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
 
         CleanupUpgradeVfx(particleSystems, planeEffects);
+        HideUpgradeVfxRoot(part, vfxRoot);
+        LogUpgradeVfx($"Part upgrade index {index}: finished and cleaned up VFX.");
     }
 
     private PlaneEffects GetPlaneEffects()
@@ -1534,28 +1633,143 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void TryAddUpgradeParticlePrefab(
         GameObject prefab,
-        GameObject part,
+        Transform spawnAnchor,
+        GameObject activationRoot,
         List<GameObject> spawnedInstances,
         List<ParticleSystem> particleSystems)
     {
-        if (prefab == null || part == null)
-            return;
-
-        if (IsSceneInstance(prefab))
+        if (prefab == null)
         {
-            EnsureActiveForPlayback(prefab, part);
-            AddParticleSystemsFromRoot(prefab, particleSystems);
+            LogUpgradeVfxWarning("TryAddUpgradeParticlePrefab: upgradeParticleEffect prefab is not assigned on MainMenu.");
             return;
         }
 
-        GameObject instance = Instantiate(prefab, part.transform);
-        instance.transform.localPosition = GetUpgradeParticleLocalPosition(part);
-        instance.transform.localRotation = Quaternion.identity;
-        float scale = Mathf.Max(0.01f, upgradeParticleScale);
-        instance.transform.localScale = Vector3.one * scale;
+        if (spawnAnchor == null)
+        {
+            LogUpgradeVfxWarning($"TryAddUpgradeParticlePrefab: spawn anchor is null (activationRoot='{activationRoot?.name ?? "null"}').");
+            return;
+        }
+
+        if (IsSceneInstance(prefab))
+        {
+            LogUpgradeVfx($"TryAddUpgradeParticlePrefab: using scene instance '{prefab.name}' at anchor '{spawnAnchor.name}'.");
+            EnsureActiveForPlayback(prefab, activationRoot);
+            int before = particleSystems.Count;
+            AddParticleSystemsFromRoot(prefab, particleSystems);
+            LogUpgradeVfx($"TryAddUpgradeParticlePrefab: scene instance added {particleSystems.Count - before} particle system(s).");
+            return;
+        }
+
+        Transform parentTransform = activationRoot != null ? activationRoot.transform : spawnAnchor;
+        bool useMeshCenter = activationRoot != null && spawnAnchor == activationRoot.transform;
+
+        GameObject instance = Instantiate(prefab, parentTransform, false);
+
+        if (useMeshCenter)
+            instance.transform.localPosition = GetUpgradeParticleLocalPosition(activationRoot);
+        else if (spawnAnchor != parentTransform)
+            instance.transform.position = spawnAnchor.position + Vector3.up * upgradeParticleYOffset;
+        else
+            instance.transform.localPosition = new Vector3(0f, upgradeParticleYOffset, 0f);
+
+        instance.transform.rotation = Quaternion.identity;
+        float scaleMultiplier = Mathf.Max(0.01f, upgradeParticleScale);
+        instance.transform.localScale = prefab.transform.localScale * scaleMultiplier;
+
+        instance.SetActive(false);
+        PrepareSpawnedUpgradeParticleSystems(instance);
         instance.SetActive(true);
         spawnedInstances.Add(instance);
+
+        int beforeCount = particleSystems.Count;
         AddParticleSystemsFromRoot(instance, particleSystems);
+        int added = particleSystems.Count - beforeCount;
+
+        LogUpgradeVfx(
+            $"TryAddUpgradeParticlePrefab: spawned '{instance.name}' parent='{GetHierarchyPath(parentTransform)}' " +
+            $"worldPos={instance.transform.position} localScale={instance.transform.localScale}, " +
+            $"added {added} particle system(s).");
+    }
+
+    private static void PrepareSpawnedUpgradeParticleSystems(GameObject instance)
+    {
+        if (instance == null)
+            return;
+
+        foreach (ParticleSystem ps in instance.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            if (ps == null)
+                continue;
+
+            ParticleSystem.MainModule main = ps.main;
+            main.playOnAwake = false;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+        }
+    }
+
+    private int PlayCollectedUpgradeParticles(
+        List<ParticleSystem> particleSystems,
+        List<GameObject> activationRoots,
+        string context)
+    {
+        if (activationRoots != null)
+        {
+            foreach (GameObject root in activationRoots)
+            {
+                if (root == null)
+                    continue;
+
+                int activated = ActivateVfxChildren(root);
+                if (activated > 0)
+                    LogUpgradeVfx($"{context}: activated {activated} inactive VFX child object(s) on '{root.name}'.");
+            }
+        }
+
+        int played = 0;
+        int skipped = 0;
+
+        foreach (ParticleSystem ps in particleSystems)
+        {
+            if (ps == null)
+            {
+                skipped++;
+                continue;
+            }
+
+            if (!IsSceneInstance(ps.gameObject))
+            {
+                skipped++;
+                LogUpgradeVfx($"{context}: skipped non-scene particle '{ps.name}'.");
+                continue;
+            }
+
+            ps.gameObject.SetActive(true);
+            var emission = ps.emission;
+            emission.enabled = true;
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            ps.Play(true);
+            played++;
+            LogUpgradeVfx($"{context}: playing '{ps.name}' at worldPos {ps.transform.position} (path: {GetHierarchyPath(ps.transform)}).");
+        }
+
+        LogUpgradeVfx($"{context}: played {played}, skipped {skipped}, listed {particleSystems.Count}.");
+        return played;
+    }
+
+    private void LogUpgradeVfx(string message)
+    {
+        if (!debugUpgradeVfx)
+            return;
+
+        Debug.Log($"[UpgradeVFX] {message}", this);
+    }
+
+    private void LogUpgradeVfxWarning(string message)
+    {
+        if (!debugUpgradeVfx)
+            return;
+
+        Debug.LogWarning($"[UpgradeVFX] {message}", this);
     }
 
     private Vector3 GetUpgradeParticleLocalPosition(GameObject part)
@@ -1677,22 +1891,17 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         foreach (ParticleSystem ps in root.GetComponentsInChildren<ParticleSystem>(true))
         {
-            if (ps != null && IsSceneInstance(ps.gameObject) && !particleSystems.Contains(ps))
-                particleSystems.Add(ps);
+            if (ps == null || !IsSceneInstance(ps.gameObject) || particleSystems.Contains(ps))
+                continue;
+
+            particleSystems.Add(ps);
         }
     }
 
     private void CleanupAllPlaneUpgradeVfx()
     {
-        if (planeUpgradeConfig == null || planeUpgradeConfig.planeController == null)
-            return;
-
-        GameObject plane = planeUpgradeConfig.planeController.gameObject;
-        PlaneEffects planeEffects = plane.GetComponent<PlaneEffects>();
-        var particleSystems = new List<ParticleSystem>();
-
-        AddParticleSystemsFromRoot(plane, particleSystems);
-        CleanupUpgradeVfx(particleSystems, planeEffects);
+        planeUpgradeConfig?.SuppressAllUpgradeVfx();
+        GetPlaneEffects()?.RefreshFlightTrails();
     }
 
     private static bool IsSceneInstance(GameObject go)
