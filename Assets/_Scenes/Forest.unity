@@ -3882,6 +3882,46 @@ PrefabInstance:
       propertyPath: m_Name
       value: CanvasUI
       objectReference: {fileID: 0}
+    - target: {fileID: 4801040401647278226, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4801040401647278226, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4801040401647278226, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4801040401647278226, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5455810335832615054, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5455810335832615054, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5455810335832615054, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5455810335832615054, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5501427275199570453, guid: 2fbd472d455b3884cbeaadd144a002c8,
         type: 3}
       propertyPath: audioManager
@@ -3922,6 +3962,9 @@ PrefabInstance:
       propertyPath: coinMultiplierUpgradeAdVisuals.coinSection
       value: 
       objectReference: {fileID: 666125821}
+      propertyPath: planeUpgradeConfig
+      value: 
+      objectReference: {fileID: 549470101}
     - target: {fileID: 5589952435296312781, guid: 2fbd472d455b3884cbeaadd144a002c8,
         type: 3}
       propertyPath: audioManager
@@ -3930,6 +3973,26 @@ PrefabInstance:
     - target: {fileID: 5740151395065417169, guid: 2fbd472d455b3884cbeaadd144a002c8,
         type: 3}
       propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6322351051606303889, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6322351051606303889, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6322351051606303889, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6322351051606303889, guid: 2fbd472d455b3884cbeaadd144a002c8,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8123243743718294708, guid: 2fbd472d455b3884cbeaadd144a002c8,
