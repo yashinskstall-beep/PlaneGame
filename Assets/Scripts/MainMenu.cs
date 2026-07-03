@@ -1025,7 +1025,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (parent == null)
             return;
 
-        if (parent.name == "BuyBoostParent" || parent.name == "BuyBoostBtnParent")
+        if (parent.name == "BuyBoostParent" || parent.name == "BuyBoostBtnParent" ||
+            parent.name == "BuyBoostButtonParent")
             boostEnableBtnParent = parent.gameObject;
     }
 
@@ -1050,7 +1051,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
                 continue;
 
             string objectName = tmp.gameObject.name;
-            if (objectName == "Text (TMP)" || objectName == "Level" || objectName == "BoostLevel")
+            if (objectName == "LevelText" || objectName == "Text (TMP)" || objectName == "Level" ||
+                objectName == "BoostLevel")
             {
                 boostLevelText = tmp;
                 return;

@@ -2339,6 +2339,7 @@ MonoBehaviour:
   notEnoughCoinsU: {fileID: 0}
   boostSlideOffsetX: 500
   boostSlideDuration: 0.4
+  boostMaxLevelHideDelay: 10
   cameraTransitionDuration: 1.5
   particleEffectDuration: 1
   upgradeParticleEffect: {fileID: 2522031522935134172, guid: 93bb6780ec7e87e46bac8f1fca601cfc,
