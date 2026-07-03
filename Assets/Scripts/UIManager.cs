@@ -185,7 +185,7 @@ public class UIManager : MonoBehaviour
             : 1f;
         int coinsEarned = planeController.LastFlightWasMisfire
             ? 0
-            : Mathf.RoundToInt(distance * 2 * coinMultiplier);
+            : Mathf.RoundToInt(distance * coinMultiplier);
 
         if (titleText != null)
         {

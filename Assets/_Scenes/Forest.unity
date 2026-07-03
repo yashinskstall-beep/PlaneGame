@@ -3850,6 +3850,36 @@ PrefabInstance:
       propertyPath: m_Name
       value: CanvasUI
       objectReference: {fileID: 0}
+    - target: {fileID: 2582287090924031817, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_text
+      value: 50
+      objectReference: {fileID: 0}
+    - target: {fileID: 2582287090924031817, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_fontSize
+      value: 16
+      objectReference: {fileID: 0}
+    - target: {fileID: 2582287090924031817, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_fontSizeBase
+      value: 16
+      objectReference: {fileID: 0}
+    - target: {fileID: 3152403001285078238, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_text
+      value: 50
+      objectReference: {fileID: 0}
+    - target: {fileID: 3152403001285078238, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_fontSize
+      value: 16
+      objectReference: {fileID: 0}
+    - target: {fileID: 3152403001285078238, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_fontSizeBase
+      value: 16
+      objectReference: {fileID: 0}
     - target: {fileID: 3234595453491450524, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: audioManager
@@ -3884,6 +3914,21 @@ PrefabInstance:
         type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5869465386757319669, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_text
+      value: 50
+      objectReference: {fileID: 0}
+    - target: {fileID: 5869465386757319669, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_fontSize
+      value: 16
+      objectReference: {fileID: 0}
+    - target: {fileID: 5869465386757319669, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_fontSizeBase
+      value: 16
       objectReference: {fileID: 0}
     - target: {fileID: 6995557172876886332, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}

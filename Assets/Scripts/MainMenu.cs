@@ -86,7 +86,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private int currentIndex = 0;
     private int clickCount = 0;
     private const int clicksRequired = 5;
-    private float currentCost = 10;
+    private const int UpgradeCostStart = 50;
+    private const int UpgradeCostIncrement = 25;
+    private float currentCost = UpgradeCostStart;
     private int playerCoins;
  // private AudioSource audioSource;
     private bool isUpgrading = false;
@@ -96,7 +98,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     
     [Header("Launch Force Upgrade")]
     [SerializeField] private float[] launchForceLevels = { 25f, 30f, 35f };
-    [SerializeField] private int[] launchForceCosts = { 700, 1000, 1500 };
+    [SerializeField] private int[] launchForceCosts = { 50, 175, 300 };
     [Tooltip("Optional slingshot band visual. Auto-resolved from drag launcher if empty.")]
     public RubberBandVisual rubberBandVisual;
 
@@ -109,7 +111,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     // Launch force level system
     private int launchForceLevel = 1;
     private int launchForceClickCount = 0;
-    private float launchForceCurrentCost = 700f;
+    private float launchForceCurrentCost = UpgradeCostStart;
     private int maxLaunchForceLevel => launchForceLevels != null && launchForceLevels.Length > 0
         ? launchForceLevels.Length
         : 1;
@@ -123,7 +125,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private int coinMultiplierClickCount = 0;
     private const int maxCoinMultiplierLevel = 11;
     private const float coinMultiplierStep = 0.1f;
-    private readonly int[] coinMultiplierCosts = { 600, 900, 1200, 1800, 2500, 3500, 5000, 7000, 10000, 15000, 20000 };
 
     private static readonly Color UpgradeCostAffordableColor = Color.white;
     private static readonly Color UpgradeCostUnaffordableColor = new Color(1f, 0.55f, 0.55f);
@@ -155,7 +156,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             launchForceLevels = new[] { 25f, 30f, 35f };
 
         if (launchForceCosts == null || launchForceCosts.Length == 0)
-            launchForceCosts = new[] { 700, 1000, 1500 };
+            launchForceCosts = new int[launchForceLevels.Length];
 
         if (launchForceCosts.Length != launchForceLevels.Length)
         {
@@ -164,6 +165,42 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
                 resizedCosts[i] = i < launchForceCosts.Length ? launchForceCosts[i] : launchForceCosts[launchForceCosts.Length - 1];
             launchForceCosts = resizedCosts;
         }
+
+        for (int i = 0; i < launchForceCosts.Length; i++)
+            launchForceCosts[i] = GetTrackedUpgradeCost(UpgradeCostStart, i * clicksRequired);
+    }
+
+    private static int GetTrackedUpgradeCost(int startCost, int stepIndex)
+    {
+        return startCost + Mathf.Max(0, stepIndex) * UpgradeCostIncrement;
+    }
+
+    private int GetPlaneUpgradeStepIndex()
+    {
+        return currentIndex * clicksRequired + clickCount;
+    }
+
+    private int GetPlaneUpgradeClickCost()
+    {
+        if (IsFullyUpgraded())
+            return 0;
+
+        return GetTrackedUpgradeCost(UpgradeCostStart, GetPlaneUpgradeStepIndex());
+    }
+
+    private void RefreshPlaneUpgradeCost()
+    {
+        currentCost = GetPlaneUpgradeClickCost();
+    }
+
+    private int GetLaunchForceStepIndex()
+    {
+        return (launchForceLevel - 1) * clicksRequired + launchForceClickCount;
+    }
+
+    private void RefreshLaunchForceUpgradeCost()
+    {
+        launchForceCurrentCost = GetLaunchForceClickCost();
     }
 
     private float GetLaunchForceMultiplierForLevel(int level)
@@ -176,8 +213,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private int GetLaunchForceCostForLevel(int level)
     {
         EnsureLaunchForceConfig();
-        int index = Mathf.Clamp(level - 1, 0, launchForceCosts.Length - 1);
-        return launchForceCosts[index];
+        return GetTrackedUpgradeCost(UpgradeCostStart, (level - 1) * clicksRequired);
     }
 
     private void EnsureBoostConfig()
@@ -263,9 +299,10 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         isUpgrading = false;
         currentIndex = 0;
         clickCount = 0;
-        currentCost = 10f;
+        currentCost = UpgradeCostStart;
         launchForceLevel = 1;
-        launchForceCurrentCost = GetLaunchForceCostForLevel(1);
+        launchForceClickCount = 0;
+        launchForceCurrentCost = UpgradeCostStart;
         boostLevel = 0;
         coinMultiplierLevel = 1;
         coinMultiplierClickCount = 0;
@@ -859,7 +896,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             VibrationManager.Instance.VibrateButtonClick();
 
         clickCount++;
-        currentCost *= 1.5f;
+        RefreshPlaneUpgradeCost();
 
         UpdateCoinUI();
         UpdateCostUI();
@@ -891,7 +928,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             VibrationManager.Instance.VibrateButtonClick();
 
         launchForceClickCount++;
-        launchForceCurrentCost *= 1.5f;
+        RefreshLaunchForceUpgradeCost();
 
         UpdateLaunchForceCostUI();
         UpdateLaunchForceLevelUI();
@@ -1138,6 +1175,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
 
         SyncPlayerCoins();
+        RefreshPlaneUpgradeCost();
         if (playerCoins < currentCost)
         {
             HandleInsufficientCoinsClick(upgradeButton, UpgradeAdOfferType.PlanePart);
@@ -1152,7 +1190,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         // Progress and cost update
         clickCount++;
-        currentCost *= 1.5f;
+        RefreshPlaneUpgradeCost();
 
         UpdateCoinUI();
         UpdateCostUI();
@@ -1250,7 +1288,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         yield return StartCoroutine(PlaySlingshotUpgradeParticlesRoutine(slingshotTarget));
 
         launchForceClickCount = 0;
-        launchForceCurrentCost = GetLaunchForceCostForLevel(launchForceLevel);
+        RefreshLaunchForceUpgradeCost();
         UpdateLaunchForceSliderUI();
         UpdateLaunchForceLevelUI();
         UpdateLaunchForceCostUI();
@@ -1749,6 +1787,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             return;
 
         SyncPlayerCoins();
+        RefreshPlaneUpgradeCost();
         bool atMax = IsFullyUpgraded();
         bool canAfford = playerCoins >= currentCost;
         string amount = atMax ? "MAX" : FormatNumber(currentCost);
@@ -1846,6 +1885,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         SyncPlayerCoins();
         bool atMax = launchForceLevel >= maxLaunchForceLevel;
+        RefreshLaunchForceUpgradeCost();
         bool canAfford = playerCoins >= GetLaunchForceClickCost();
         string amount = atMax ? "MAX" : FormatNumber(launchForceCurrentCost);
         launchForceCostText.text = amount;
@@ -1883,7 +1923,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (launchForceLevel >= maxLaunchForceLevel)
             return 0;
 
-        return Mathf.Max(1, Mathf.RoundToInt(launchForceCurrentCost));
+        return GetTrackedUpgradeCost(UpgradeCostStart, GetLaunchForceStepIndex());
     }
 
     private void SaveLaunchForceProgress()
@@ -2123,7 +2163,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (coinMultiplierLevel >= maxCoinMultiplierLevel)
             return 0;
 
-        return coinMultiplierCosts[coinMultiplierLevel - 1];
+        return GetTrackedUpgradeCost(UpgradeCostStart, coinMultiplierLevel - 1);
     }
 
     private void SaveCoinMultiplierProgress()
@@ -2142,7 +2182,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         SyncPlayerCoins();
         bool atMax = coinMultiplierLevel >= maxCoinMultiplierLevel;
         bool canAfford = playerCoins >= GetCoinMultiplierClickCost();
-        string amount = atMax ? "MAX" : coinMultiplierCosts[coinMultiplierLevel - 1].ToString();
+        string amount = atMax ? "MAX" : FormatNumber(GetCoinMultiplierClickCost());
         coinMultiplierCostText.text = amount;
         ApplyUpgradeCostTextColor(coinMultiplierCostText, canAfford, atMax);
     }
@@ -2259,7 +2299,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         currentIndex = PlayerPrefs.GetInt(LevelProgress.GetUpgradeCurrentIndexKey(), 0);
         clickCount = PlayerPrefs.GetInt(LevelProgress.GetUpgradeClickCountKey(), 0);
-        currentCost = PlayerPrefs.GetFloat(LevelProgress.GetUpgradeCurrentCostKey(), 10f);
+        currentCost = PlayerPrefs.GetFloat(LevelProgress.GetUpgradeCurrentCostKey(), UpgradeCostStart);
+        RefreshPlaneUpgradeCost();
         SyncPlayerCoins();
     }
 
@@ -2378,6 +2419,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         launchForceCurrentCost = PlayerPrefs.GetFloat(
             LevelProgress.GetLaunchForceCurrentCostKey(),
             GetLaunchForceCostForLevel(launchForceLevel));
+        RefreshLaunchForceUpgradeCost();
 
         if (dragLauncher != null)
             dragLauncher.launchForceMultiplier = GetLaunchForceMultiplierForLevel(launchForceLevel);
@@ -2417,7 +2459,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         UpdateCoinUI();
 
         launchForceClickCount++;
-        launchForceCurrentCost *= 1.5f;
+        RefreshLaunchForceUpgradeCost();
 
         UpdateLaunchForceCostUI();
         UpdateLaunchForceLevelUI();
