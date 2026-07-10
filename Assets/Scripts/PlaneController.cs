@@ -171,6 +171,7 @@ public class PlaneController : MonoBehaviour
     // Visual smoothing
     private Quaternion smoothedRotation;
     private GameObject visualModel;
+    private bool isPitchingUp;
 
     // Distance / marker tracking
     private Vector3 startPosition;
@@ -313,9 +314,10 @@ public class PlaneController : MonoBehaviour
             return;
         }
 
-        // With one wing, visual smoothing fought asymmetric physics and caused pitch wobble.
+        // Visual smoothing fights rigidbody pitch torque and causes nose-up wobble.
+        // Skip it while pitching, or when a single wing is missing (same issue).
         bool singleWingMissing = damageHandler != null && damageHandler.HasSingleWingMissing();
-        if (singleWingMissing)
+        if (singleWingMissing || isPitchingUp || Mathf.Abs(smoothVerticalInput) > 0.05f)
         {
             smoothedRotation = transform.rotation;
             return;
@@ -430,6 +432,12 @@ public class PlaneController : MonoBehaviour
         horizontalInput = smoothHorizontalInput;
         verticalInput = smoothVerticalInput;
 
+        // Track nose-up pitch so LateUpdate can avoid fighting physics.
+        // In this project, negative local X euler = nose up.
+        float pitchAngleForInput = transform.localEulerAngles.x;
+        if (pitchAngleForInput > 180f) pitchAngleForInput -= 360f;
+        isPitchingUp = pitchAngleForInput < -10f || (Mathf.Abs(verticalInput) > 0.05f && pitchAngleForInput < 0f);
+
         bool hasInput = !Mathf.Approximately(horizontalInput, 0f) || !Mathf.Approximately(verticalInput, 0f);
         bool bodyOnly = damageHandler != null && damageHandler.IsBodyOnly();
         blockForwardForceFromInput = bodyOnly && hasInput;
@@ -492,29 +500,18 @@ public class PlaneController : MonoBehaviour
             float pitchAngle = transform.localEulerAngles.x;
             // Normalize to -180 to 180 range
             if (pitchAngle > 180f) pitchAngle -= 360f;
-            
-            // If plane is pitched up steeply (stalling), reduce forward alignment and allow natural falling
-            if (pitchAngle < -35f) // Pitched up more than 35 degrees
+
+            float alignmentStrength = directionAlignmentStrength;
+
+            // Soften alignment while pitching up so gravity/torque don't fight a hard velocity snap.
+            if (pitchAngle < -10f)
             {
-                // Gradual stall: 35° = 0%, 40° = 50%, 45° = 100%
-                float stallFactor = Mathf.InverseLerp(-35f, -45f, pitchAngle); // 0 at -35°, 1 at -45°
-                
-                // During stall, reduce the alignment strength instead of forcing downward
-                // This lets gravity naturally pull the plane down while maintaining horizontal momentum
-                float reducedAlignmentStrength = directionAlignmentStrength * (1f - stallFactor * 0.9f);
-                
-                Vector3 targetVelocity = transform.forward * rb.velocity.magnitude;
-                rb.velocity = Vector3.Lerp(rb.velocity, targetVelocity, reducedAlignmentStrength * Time.fixedDeltaTime);
-                
-                // Debug log for stall behavior
-                Debug.Log($"STALLING: Pitch = {pitchAngle:F1}°, StallFactor = {stallFactor:F2}, AlignmentStrength = {reducedAlignmentStrength:F2}, Speed = {rb.velocity.magnitude:F1}");
+                float pitchSoftFactor = Mathf.InverseLerp(-10f, -45f, pitchAngle); // 0 at -10°, 1 at -45°
+                alignmentStrength *= Mathf.Lerp(1f, 0.15f, pitchSoftFactor);
             }
-            else
-            {
-                // Normal alignment when not stalling
-                Vector3 targetVelocity = transform.forward * rb.velocity.magnitude;
-                rb.velocity = Vector3.Lerp(rb.velocity, targetVelocity, directionAlignmentStrength * Time.fixedDeltaTime);
-            }
+
+            Vector3 targetVelocity = transform.forward * rb.velocity.magnitude;
+            rb.velocity = Vector3.Lerp(rb.velocity, targetVelocity, alignmentStrength * Time.fixedDeltaTime);
         }
 
         ApplyBoostSpeedMaintenance();

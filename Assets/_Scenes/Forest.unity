@@ -295,8 +295,8 @@ MonoBehaviour:
   relaxedWidth: 0.03
   stretchedWidth: 0.05
   maxStretchDistance: 5
-  relaxedColor: {r: 0.8, g: 0.2, b: 0.2, a: 0.8}
-  stretchedColor: {r: 1, g: 0.5, b: 0.5, a: 0.8}
+  relaxedColor: {r: 0.55, g: 0.35, b: 0.18, a: 1}
+  stretchedColor: {r: 0.7, g: 0.48, b: 0.28, a: 1}
   levelMaterials:
   - {fileID: 2100000, guid: 6c8141a51afe8b74c94a052241f80321, type: 2}
   - {fileID: 2100000, guid: c865d9193b449e74885f1505435cd89f, type: 2}
@@ -1326,21 +1326,21 @@ MonoBehaviour:
     groundDragFactor: 0.98
   - glideDrag: 0.09
     diveDrag: 0.09
-    airResistanceCoefficient: 0.04
+    airResistanceCoefficient: 0.03
     velocityResistanceFactor: 0.02
     orientationResistanceFactor: 0.16
     momentumDecayRate: 0.009
     groundDragFactor: 0.985
   - glideDrag: 0.06
     diveDrag: 0.07
-    airResistanceCoefficient: 0.03
+    airResistanceCoefficient: 0.02
     velocityResistanceFactor: 0.02
     orientationResistanceFactor: 0.12
     momentumDecayRate: 0.006
     groundDragFactor: 0.99
   - glideDrag: 0.04
     diveDrag: 0.05
-    airResistanceCoefficient: 0.02
+    airResistanceCoefficient: 0.01
     velocityResistanceFactor: 0.02
     orientationResistanceFactor: 0.08
     momentumDecayRate: 0.004
@@ -4142,10 +4142,22 @@ PrefabInstance:
       propertyPath: planeUpgradeConfig
       value: 
       objectReference: {fileID: 549470101}
+<<<<<<< Updated upstream
     - target: {fileID: 581611436326774803, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: m_Name
       value: AdnotFoundNoti
+=======
+    - target: {fileID: 763853425439184978, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 170.928
+      objectReference: {fileID: 0}
+    - target: {fileID: 763853425439184978, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -10.4605
+>>>>>>> Stashed changes
       objectReference: {fileID: 0}
     - target: {fileID: 1726490693675406617, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
@@ -4187,6 +4199,29 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+<<<<<<< Updated upstream
+=======
+    - target: {fileID: 5469729420091537362, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5869465386757319669, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_text
+      value: 50
+      objectReference: {fileID: 0}
+    - target: {fileID: 5869465386757319669, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_fontSize
+      value: 16
+      objectReference: {fileID: 0}
+    - target: {fileID: 5869465386757319669, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_fontSizeBase
+      value: 16
+      objectReference: {fileID: 0}
+>>>>>>> Stashed changes
     - target: {fileID: 6995557172876886332, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: boosters
@@ -4272,6 +4307,11 @@ PrefabInstance:
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
       objectReference: {fileID: 549470094}
+    - target: {fileID: 7728400020684063760, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 170.928
+      objectReference: {fileID: 0}
     - target: {fileID: 8538007969759051235, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: target

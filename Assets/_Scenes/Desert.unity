@@ -295,8 +295,8 @@ MonoBehaviour:
   relaxedWidth: 0.03
   stretchedWidth: 0.05
   maxStretchDistance: 5
-  relaxedColor: {r: 0.8, g: 0.2, b: 0.2, a: 0.8}
-  stretchedColor: {r: 1, g: 0.5, b: 0.5, a: 0.8}
+  relaxedColor: {r: 1, g: 1, b: 1, a: 1}
+  stretchedColor: {r: 1, g: 1, b: 1, a: 1}
   levelMaterials:
   - {fileID: 2100000, guid: 6c8141a51afe8b74c94a052241f80321, type: 2}
   - {fileID: 2100000, guid: c865d9193b449e74885f1505435cd89f, type: 2}

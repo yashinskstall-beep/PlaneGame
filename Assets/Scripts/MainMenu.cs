@@ -1602,6 +1602,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             dragLauncher.ResetForNewLaunch();
         }
 
+        // Persist immediately so the new color stays if anything else reloads from PlayerPrefs.
+        SaveLaunchForceProgress();
         GetRubberBandVisual()?.ApplyLaunchForceLevel(launchForceLevel);
     }
 

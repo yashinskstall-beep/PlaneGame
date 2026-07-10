@@ -21,9 +21,9 @@ public class SlingShot : MonoBehaviour
     [Tooltip("Width of the band when fully stretched")]
     public float stretchedWidth = 0.05f;
     [Tooltip("Color of the band when relaxed")]
-    public Color relaxedColor = new Color(0.8f, 0.2f, 0.2f, 0.8f); // Reddish
+    public Color relaxedColor = Color.white;
     [Tooltip("Color of the band when stretched")]
-    public Color stretchedColor = new Color(1f, 0.5f, 0.5f, 0.8f); // Lighter red
+    public Color stretchedColor = Color.white;
 
     [Header("Settings")]
     [Tooltip("Maximum stretch distance from rest position")]

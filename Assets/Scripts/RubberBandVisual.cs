@@ -26,11 +26,11 @@ public class RubberBandVisual : MonoBehaviour
     public float maxStretchDistance = 5f;  // Distance considered "fully stretched"
     
     [Header("Colors")]
-    public Color relaxedColor = new Color(0.8f, 0.2f, 0.2f, 0.8f);  // Color when not stretched (reddish)
-    public Color stretchedColor = new Color(1f, 0.5f, 0.5f, 0.8f);  // Color when fully stretched (lighter red)
+    public Color relaxedColor = Color.white;  // Pure white at game start
+    public Color stretchedColor = Color.white;
     
     [Header("Level Materials")]
-    [Tooltip("Materials for each launch force level (Level 1, Level 2, Level 3)")]
+    [Tooltip("Materials for each launch force level. Level 1 = white, Level 2 = brown, Level 3 = red.")]
     public Material[] levelMaterials = new Material[3];
 
     [Header("Level Colors")]
@@ -60,16 +60,16 @@ public class RubberBandVisual : MonoBehaviour
 
     private static readonly Color[] DefaultRelaxedColors =
     {
-        new Color(0.8f, 0.2f, 0.2f, 0.8f),
-        new Color(0.95f, 0.55f, 0.1f, 0.9f),
-        new Color(0.55f, 0.2f, 0.95f, 0.9f)
+        Color.white,                                    // Level 1 — glowy white at start
+        new Color(0.55f, 0.35f, 0.18f, 1f),              // Level 2 — brown rope
+        new Color(0.85f, 0.12f, 0.1f, 1f)                // Level 3 — red
     };
 
     private static readonly Color[] DefaultStretchedColors =
     {
-        new Color(1f, 0.5f, 0.5f, 0.8f),
-        new Color(1f, 0.85f, 0.35f, 0.9f),
-        new Color(0.8f, 0.55f, 1f, 0.9f)
+        Color.white,
+        new Color(0.7f, 0.48f, 0.28f, 1f),
+        new Color(1f, 0.35f, 0.3f, 1f)
     };
 
     private void Awake()
@@ -136,9 +136,6 @@ public class RubberBandVisual : MonoBehaviour
             return;
         }
         
-        // Check and update material based on launch force level
-        UpdateMaterialBasedOnLevel();
-        
         // Handle input for dragging
         HandleInput();
         
@@ -147,41 +144,35 @@ public class RubberBandVisual : MonoBehaviour
     }
     
     /// <summary>
-    /// Updates the LineRenderer material based on the current launch force level
+    /// Applies the launch-force band look for the given level.
+    /// Call this from MainMenu on load and after upgrades — do not poll PlayerPrefs here,
+    /// or a mid-upgrade visual change will snap back until save completes.
     /// </summary>
-    private void UpdateMaterialBasedOnLevel()
-    {
-        int level = PlayerPrefs.GetInt(LevelProgress.GetLaunchForceLevelKey(), 0);
-        if (level <= 0)
-            level = PlayerPrefs.GetInt("LaunchForceLevel", 1);
-
-        if (level == currentLevel)
-            return;
-
-        ApplyLaunchForceLevel(level);
-    }
-
     public void ApplyLaunchForceLevel(int level)
     {
         if (lineRenderer == null)
             lineRenderer = GetComponent<LineRenderer>();
 
-        int maxLevel = Mathf.Max(1, levelMaterials != null ? levelMaterials.Length : 1);
+        int materialCount = levelMaterials != null ? levelMaterials.Length : 0;
+        int maxLevel = Mathf.Max(1, materialCount > 0 ? materialCount : DefaultRelaxedColors.Length);
         level = Mathf.Clamp(level, 1, maxLevel);
         currentLevel = level;
-
-        if (levelMaterials != null && levelMaterials.Length >= level)
-        {
-            Material targetMaterial = levelMaterials[level - 1];
-            if (targetMaterial != null)
-                lineRenderer.material = targetMaterial;
-        }
 
         relaxedColor = GetLevelColor(relaxedColorsByLevel, DefaultRelaxedColors, level);
         stretchedColor = GetLevelColor(stretchedColorsByLevel, DefaultStretchedColors, level);
 
-        lineRenderer.startColor = relaxedColor;
-        lineRenderer.endColor = relaxedColor;
+        Material targetMaterial = null;
+        if (levelMaterials != null && levelMaterials.Length >= level)
+            targetMaterial = levelMaterials[level - 1];
+        else if (levelMaterials != null && levelMaterials.Length > 0)
+            targetMaterial = levelMaterials[levelMaterials.Length - 1];
+
+        if (targetMaterial != null)
+            lineRenderer.material = targetMaterial;
+
+        // RopeLine shader ignores vertex colors; keep them white so they don't darken anything.
+        lineRenderer.startColor = Color.white;
+        lineRenderer.endColor = Color.white;
     }
 
     public IEnumerator PlayUpgradePulse(float duration = 0.35f)
