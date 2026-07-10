@@ -226,17 +226,24 @@ public class LevelsUI : MonoBehaviour
 
     private bool IsLevelSelectable(int index)
     {
-        return IsLevelUnlockedVisually(index) && !IsBlockedUntilCurrentLevelCompleted(index);
-    }
-
-    private bool IsBlockedUntilCurrentLevelCompleted(int targetIndex)
-    {
-        int activeLevelIndex = GetActiveLevelIndex();
-        if (activeLevelIndex != 1 || targetIndex != 0)
+        if (!IsLevelUnlockedVisually(index))
             return false;
 
-        string activeScene = SceneManager.GetActiveScene().name;
-        return !LevelProgress.HasCompletedScene(activeScene);
+        return index == GetLatestUnlockedLevelIndex();
+    }
+
+    private int GetLatestUnlockedLevelIndex()
+    {
+        if (levels == null || levels.Length == 0)
+            return -1;
+
+        for (int i = levels.Length - 1; i >= 0; i--)
+        {
+            if (IsLevelUnlockedVisually(i))
+                return i;
+        }
+
+        return 0;
     }
 
     private string GetHighestUnlockedSceneName()

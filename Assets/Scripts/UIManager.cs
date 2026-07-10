@@ -36,6 +36,7 @@ public class UIManager : MonoBehaviour
     private bool scoreUIScheduled = false;
     private bool isGoalReached = false;
     private Coroutine scoreUIScheduleCoroutine;
+    private Coroutine coinCounterCoroutine;
     private RectTransform useBoostButtonRect;
     private Vector2 useBoostButtonRestPosition;
     private bool useBoostButtonRestCaptured;
@@ -65,6 +66,9 @@ public class UIManager : MonoBehaviour
         UpdateBoostCounter();
         CaptureUseBoostButtonRestPosition();
         HideUseBoostButtonInstant();
+        RewardedAdManager.EnsureExists();
+        RewardedAdManager.Instance?.SetKeepRewardedAdWarm(true);
+        RewardedAdManager.Instance?.EnsureRewardedAdPreloaded();
     }
     
     void Update()
@@ -203,8 +207,12 @@ public class UIManager : MonoBehaviour
 
         BestDistanceLayer.RecordFlightDistance(planeController.maxZDistance);
 
+        CancelPendingLevelCompleteAd();
+
         if (finalScoreText != null)
-            StartCoroutine(AnimateCoinCounter(coinsEarned));
+            coinCounterCoroutine = StartCoroutine(AnimateCoinCounter(coinsEarned, showLevelCompleteAd: isGoalReached));
+        else if (isGoalReached)
+            ShowLevelCompleteAd();
     }
 
     private void AwardFlightCoins(int coinsEarned)
@@ -250,6 +258,8 @@ public class UIManager : MonoBehaviour
 
     private void ShowLevelsPanel()
     {
+        CancelPendingLevelCompleteAd();
+
         if (ScoreUIScreen != null)
             ScoreUIScreen.SetActive(false);
 
@@ -275,12 +285,33 @@ public class UIManager : MonoBehaviour
         ScheduleScoreUI(2f);
     }
 
+    private void ShowLevelCompleteAd()
+    {
+        if (!isGoalReached)
+            return;
+
+        if (ScoreUIScreen == null || !ScoreUIScreen.activeInHierarchy)
+            return;
+
+        RewardedAdManager.EnsureExists();
+        RewardedAdManager.Instance?.ShowInterstitialAd();
+    }
+
+    public void CancelPendingLevelCompleteAd()
+    {
+        if (coinCounterCoroutine != null)
+        {
+            StopCoroutine(coinCounterCoroutine);
+            coinCounterCoroutine = null;
+        }
+    }
+
     public void ResetGoalReached()
     {
         isGoalReached = false;
     }
 
-    private IEnumerator AnimateCoinCounter(int targetCoins)
+    private IEnumerator AnimateCoinCounter(int targetCoins, bool showLevelCompleteAd)
     {
         float duration = 1.5f; // Animation duration in seconds
         float elapsed = 0f;
@@ -303,6 +334,10 @@ public class UIManager : MonoBehaviour
 
         // Ensure we end exactly at the target value
         finalScoreText.text = $"Coins + {targetCoins}";
+        coinCounterCoroutine = null;
+
+        if (showLevelCompleteAd)
+            ShowLevelCompleteAd();
     }
 
     /// <summary>
@@ -435,6 +470,7 @@ public class UIManager : MonoBehaviour
         ResolveSceneReferences();
         scoreCalculated = false;
         CancelScoreUISchedule();
+        CancelPendingLevelCompleteAd();
 
         if (ScoreUIScreen != null)
             ScoreUIScreen.SetActive(false);
@@ -455,6 +491,8 @@ public class UIManager : MonoBehaviour
 
     public void OnBackBtnClick()
     {
+        CancelPendingLevelCompleteAd();
+
         if (thisCanvas != null)
             thisCanvas.SetActive(false);
 
