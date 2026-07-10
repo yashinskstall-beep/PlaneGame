@@ -60,6 +60,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public UpgradeAdVisualSet planeUpgradeAdVisuals = new UpgradeAdVisualSet();
     public UpgradeAdVisualSet launchForceUpgradeAdVisuals = new UpgradeAdVisualSet();
     public UpgradeAdVisualSet coinMultiplierUpgradeAdVisuals = new UpgradeAdVisualSet();
+    [Tooltip("Shown briefly when the player requests a rewarded ad that is not loaded yet.")]
+    public TextMeshProUGUI adNotLoadedNotificationText;
+    [SerializeField] private float adNotLoadedNotificationDuration = 2f;
+    [SerializeField] private float adNotLoadedPopInDuration = 0.22f;
+    [SerializeField] private float adNotLoadedPopOutDuration = 0.15f;
+    [SerializeField] private float adNotLoadedPopOvershoot = 1.18f;
 
     [Header("Boost Button")]
     [SerializeField] private float boostSlideOffsetX = 500f;
@@ -135,6 +141,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     private bool boostButtonShown;
     private Coroutine boostButtonSlideCoroutine;
     private Coroutine boostButtonMaxLevelHideCoroutine;
+    private Coroutine adNotLoadedNotificationCoroutine;
+    private Vector3 adNotLoadedNotificationRestScale = Vector3.one;
+    private bool adNotLoadedNotificationRestScaleCaptured;
 
     void Awake()
     {
@@ -246,6 +255,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     void OnDisable()
     {
         UnsubscribeFromRewardedAdEvents();
+        HideAdNotLoadedNotificationInstant();
     }
 
     void Start()
@@ -940,8 +950,10 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             return;
         }
 
-        isWaitingForRewardedAd = true;
-        RewardedAdManager.Instance.TryShowRewardedAdOrQueue(OnAdFinished);
+        // Ad isn't ready yet — notify on every tap and keep preloading.
+        // Don't enter waiting state so the player can request again freely.
+        ShowAdNotLoadedNotification();
+        KeepRewardedAdReadyInBackground();
     }
 
     private void GrantFreeUpgradeClick(UpgradeAdOfferType offerType)
@@ -1109,6 +1121,139 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         ResolveUpgradeAdVisuals(coinMultiplierUpgradeAdVisuals, increaseCoinMultiplierBtn);
         ResolveBoostButtonParent();
         ResolveBoostLevelText();
+        ResolveAdNotLoadedNotificationText();
+        HideAdNotLoadedNotificationInstant();
+    }
+
+    private void ResolveAdNotLoadedNotificationText()
+    {
+        if (adNotLoadedNotificationText != null)
+            return;
+
+        foreach (TextMeshProUGUI tmp in GetComponentsInChildren<TextMeshProUGUI>(true))
+        {
+            if (tmp == null)
+                continue;
+
+            string objectName = tmp.gameObject.name;
+            string text = tmp.text != null ? tmp.text.Trim() : string.Empty;
+            if (objectName == "AdNotLoaded" || objectName == "Ad Not Found" ||
+                text.Equals("Ad Not Found", System.StringComparison.OrdinalIgnoreCase) ||
+                text.Equals("Ad Not Loaded", System.StringComparison.OrdinalIgnoreCase))
+            {
+                adNotLoadedNotificationText = tmp;
+                CaptureAdNotLoadedNotificationRestScale();
+                return;
+            }
+        }
+    }
+
+    private void ShowAdNotLoadedNotification()
+    {
+        ResolveAdNotLoadedNotificationText();
+        if (adNotLoadedNotificationText == null)
+            return;
+
+        if (adNotLoadedNotificationCoroutine != null)
+        {
+            StopCoroutine(adNotLoadedNotificationCoroutine);
+            adNotLoadedNotificationCoroutine = null;
+        }
+
+        CaptureAdNotLoadedNotificationRestScale();
+        adNotLoadedNotificationText.gameObject.SetActive(true);
+        adNotLoadedNotificationText.transform.localScale = Vector3.zero;
+
+        if (!string.IsNullOrWhiteSpace(adNotLoadedNotificationText.text))
+            adNotLoadedNotificationText.text = adNotLoadedNotificationText.text.Trim();
+        else
+            adNotLoadedNotificationText.text = "Ad Not Found";
+
+        if (!isActiveAndEnabled)
+        {
+            adNotLoadedNotificationText.transform.localScale = adNotLoadedNotificationRestScale;
+            return;
+        }
+
+        adNotLoadedNotificationCoroutine = StartCoroutine(AnimateAdNotLoadedNotification());
+    }
+
+    private void CaptureAdNotLoadedNotificationRestScale()
+    {
+        if (adNotLoadedNotificationText == null || adNotLoadedNotificationRestScaleCaptured)
+            return;
+
+        Vector3 scale = adNotLoadedNotificationText.transform.localScale;
+        if (scale.sqrMagnitude < 0.0001f)
+            scale = Vector3.one;
+
+        adNotLoadedNotificationRestScale = scale;
+        adNotLoadedNotificationRestScaleCaptured = true;
+    }
+
+    private IEnumerator AnimateAdNotLoadedNotification()
+    {
+        Transform notificationTransform = adNotLoadedNotificationText.transform;
+        Vector3 restScale = adNotLoadedNotificationRestScale;
+        Vector3 overshootScale = restScale * adNotLoadedPopOvershoot;
+
+        notificationTransform.localScale = Vector3.zero;
+
+        float elapsed = 0f;
+        float popInDuration = Mathf.Max(0.01f, adNotLoadedPopInDuration);
+        while (elapsed < popInDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / popInDuration);
+            float eased = Mathf.Sin(t * Mathf.PI * 0.5f);
+            notificationTransform.localScale = Vector3.LerpUnclamped(Vector3.zero, overshootScale, eased);
+            yield return null;
+        }
+
+        elapsed = 0f;
+        float settleDuration = popInDuration * 0.45f;
+        while (elapsed < settleDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / settleDuration);
+            notificationTransform.localScale = Vector3.Lerp(overshootScale, restScale, t);
+            yield return null;
+        }
+
+        notificationTransform.localScale = restScale;
+        yield return new WaitForSecondsRealtime(adNotLoadedNotificationDuration);
+
+        elapsed = 0f;
+        float popOutDuration = Mathf.Max(0.01f, adNotLoadedPopOutDuration);
+        Vector3 startScale = notificationTransform.localScale;
+        while (elapsed < popOutDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / popOutDuration);
+            float eased = t * t;
+            notificationTransform.localScale = Vector3.Lerp(startScale, Vector3.zero, eased);
+            yield return null;
+        }
+
+        notificationTransform.localScale = restScale;
+        adNotLoadedNotificationText.gameObject.SetActive(false);
+        adNotLoadedNotificationCoroutine = null;
+    }
+
+    private void HideAdNotLoadedNotificationInstant()
+    {
+        if (adNotLoadedNotificationCoroutine != null)
+        {
+            StopCoroutine(adNotLoadedNotificationCoroutine);
+            adNotLoadedNotificationCoroutine = null;
+        }
+
+        if (adNotLoadedNotificationText != null)
+        {
+            if (adNotLoadedNotificationRestScaleCaptured)
+                adNotLoadedNotificationText.transform.localScale = adNotLoadedNotificationRestScale;
+            adNotLoadedNotificationText.gameObject.SetActive(false);
+        }
     }
 
     private static void ResolveUpgradeCostText(
@@ -2702,9 +2847,17 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             KeepRewardedAdReadyInBackground();
         }
 
-        isWaitingForRewardedAd = true;
-        isShowingUpgradeAd = true;
-        RewardedAdManager.Instance.TryShowBoostRewardedAd(OnAdFinished);
+        if (RewardedAdManager.Instance.IsRewardedAdReady())
+        {
+            isWaitingForRewardedAd = true;
+            isShowingUpgradeAd = true;
+            RewardedAdManager.Instance.TryShowBoostRewardedAd(OnAdFinished);
+            return;
+        }
+
+        // Ad isn't ready yet — notify on every tap and keep preloading.
+        ShowAdNotLoadedNotification();
+        KeepRewardedAdReadyInBackground();
     }
 
     private void GrantBoostLevelFromAd()
