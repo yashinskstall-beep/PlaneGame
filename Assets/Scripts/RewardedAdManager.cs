@@ -7,8 +7,8 @@ using UnityEngine;
 
 /// <summary>
 /// AdMob rewarded + interstitial ads for Aviato.
-/// Editor / useGoogleTestAdUnits: Google test ad units (always fill).
-/// Android/iOS release: production Aviato ad units when useGoogleTestAdUnits is off.
+/// Editor: Google test ad units (always fill).
+/// Android/iOS: production Aviato ad units.
 /// </summary>
 public class RewardedAdManager : MonoBehaviour
 {
@@ -28,10 +28,6 @@ public class RewardedAdManager : MonoBehaviour
     [Header("Production Rewarded Ad IDs")]
     [SerializeField] private string androidRewardedId = "ca-app-pub-8376488234284532/2092189710";
     [SerializeField] private string iosRewardedId = "ca-app-pub-8376488234284532/7543791552";
-
-    [Header("Testing")]
-    [Tooltip("When enabled, uses Google's official test ad units on device so ads reliably fill. Turn OFF before Play Store release.")]
-    [SerializeField] private bool useGoogleTestAdUnits = true;
 
     [Header("Timing")]
     [SerializeField] private float postAdDelaySeconds = 0.5f;
@@ -189,7 +185,7 @@ public class RewardedAdManager : MonoBehaviour
         MobileAds.RaiseAdEventsOnUnityMainThread = true;
 #endif
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR
         MobileAds.SetRequestConfiguration(new RequestConfiguration
         {
             TestDeviceIds = new List<string> { "69d6891543cce296d6693e79cd17ec9c" }
@@ -385,27 +381,11 @@ public class RewardedAdManager : MonoBehaviour
         interstitialId = EditorTestInterstitialId;
         rewardedId = EditorTestRewardedId;
 #elif UNITY_ANDROID
-        if (useGoogleTestAdUnits)
-        {
-            interstitialId = EditorTestInterstitialId;
-            rewardedId = EditorTestRewardedId;
-        }
-        else
-        {
-            interstitialId = androidInterstitialId;
-            rewardedId = androidRewardedId;
-        }
+        interstitialId = androidInterstitialId;
+        rewardedId = androidRewardedId;
 #elif UNITY_IOS
-        if (useGoogleTestAdUnits)
-        {
-            interstitialId = EditorTestInterstitialId;
-            rewardedId = EditorTestRewardedId;
-        }
-        else
-        {
-            interstitialId = iosInterstitialId;
-            rewardedId = iosRewardedId;
-        }
+        interstitialId = iosInterstitialId;
+        rewardedId = iosRewardedId;
 #endif
 
         Debug.Log($"{LogPrefix} Interstitial ID: {interstitialId}");
@@ -417,9 +397,9 @@ public class RewardedAdManager : MonoBehaviour
 #if UNITY_EDITOR
         return "Editor test ads";
 #elif UNITY_ANDROID
-        return useGoogleTestAdUnits ? "Android Google test ads" : "Android production ads";
+        return "Android production ads";
 #elif UNITY_IOS
-        return useGoogleTestAdUnits ? "iOS Google test ads" : "iOS production ads";
+        return "iOS production ads";
 #else
         return "unsupported platform";
 #endif
