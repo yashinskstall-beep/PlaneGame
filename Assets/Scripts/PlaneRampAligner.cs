@@ -132,10 +132,11 @@ public class PlaneRampAligner : MonoBehaviour
             PlaneController planeController = plane.GetComponent<PlaneController>();
             if (planeController != null)
             {
+                // ForceControl refuses grounded / marker-placed states so a crash
+                // cannot be turned back into flight by leaving a collider.
                 planeController.ForceControl();
-                
-                // Enable joystick controls if joystick input is enabled
-                if (planeController.useJoystickInput && planeController.joystick != null)
+
+                if (planeController.isControlling && planeController.useJoystickInput && planeController.joystick != null)
                 {
                     planeController.joystick.gameObject.SetActive(true);
                     Debug.Log("Joystick enabled on ramp exit");
@@ -152,7 +153,11 @@ public class PlaneRampAligner : MonoBehaviour
             planeRb.constraints &= ~RigidbodyConstraints.FreezeRotationZ;
             Debug.Log("Plane RB rotation unfrozen");
 
-            gameObject.GetComponent<Collider>().enabled = false;
+            // Switch from root sphere → part MeshColliders for realistic flight collisions.
+            if (planeController != null)
+                planeController.UseFlightPartColliders();
+            else
+                gameObject.GetComponent<Collider>().enabled = false;
         
             
         }

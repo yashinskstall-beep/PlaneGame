@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// Handles visual spinning of the plane body when both wings are disabled.
-/// This script rotates the body GameObject forward based on user input.
+/// Joystick/keyboard up tumbles forward; down tumbles backward.
 /// </summary>
 public class PlaneBodySpinner : MonoBehaviour
 {
@@ -14,7 +14,7 @@ public class PlaneBodySpinner : MonoBehaviour
     public PlaneDamageHandler damageHandler;
     
     [Header("Spin Settings")]
-    [Tooltip("Speed of the forward spin rotation")]
+    [Tooltip("Max tumble speed in degrees per second (forward or backward).")]
     public float spinSpeed = 180f; // Degrees per second
     
     [Tooltip("How quickly the spin accelerates when input is given")]
@@ -36,8 +36,14 @@ public class PlaneBodySpinner : MonoBehaviour
     
     [Tooltip("Reference to joystick controller if using joystick input")]
     public JoystickController joystick;
+
+    [Tooltip("Optional. Used to stop spin input after landing/crash.")]
+    public PlaneController planeController;
+
+    [Tooltip("Ignore stick/axis values smaller than this when choosing spin direction.")]
+    public float inputDeadzone = 0.1f;
     
-    // Internal state
+    // Internal state — signed: + = forward tumble, - = backward tumble
     private float currentSpinSpeed = 0f;
     private bool isSpinning = false;
     private bool wasSpinning = false;
@@ -57,6 +63,9 @@ public class PlaneBodySpinner : MonoBehaviour
         {
             damageHandler = GetComponent<PlaneDamageHandler>();
         }
+
+        if (planeController == null)
+            planeController = GetComponent<PlaneController>();
         
         if (useJoystickInput && joystick == null)
         {
@@ -86,10 +95,9 @@ public class PlaneBodySpinner : MonoBehaviour
         else
         {
             // Gradually stop spinning if conditions are no longer met
-            if (currentSpinSpeed > 0)
-            {
-                currentSpinSpeed = Mathf.Max(0, currentSpinSpeed - spinDeceleration * Time.deltaTime);
-            }
+            currentSpinSpeed = Mathf.MoveTowards(currentSpinSpeed, 0f, spinDeceleration * Time.deltaTime);
+            if (Mathf.Approximately(currentSpinSpeed, 0f))
+                isSpinning = false;
         }
     }
     
@@ -100,11 +108,46 @@ public class PlaneBodySpinner : MonoBehaviour
     {
         if (bodyGameObject == null || !bodyGameObject.activeInHierarchy)
             return false;
+
+        // After ground collision StopControlling() clears this — do not keep driving the plane.
+        if (planeController != null && !planeController.isControlling)
+            return false;
             
         if (damageHandler == null)
             return false;
             
         return damageHandler.AreBothWingsMissing();
+    }
+
+    /// <summary>
+    /// +1 = stick/key up (forward tumble), -1 = stick/key down (backward tumble),
+    /// +1 for horizontal-only input, 0 = no input.
+    /// </summary>
+    private float GetSpinInputDirection()
+    {
+        float vertical = 0f;
+        float horizontal = 0f;
+
+        if (useKeyboardInput)
+        {
+            vertical += Input.GetAxis("Vertical");
+            horizontal += Input.GetAxis("Horizontal");
+        }
+
+        if (useJoystickInput && joystick != null)
+        {
+            vertical += joystick.Vertical;
+            horizontal += joystick.Horizontal;
+        }
+
+        if (Mathf.Abs(vertical) > inputDeadzone)
+            return Mathf.Sign(vertical);
+
+        // Left/right-only: keep previous forward tumble behavior
+        if (Mathf.Abs(horizontal) > inputDeadzone)
+            return 1f;
+
+        return 0f;
     }
     
     /// <summary>
@@ -112,55 +155,17 @@ public class PlaneBodySpinner : MonoBehaviour
     /// </summary>
     private void HandleSpinInput()
     {
-        bool hasInput = false;
-        
-        // Check keyboard input
-        if (useKeyboardInput)
-        {
-            float verticalInput = Input.GetAxis("Vertical");
-            float horizontalInput = Input.GetAxis("Horizontal");
-            
-            if (Mathf.Abs(verticalInput) > 0.1f || Mathf.Abs(horizontalInput) > 0.1f)
-            {
-                hasInput = true;
-            }
-        }
-        
-        // Check joystick input
-        if (useJoystickInput && joystick != null)
-        {
-            float verticalInput = joystick.Vertical;
-            float horizontalInput = joystick.Horizontal;
-            
-            if (Mathf.Abs(verticalInput) > 0.1f || Mathf.Abs(horizontalInput) > 0.1f)
-            {
-                hasInput = true;
-            }
-        }
-        
-        // Accelerate or decelerate spin based on input
-        if (hasInput)
-        {
-            currentSpinSpeed = Mathf.Min(spinSpeed, currentSpinSpeed + spinAcceleration * Time.deltaTime);
-            
-            // Check if spin just started (transition from not spinning to spinning)
-            if (!wasSpinning && currentSpinSpeed > 0)
-            {
-                ApplyHorizontalForce();
-            }
-            
-            isSpinning = true;
-        }
-        else
-        {
-            currentSpinSpeed = Mathf.Max(0, currentSpinSpeed - spinDeceleration * Time.deltaTime);
-            if (currentSpinSpeed <= 0)
-            {
-                isSpinning = false;
-            }
-        }
-        
-        // Update previous spinning state
+        float direction = GetSpinInputDirection();
+        float targetSpeed = direction * spinSpeed;
+        float rate = Mathf.Approximately(direction, 0f) ? spinDeceleration : spinAcceleration;
+
+        currentSpinSpeed = Mathf.MoveTowards(currentSpinSpeed, targetSpeed, rate * Time.deltaTime);
+
+        bool hasSpin = Mathf.Abs(currentSpinSpeed) > 0.01f;
+        if (hasSpin && !wasSpinning)
+            ApplyHorizontalForce();
+
+        isSpinning = hasSpin;
         wasSpinning = isSpinning;
     }
     
@@ -169,10 +174,10 @@ public class PlaneBodySpinner : MonoBehaviour
     /// </summary>
     private void ApplySpin()
     {
-        if (bodyGameObject == null || currentSpinSpeed <= 0)
+        if (bodyGameObject == null || Mathf.Approximately(currentSpinSpeed, 0f))
             return;
             
-        // Rotate the body forward (around its right axis for forward tumbling)
+        // Signed speed: + = forward tumble, - = backward tumble (around local right)
         bodyGameObject.transform.Rotate(Vector3.right, currentSpinSpeed * Time.deltaTime, Space.Self);
     }
     
@@ -210,6 +215,7 @@ public class PlaneBodySpinner : MonoBehaviour
     {
         currentSpinSpeed = 0f;
         isSpinning = false;
+        wasSpinning = false;
     }
     
     /// <summary>
@@ -217,6 +223,6 @@ public class PlaneBodySpinner : MonoBehaviour
     /// </summary>
     public bool IsSpinning()
     {
-        return isSpinning && currentSpinSpeed > 0;
+        return isSpinning && Mathf.Abs(currentSpinSpeed) > 0.01f;
     }
 }

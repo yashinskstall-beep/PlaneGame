@@ -488,6 +488,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ec02c8ab305057408fcbebddfd477bb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &302148550 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1932298647743042025, guid: 138967af2f288844b91e21d54c3918ea,
+    type: 3}
+  m_PrefabInstance: {fileID: 1498382231}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &302148554
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 302148550}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 0
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 1388338460283959394, guid: 138967af2f288844b91e21d54c3918ea, type: 3}
 --- !u!1 &333958393
 GameObject:
   m_ObjectHideFlags: 0
@@ -1293,6 +1321,8 @@ MonoBehaviour:
   useKeyboardInput: 0
   useJoystickInput: 1
   joystick: {fileID: 1154159237}
+  planeController: {fileID: 0}
+  inputDeadzone: 0.1
 --- !u!114 &549470101
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1324,24 +1354,24 @@ MonoBehaviour:
     orientationResistanceFactor: 0.22
     momentumDecayRate: 0.012
     groundDragFactor: 0.98
-  - glideDrag: 0.09
-    diveDrag: 0.09
-    airResistanceCoefficient: 0.03
-    velocityResistanceFactor: 0.02
-    orientationResistanceFactor: 0.16
-    momentumDecayRate: 0.009
-    groundDragFactor: 0.985
-  - glideDrag: 0.06
-    diveDrag: 0.07
+  - glideDrag: 0.1
+    diveDrag: 0.1
     airResistanceCoefficient: 0.02
     velocityResistanceFactor: 0.02
+    orientationResistanceFactor: 0.14
+    momentumDecayRate: 0.009
+    groundDragFactor: 0.985
+  - glideDrag: 0.05
+    diveDrag: 0.05
+    airResistanceCoefficient: 0.01
+    velocityResistanceFactor: 0.01
     orientationResistanceFactor: 0.12
     momentumDecayRate: 0.006
     groundDragFactor: 0.99
   - glideDrag: 0.04
     diveDrag: 0.05
     airResistanceCoefficient: 0.01
-    velocityResistanceFactor: 0.02
+    velocityResistanceFactor: 0.01
     orientationResistanceFactor: 0.08
     momentumDecayRate: 0.004
     groundDragFactor: 0.993
@@ -3322,6 +3352,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 1498382235}
+    - targetCorrespondingSourceObject: {fileID: 1932298647743042025, guid: 138967af2f288844b91e21d54c3918ea,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 302148554}
     - targetCorrespondingSourceObject: {fileID: -5002955983644170392, guid: 138967af2f288844b91e21d54c3918ea,
         type: 3}
       insertIndex: -1
@@ -3330,6 +3364,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 1498382243}
+    - targetCorrespondingSourceObject: {fileID: -3508891374226432358, guid: 138967af2f288844b91e21d54c3918ea,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2126146046}
     - targetCorrespondingSourceObject: {fileID: -3896563539606573432, guid: 138967af2f288844b91e21d54c3918ea,
         type: 3}
       insertIndex: -1
@@ -3338,6 +3376,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 1498382241}
+    - targetCorrespondingSourceObject: {fileID: -4158108078490665329, guid: 138967af2f288844b91e21d54c3918ea,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1889464978}
     - targetCorrespondingSourceObject: {fileID: -5810711139476439300, guid: 138967af2f288844b91e21d54c3918ea,
         type: 3}
       insertIndex: -1
@@ -4084,6 +4126,34 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   uiManager: {fileID: 278956799}
+--- !u!1 &1889464974 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -4158108078490665329, guid: 138967af2f288844b91e21d54c3918ea,
+    type: 3}
+  m_PrefabInstance: {fileID: 1498382231}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &1889464978
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1889464974}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 0
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 3021238357964674686, guid: 138967af2f288844b91e21d54c3918ea, type: 3}
 --- !u!1001 &1901973702
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4548,6 +4618,34 @@ TrailRenderer:
   m_Autodestruct: 0
   m_Emitting: 1
   m_ApplyActiveColorSpace: 1
+--- !u!1 &2126146042 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -3508891374226432358, guid: 138967af2f288844b91e21d54c3918ea,
+    type: 3}
+  m_PrefabInstance: {fileID: 1498382231}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &2126146046
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2126146042}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 0
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 5887668099199857030, guid: 138967af2f288844b91e21d54c3918ea, type: 3}
 --- !u!4 &2605235731010306285
 Transform:
   m_ObjectHideFlags: 0

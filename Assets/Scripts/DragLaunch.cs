@@ -86,6 +86,8 @@ public class SimpleDragLauncher : MonoBehaviour
         PlaneEffects planeEffects = cube != null ? cube.GetComponent<PlaneEffects>() : null;
         if (planeEffects != null)
             planeEffects.RefreshFlightTrails();
+
+        cube?.GetComponent<PlaneController>()?.UseRampColliders();
     }
 
     [Header("Rubber SFX")]
@@ -106,6 +108,9 @@ public class SimpleDragLauncher : MonoBehaviour
         cubeRb = cube.GetComponent<Rigidbody>();
         cubeRb.isKinematic = true;
         cube.position = restingPoint.position;
+
+        // On ramp: root collider only until we leave the ramp.
+        cube.GetComponent<PlaneController>()?.UseRampColliders();
 
         // Find the rotation handler if not assigned
         if (rotationHandler == null && cube != null)
@@ -262,7 +267,8 @@ public class SimpleDragLauncher : MonoBehaviour
         // Check if drag distance is sufficient
         if (dragDistance > minDragToLaunch)
         {
-            // Launch the cube
+            // Launch the cube — still on ramp, so keep part MeshColliders off.
+            cube.GetComponent<PlaneController>()?.UseRampColliders();
             cubeRb.isKinematic = false;
             cubeRb.useGravity = true;
 

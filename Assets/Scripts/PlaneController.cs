@@ -253,6 +253,60 @@ public class PlaneController : MonoBehaviour
     {
         detachableParts = GetComponentsInChildren<PlanePartDetach>();
         Debug.Log($"Initialized {detachableParts.Length} detachable parts.");
+        UseRampColliders();
+    }
+
+    /// <summary>
+    /// On the ramp: root collider only. Part MeshColliders stay off so they don't fight the ramp.
+    /// </summary>
+    public void UseRampColliders()
+    {
+        Collider rootCollider = GetComponent<Collider>();
+        if (rootCollider != null)
+            rootCollider.enabled = true;
+
+        SetPartMeshCollidersEnabled(false);
+    }
+
+    /// <summary>
+    /// After leaving the ramp: enable convex MeshColliders on plane parts for realistic hits.
+    /// Root sphere is turned off so part shapes drive collision.
+    /// </summary>
+    public void UseFlightPartColliders()
+    {
+        Collider rootCollider = GetComponent<Collider>();
+        if (rootCollider != null && rootCollider is not MeshCollider)
+            rootCollider.enabled = false;
+
+        SetPartMeshCollidersEnabled(true);
+    }
+
+    private void SetPartMeshCollidersEnabled(bool enabled)
+    {
+        foreach (MeshCollider meshCollider in GetComponentsInChildren<MeshCollider>(true))
+        {
+            if (meshCollider == null)
+                continue;
+
+            // Wheel meshes often fail PhysX convex cooking — keep them off.
+            if (meshCollider.gameObject.name.IndexOf("Wheel", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                meshCollider.enabled = false;
+                continue;
+            }
+
+            if (!enabled)
+            {
+                meshCollider.enabled = false;
+                continue;
+            }
+
+            if (!meshCollider.convex)
+                meshCollider.convex = true;
+
+            // Dynamic Rigidbody only allows convex MeshColliders.
+            meshCollider.enabled = meshCollider.convex;
+        }
     }
 
     void FixedUpdate()
@@ -280,7 +334,8 @@ public class PlaneController : MonoBehaviour
 
         CheckIfBeingDragged();
 
-        if (wasOnRamp && !isOnRamp)
+        // Never re-enable steering after a landing/crash or once the flag is placed.
+        if (wasOnRamp && !isOnRamp && !isGrounded && !markerPlaced)
             StartControlling();
 
         // Check if plane stopped on the shed after a weak launch
@@ -1044,6 +1099,9 @@ public class PlaneController : MonoBehaviour
 
     public void ForceControl()
     {
+        if (isGrounded || markerPlaced)
+            return;
+
         if (!isControlling)
             StartControlling();
     }
@@ -1051,7 +1109,12 @@ public class PlaneController : MonoBehaviour
     public void StopControlling()
     {
         isControlling = false;
+        smoothHorizontalInput = 0f;
+        smoothVerticalInput = 0f;
+        smoothTorque = Vector3.zero;
+        joystick?.ResetInput();
         joystick?.gameObject.SetActive(false);
+        GetComponent<PlaneBodySpinner>()?.StopSpin();
     }
     
     /// <summary>

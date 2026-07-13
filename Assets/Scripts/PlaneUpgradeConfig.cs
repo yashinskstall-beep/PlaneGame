@@ -12,12 +12,19 @@ public class PlaneUpgradePartEntry
 [System.Serializable]
 public class PlaneGlideSettings
 {
+    [Tooltip("Rigidbody drag while gliding or climbing. Higher = slows down more in level flight.")]
     public float glideDrag;
+    [Tooltip("Rigidbody drag while diving (nose down). Lower = builds more speed in a dive.")]
     public float diveDrag;
+    [Tooltip("Constant base air resistance always applied against velocity. Higher = more overall slowdown.")]
     public float airResistanceCoefficient;
+    [Tooltip("Extra air resistance that grows with speed squared. Higher = hard speed cap / stronger high-speed braking.")]
     public float velocityResistanceFactor;
+    [Tooltip("Extra resistance when velocity is not aligned with the nose. Higher = more slowdown when flying sideways or skidding.")]
     public float orientationResistanceFactor;
+    [Tooltip("How fast stored dive momentum is lost while climbing. Higher = shorter climb after a dive.")]
     public float momentumDecayRate;
+    [Tooltip("Speed kept each physics step while sliding on the ground (e.g. 0.98 keeps 98%). Lower = stops faster after landing.")]
     public float groundDragFactor;
 }
 

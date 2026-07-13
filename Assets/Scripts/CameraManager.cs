@@ -116,7 +116,10 @@ public class CameraManager : MonoBehaviour
 
         PlaneController planeController = airPlane != null ? airPlane.GetComponent<PlaneController>() : null;
         if (planeController != null)
+        {
             planeController.InitializeDetachableParts();
+            planeController.UseRampColliders();
+        }
         else
             Debug.LogWarning("PlaneController not found on airplane object!");
 

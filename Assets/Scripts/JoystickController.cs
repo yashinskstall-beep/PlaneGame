@@ -49,12 +49,20 @@ public class JoystickController : MonoBehaviour, IDragHandler, IPointerUpHandler
 
     public void OnPointerUp(PointerEventData eventData)
     {
-        if (joystickBG == null) return;
+        ResetInput();
+    }
 
-        // Reset and hide the joystick
+    /// <summary>
+    /// Clears stick values and hides the handle. Call when flight control ends
+    /// so inactive UI cannot keep feeding stale input.
+    /// </summary>
+    public void ResetInput()
+    {
         inputVector = Vector2.zero;
-        joystickHandle.anchoredPosition = Vector2.zero;
-        joystickBG.gameObject.SetActive(false);
+        if (joystickHandle != null)
+            joystickHandle.anchoredPosition = Vector2.zero;
+        if (joystickBG != null)
+            joystickBG.gameObject.SetActive(false);
     }
 
     public float Horizontal => inputVector.x;
