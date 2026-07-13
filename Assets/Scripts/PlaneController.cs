@@ -109,8 +109,10 @@ public class PlaneController : MonoBehaviour
     public float fallDownForce = 0f; // Default value decreased from 20f
 
     [Header("Marker Settings")]
-    [Tooltip("Height above the ground where the landing flag is spawned.")]
+    [Tooltip("Height above the landing surface where the landing flag is spawned.")]
     public float markerYOffset = 0.5f;
+    [Tooltip("Contact this far above terrain height counts as hitting a tree (not the ground).")]
+    public float treeContactHeightThreshold = 1.25f;
 
     [Header("Fall-Through Safety")]
     [Tooltip("If the plane falls below this world Y (through terrain), the flight ends and the flag spawns at max travel distance.")]
@@ -726,6 +728,16 @@ public class PlaneController : MonoBehaviour
 
     void OnCollisionEnter(Collision collision)
     {
+        if (collision == null || collision.contactCount == 0)
+            return;
+
+        // Terrain tree colliders report as Ground — don't freeze mid-air or put the flag in the sky.
+        if (IsTreeCollision(collision, out ContactPoint treeContact))
+        {
+            HandleTreeCrash(collision, treeContact);
+            return;
+        }
+
         if (IsOutdoorGround(collision.gameObject))
         {
             // Handle ground collision regardless of isControlling state
@@ -798,17 +810,79 @@ public class PlaneController : MonoBehaviour
         }
     }
 
+    private bool IsTreeCollision(Collision collision, out ContactPoint treeContact)
+    {
+        treeContact = collision.GetContact(0);
+
+        if (collision.gameObject.CompareTag("Tree"))
+            return true;
+
+        Terrain terrain = collision.gameObject.GetComponent<Terrain>();
+        if (terrain == null)
+            terrain = collision.gameObject.GetComponentInParent<Terrain>();
+
+        if (terrain == null)
+            return false;
+
+        float groundY = terrain.SampleHeight(treeContact.point) + terrain.transform.position.y;
+        return treeContact.point.y > groundY + treeContactHeightThreshold;
+    }
+
+    private void HandleTreeCrash(Collision collision, ContactPoint treeContact)
+    {
+        if (markerPlaced)
+            return;
+
+        if (isControlling)
+        {
+            StopGlideSound();
+            cameraFollow?.FreezePosition();
+            joystick?.joystickBG?.gameObject.SetActive(false);
+        }
+
+        if (detachableParts != null)
+        {
+            foreach (var part in detachableParts)
+            {
+                if (part != null && !part.IsDetached)
+                    part.HandleCollision(collision);
+            }
+        }
+
+        StopControlling();
+        isGrounded = false;
+
+        if (rb != null)
+        {
+            rb.constraints &= ~RigidbodyConstraints.FreezePositionY;
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        // Place the flag on the tree at the impact point (not at airborne max-Z).
+        maxZPosition = treeContact.point;
+        float currentDistance = treeContact.point.z - startPosition.z;
+        if (currentDistance > maxZDistance)
+            maxZDistance = currentDistance;
+
+        markerPlaced = true;
+        PlaceMarkerAtWorldPoint(treeContact.point, treeContact.normal);
+    }
+
     void OnCollisionStay(Collision collision)
     {
-        if (isGrounded && !isControlling && IsOutdoorGround(collision.gameObject))
+        if (!isGrounded || isControlling || !IsOutdoorGround(collision.gameObject))
+            return;
+
+        if (IsTreeCollision(collision, out _))
+            return;
+
+        Vector3 groundNormal = collision.contacts[0].normal;
+        if (rb != null && rb.velocity.magnitude > 0.1f)
         {
-            Vector3 groundNormal = collision.contacts[0].normal;
-            if (rb != null && rb.velocity.magnitude > 0.1f)
-            {
-                rb.velocity = Vector3.ProjectOnPlane(rb.velocity, groundNormal);
-                if ((rb.constraints & RigidbodyConstraints.FreezePositionY) == 0)
-                    rb.constraints = RigidbodyConstraints.FreezePositionY;
-            }
+            rb.velocity = Vector3.ProjectOnPlane(rb.velocity, groundNormal);
+            if ((rb.constraints & RigidbodyConstraints.FreezePositionY) == 0)
+                rb.constraints = RigidbodyConstraints.FreezePositionY;
         }
     }
 
@@ -958,46 +1032,46 @@ public class PlaneController : MonoBehaviour
 
     private void PlaceMarkerAtTravelDistance(bool useHighAltitudeRaycast, Vector3? samplePointOverride = null)
     {
+        Vector3 samplePoint = samplePointOverride ?? maxZPosition;
+        Vector3 markerPosition = samplePoint;
+        Vector3 surfaceNormal = Vector3.up;
+
+        if (TryFindLandingSurfaceUnderPoint(samplePoint, useHighAltitudeRaycast, out RaycastHit hit))
+        {
+            markerPosition = hit.point;
+            surfaceNormal = hit.normal;
+        }
+        else
+        {
+            markerPosition = new Vector3(samplePoint.x, samplePoint.y, samplePoint.z);
+        }
+
+        if (useHighAltitudeRaycast)
+            transform.position = markerPosition + Vector3.up * markerYOffset;
+
+        PlaceMarkerAtWorldPoint(markerPosition, surfaceNormal);
+    }
+
+    private void PlaceMarkerAtWorldPoint(Vector3 surfacePoint, Vector3 surfaceNormal)
+    {
         if (collisionMarker == null || collisionMarker.markerPrefab == null)
             return;
 
-        Vector3 samplePoint = samplePointOverride ?? maxZPosition;
-        Vector3 raycastStart;
-        float raycastDistance;
-        int groundMask = LayerMask.GetMask("Ground");
-        if (groundMask == 0)
-            groundMask = Physics.DefaultRaycastLayers;
-
-        if (useHighAltitudeRaycast)
-        {
-            raycastStart = new Vector3(samplePoint.x, fallThroughTerrainRaycastHeight, samplePoint.z);
-            raycastDistance = fallThroughTerrainRaycastHeight + 100f;
-        }
+        if (surfaceNormal.sqrMagnitude < 0.001f)
+            surfaceNormal = Vector3.up;
         else
-        {
-            raycastStart = samplePoint + Vector3.up * 1.0f;
-            raycastDistance = groundCheckDistance * 4f;
-        }
+            surfaceNormal.Normalize();
 
-        Vector3 markerPosition = samplePoint;
+        // Keep the flag upright on trees/slopes — only use the surface for seating height.
         Quaternion markerRotation = Quaternion.identity;
-        Vector3 groundNormal = Vector3.up;
-
-        if (Physics.Raycast(raycastStart, Vector3.down, out RaycastHit hit, raycastDistance, groundMask, QueryTriggerInteraction.Ignore))
-        {
-            groundNormal = hit.normal;
-            markerPosition = hit.point + groundNormal * markerYOffset;
-            markerRotation = Quaternion.FromToRotation(Vector3.up, groundNormal);
-        }
-        else
-        {
-            markerPosition = new Vector3(samplePoint.x, markerYOffset, samplePoint.z);
-        }
-
-        if (useHighAltitudeRaycast)
-            transform.position = markerPosition;
+        Vector3 markerPosition = surfacePoint + Vector3.up * markerYOffset;
 
         GameObject marker = Instantiate(collisionMarker.markerPrefab, markerPosition, markerRotation);
+
+        // Seat the flag so its mesh base rests on the surface (prefab pivot is mid-pole).
+        float baseOffset = GetMarkerBaseOffset(marker);
+        marker.transform.position = surfacePoint + Vector3.up * (markerYOffset + baseOffset);
+
         audioManager?.MarkerSFX();
         VibrationManager.Instance?.VibrateButtonClick();
         placedMarker = marker;
@@ -1024,6 +1098,59 @@ public class PlaneController : MonoBehaviour
 
         uiManager ??= FindObjectOfType<UIManager>();
         uiManager?.OnLandingMarkerPlaced();
+    }
+
+    private float GetMarkerBaseOffset(GameObject marker)
+    {
+        Renderer markerRenderer = marker.GetComponentInChildren<Renderer>();
+        if (markerRenderer == null)
+            return 0f;
+
+        // Local-space bottom of the mesh; positive value lifts the pivot so the base sits on the surface.
+        return -markerRenderer.localBounds.min.y;
+    }
+
+    /// <summary>
+    /// Finds the first landing surface under a point (trees and ground both count).
+    /// Uses a tall raycast so airborne max-Z samples still snap onto canopy/terrain instead of floating.
+    /// </summary>
+    private bool TryFindLandingSurfaceUnderPoint(Vector3 samplePoint, bool useHighAltitudeRaycast, out RaycastHit bestHit)
+    {
+        bestHit = default;
+
+        float startY = useHighAltitudeRaycast
+            ? fallThroughTerrainRaycastHeight
+            : Mathf.Max(samplePoint.y + 2f, fallThroughTerrainRaycastHeight);
+
+        float raycastDistance = startY - fallThroughYThreshold + 50f;
+        Vector3 rayOrigin = new Vector3(samplePoint.x, startY, samplePoint.z);
+        RaycastHit[] hits = Physics.RaycastAll(
+            rayOrigin,
+            Vector3.down,
+            raycastDistance,
+            Physics.DefaultRaycastLayers,
+            QueryTriggerInteraction.Ignore);
+
+        if (hits == null || hits.Length == 0)
+            return false;
+
+        bool found = false;
+        foreach (RaycastHit hit in hits)
+        {
+            if (hit.collider == null)
+                continue;
+
+            if (hit.collider.transform == transform || hit.collider.transform.IsChildOf(transform))
+                continue;
+
+            if (!found || hit.distance < bestHit.distance)
+            {
+                bestHit = hit;
+                found = true;
+            }
+        }
+
+        return found;
     }
 
     public void BoostButton()
