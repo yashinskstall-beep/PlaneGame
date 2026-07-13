@@ -4142,22 +4142,10 @@ PrefabInstance:
       propertyPath: planeUpgradeConfig
       value: 
       objectReference: {fileID: 549470101}
-<<<<<<< Updated upstream
     - target: {fileID: 581611436326774803, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: m_Name
       value: AdnotFoundNoti
-=======
-    - target: {fileID: 763853425439184978, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_SizeDelta.x
-      value: 170.928
-      objectReference: {fileID: 0}
-    - target: {fileID: 763853425439184978, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: -10.4605
->>>>>>> Stashed changes
       objectReference: {fileID: 0}
     - target: {fileID: 1726490693675406617, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
@@ -4199,8 +4187,6 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
-<<<<<<< Updated upstream
-=======
     - target: {fileID: 5469729420091537362, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: m_IsActive
@@ -4221,7 +4207,6 @@ PrefabInstance:
       propertyPath: m_fontSizeBase
       value: 16
       objectReference: {fileID: 0}
->>>>>>> Stashed changes
     - target: {fileID: 6995557172876886332, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: boosters
