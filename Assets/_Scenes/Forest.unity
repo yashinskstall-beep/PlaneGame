@@ -4147,6 +4147,16 @@ PrefabInstance:
       propertyPath: m_Name
       value: AdnotFoundNoti
       objectReference: {fileID: 0}
+    - target: {fileID: 763853425439184978, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 170.928
+      objectReference: {fileID: 0}
+    - target: {fileID: 763853425439184978, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -10.4605
+      objectReference: {fileID: 0}
     - target: {fileID: 1726490693675406617, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: m_Name
