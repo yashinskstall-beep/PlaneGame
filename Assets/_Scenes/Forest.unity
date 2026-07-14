@@ -4163,26 +4163,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 148183218137501221, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 148183218137501221, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchorMin.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 148183218137501221, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 148183218137501221, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 513231841030903809, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: audioManager
@@ -4233,26 +4213,6 @@ PrefabInstance:
       propertyPath: m_AnchorMax.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5303205698642771725, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5303205698642771725, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchorMin.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5303205698642771725, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5303205698642771725, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 6995557172876886332, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: boosters
@@ -4282,11 +4242,6 @@ PrefabInstance:
         type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7251148230480090393, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_IsActive
-      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7304154443848280013, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
@@ -4348,26 +4303,6 @@ PrefabInstance:
       propertyPath: target
       value: 
       objectReference: {fileID: 549470088}
-    - target: {fileID: 9005714955667767510, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 9005714955667767510, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchorMin.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 9005714955667767510, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 9005714955667767510, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 0
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

@@ -5859,7 +5859,6 @@ MonoBehaviour:
   upgradeParticleYOffset: 0
   upgradeParticleScale: 1
   cheatCoinsButton: {fileID: 7251148230480090393}
-  showCheatCoinsOnAndroid: 0
   debugUpgradeVfx: 1
   launchForceLevels:
   - 25
@@ -5869,11 +5868,11 @@ MonoBehaviour:
   rubberBandVisual: {fileID: 0}
   slingshotUpgradeVfxPoint: {fileID: 0}
   boostDurations:
-  - 2
-  - 2.5
-  - 3
-  - 3.5
-  - 4
+  - 0.6
+  - 0.7
+  - 0.8
+  - 0.85
+  - 1
 --- !u!114 &7166249879431040013
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12367,7 +12366,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &6226323172237313119
 RectTransform:
   m_ObjectHideFlags: 0

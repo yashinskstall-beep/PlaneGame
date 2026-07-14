@@ -85,8 +85,6 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     [Header("Debug")]
     [SerializeField] private GameObject cheatCoinsButton;
-    [Tooltip("When enabled, the cheat coins button is also shown on Android builds.")]
-    [SerializeField] private bool showCheatCoinsOnAndroid;
     [SerializeField] private bool debugUpgradeVfx = true;
 
     private int currentIndex = 0;
@@ -1328,10 +1326,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (cheatCoinsButton == null)
             return;
 
+        // Cheat coins only in the editor — never on Android or iOS player builds.
 #if UNITY_EDITOR
         cheatCoinsButton.SetActive(true);
-#elif UNITY_ANDROID
-        cheatCoinsButton.SetActive(showCheatCoinsOnAndroid);
 #else
         cheatCoinsButton.SetActive(false);
 #endif

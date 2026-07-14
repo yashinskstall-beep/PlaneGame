@@ -9548,7 +9548,6 @@ MonoBehaviour:
   upgradeParticleYOffset: 0
   upgradeParticleScale: 1
   cheatCoinsButton: {fileID: 3850036247653176452}
-  showCheatCoinsOnAndroid: 0
   debugUpgradeVfx: 1
   boostSlideOffsetX: 500
   boostSlideDuration: 0.4
