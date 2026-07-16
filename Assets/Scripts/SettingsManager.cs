@@ -73,10 +73,32 @@ public class SettingsManager : MonoBehaviour
                 if (!IsAudioEnabled && source.isPlaying)
                     source.Stop();
             }
+
+            // Background music was Stop()'d when muted — restart it when audio is re-enabled.
+            if (IsAudioEnabled)
+                RestartBackgroundMusic(manager);
         }
 
         AudioListener.volume = IsAudioEnabled ? 1f : 0f;
         AudioListener.pause = !IsAudioEnabled;
+    }
+
+    private static void RestartBackgroundMusic(AudioManager manager)
+    {
+        if (manager == null)
+            return;
+
+        AudioSource bgm = manager.audioSource;
+        if (bgm == null)
+            bgm = manager.GetComponent<AudioSource>();
+
+        if (bgm == null)
+            return;
+
+        manager.audioSource = bgm;
+        bgm.mute = false;
+        if (!bgm.isPlaying)
+            bgm.Play();
     }
 
     public static void ApplySavedVibrationState()
