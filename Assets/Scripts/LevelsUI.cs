@@ -69,6 +69,12 @@ public class LevelsUI : MonoBehaviour
         if (startupSceneResolved)
             return;
 
+        // In the editor, stay on whatever scene you pressed Play on.
+        // Builds still jump to the highest unlocked level on cold start.
+#if UNITY_EDITOR
+        startupSceneResolved = true;
+        return;
+#else
         LevelsUI levelsUI = instance ?? FindObjectOfType<LevelsUI>(true);
         if (levelsUI == null)
             return;
@@ -89,6 +95,7 @@ public class LevelsUI : MonoBehaviour
 
         startupSceneResolved = true;
         SceneManager.LoadScene(targetScene);
+#endif
     }
 
     private void SetupButtonListeners()
