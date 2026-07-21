@@ -21,7 +21,7 @@ public class UpgradeAdVisualSet
 public class MainMenu : MonoBehaviour, IPointerClickHandler
 {
     [Header("References")]
-    public CameraManager cameraManager;
+    public CameraTransitionController cameraManager;
     [Tooltip("Per-scene unlockable parts (body stays default). Assign one config per scene.")]
     public PlaneUpgradeConfig planeUpgradeConfig;
     public TextMeshProUGUI coinText;
@@ -87,12 +87,23 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     [SerializeField] private GameObject cheatCoinsButton;
     [SerializeField] private bool debugUpgradeVfx = true;
 
-    private int currentIndex = 0;
-    private int clickCount = 0;
-    private const int clicksRequired = 5;
-    private const int UpgradeCostStart = 50;
-    private const int UpgradeCostIncrement = 25;
-    private float currentCost = UpgradeCostStart;
+    private PartUpgradeSystem partUpgrades = new PartUpgradeSystem();
+    private LaunchForceUpgradeSystem launchForceUpgrades = new LaunchForceUpgradeSystem();
+    private BoostUpgradeSystem boostUpgrades = new BoostUpgradeSystem();
+    private CoinMultiplierUpgradeSystem coinMultiplierUpgrades = new CoinMultiplierUpgradeSystem();
+
+    // Keep the existing menu state names so all button flows and Inspector-driven setup remain intact.
+    private int currentIndex { get => partUpgrades.CurrentIndex; set => partUpgrades.CurrentIndex = value; }
+    private int clickCount { get => partUpgrades.ClickCount; set => partUpgrades.ClickCount = value; }
+    private const int clicksRequired = UpgradeCostUtil.ClicksRequired;
+
+    [Header("Upgrade Economy (set per scene)")]
+    [Tooltip("First click cost for plane, slingshot, and income upgrades. Change this on each scene's MainMenu (e.g. Forest 50, Desert 100).")]
+    [SerializeField] private int upgradeCostStart = 50;
+    [Tooltip("Extra cost added on every click. Change per scene if the ladder should climb faster/slower.")]
+    [SerializeField] private int upgradeCostIncrement = 25;
+
+    private float currentCost => partUpgrades.CurrentCost;
     private int playerCoins;
  // private AudioSource audioSource;
     private bool isUpgrading = false;
@@ -113,20 +124,16 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     [SerializeField] private float[] boostDurations = { 2f, 2.5f, 3f, 3.5f, 4f };
 
     // Launch force level system
-    private int launchForceLevel = 1;
-    private int launchForceClickCount = 0;
-    private float launchForceCurrentCost = UpgradeCostStart;
-    private int maxLaunchForceLevel => launchForceLevels != null && launchForceLevels.Length > 0
-        ? launchForceLevels.Length
-        : 1;
+    private int launchForceLevel { get => launchForceUpgrades.Level; set => launchForceUpgrades.Level = value; }
+    private int launchForceClickCount { get => launchForceUpgrades.ClickCount; set => launchForceUpgrades.ClickCount = value; }
+    private float launchForceCurrentCost => launchForceUpgrades.CurrentCost;
+    private int maxLaunchForceLevel => launchForceUpgrades.MaxLevel;
 
-    private int boostLevel = 0;
-    private int maxBoostLevel => boostDurations != null && boostDurations.Length > 0
-        ? boostDurations.Length
-        : 1;
+    private int boostLevel { get => boostUpgrades.Level; set => boostUpgrades.Level = value; }
+    private int maxBoostLevel => boostUpgrades.MaxLevel;
 
-    private int coinMultiplierLevel = 1;
-    private int coinMultiplierClickCount = 0;
+    private int coinMultiplierLevel { get => coinMultiplierUpgrades.Level; set => coinMultiplierUpgrades.Level = value; }
+    private int coinMultiplierClickCount { get => coinMultiplierUpgrades.ClickCount; set => coinMultiplierUpgrades.ClickCount = value; }
     private const float maxCoinMultiplierValue = 10f;
     private const float coinMultiplierStep = 0.2f;
 
@@ -149,12 +156,38 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         ResolveSceneReferences();
         EnsureLaunchForceConfig();
         EnsureBoostConfig();
+        SyncUpgradeSystemRefs();
     }
 
     private void OnValidate()
     {
         EnsureLaunchForceConfig();
         EnsureBoostConfig();
+        SyncUpgradeSystemRefs();
+    }
+
+    private void SyncUpgradeSystemRefs()
+    {
+        if (partUpgrades == null)
+            partUpgrades = new PartUpgradeSystem();
+        if (launchForceUpgrades == null)
+            launchForceUpgrades = new LaunchForceUpgradeSystem();
+        if (boostUpgrades == null)
+            boostUpgrades = new BoostUpgradeSystem();
+        if (coinMultiplierUpgrades == null)
+            coinMultiplierUpgrades = new CoinMultiplierUpgradeSystem();
+
+        partUpgrades.Config = planeUpgradeConfig;
+        partUpgrades.CostStart = upgradeCostStart;
+        partUpgrades.CostIncrement = upgradeCostIncrement;
+        launchForceUpgrades.ForceLevels = launchForceLevels;
+        launchForceUpgrades.CostStart = upgradeCostStart;
+        launchForceUpgrades.CostIncrement = upgradeCostIncrement;
+        boostUpgrades.Durations = boostDurations;
+        coinMultiplierUpgrades.CostStart = upgradeCostStart;
+        coinMultiplierUpgrades.CostIncrement = upgradeCostIncrement;
+        coinMultiplierUpgrades.MaxValue = maxCoinMultiplierValue;
+        coinMultiplierUpgrades.Step = coinMultiplierStep;
     }
 
     private void EnsureLaunchForceConfig()
@@ -174,53 +207,48 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         }
 
         for (int i = 0; i < launchForceCosts.Length; i++)
-            launchForceCosts[i] = GetTrackedUpgradeCost(UpgradeCostStart, i * clicksRequired);
+            launchForceCosts[i] = GetTrackedUpgradeCost(upgradeCostStart, i * clicksRequired);
     }
 
-    private static int GetTrackedUpgradeCost(int startCost, int stepIndex)
+    private int GetTrackedUpgradeCost(int startCost, int stepIndex)
     {
-        return startCost + Mathf.Max(0, stepIndex) * UpgradeCostIncrement;
+        return UpgradeCostUtil.GetTrackedUpgradeCost(startCost, upgradeCostIncrement, stepIndex);
     }
 
     private int GetPlaneUpgradeStepIndex()
     {
-        return currentIndex * clicksRequired + clickCount;
+        return partUpgrades.GetStepIndex();
     }
 
     private int GetPlaneUpgradeClickCost()
     {
-        if (IsFullyUpgraded())
-            return 0;
-
-        return GetTrackedUpgradeCost(UpgradeCostStart, GetPlaneUpgradeStepIndex());
+        return partUpgrades.GetClickCost();
     }
 
     private void RefreshPlaneUpgradeCost()
     {
-        currentCost = GetPlaneUpgradeClickCost();
+        partUpgrades.RefreshCost();
     }
 
     private int GetLaunchForceStepIndex()
     {
-        return (launchForceLevel - 1) * clicksRequired + launchForceClickCount;
+        return launchForceUpgrades.GetStepIndex();
     }
 
     private void RefreshLaunchForceUpgradeCost()
     {
-        launchForceCurrentCost = GetLaunchForceClickCost();
+        launchForceUpgrades.RefreshCost();
     }
 
     private float GetLaunchForceMultiplierForLevel(int level)
     {
-        EnsureLaunchForceConfig();
-        int index = Mathf.Clamp(level - 1, 0, launchForceLevels.Length - 1);
-        return launchForceLevels[index];
+        return launchForceUpgrades.GetForceForLevel(level);
     }
 
     private int GetLaunchForceCostForLevel(int level)
     {
         EnsureLaunchForceConfig();
-        return GetTrackedUpgradeCost(UpgradeCostStart, (level - 1) * clicksRequired);
+        return GetTrackedUpgradeCost(upgradeCostStart, (level - 1) * clicksRequired);
     }
 
     private void EnsureBoostConfig()
@@ -231,14 +259,13 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private float GetBoostDurationForLevel(int level)
     {
-        EnsureBoostConfig();
-        int index = Mathf.Clamp(level - 1, 0, boostDurations.Length - 1);
-        return boostDurations[index];
+        return boostUpgrades.GetDurationForLevel(level);
     }
 
     void OnEnable()
     {
         ResolveSceneReferences();
+        SyncUpgradeSystemRefs();
         ResolveUIReferences();
         CacheUpgradeButtonTransitions();
         EnsureUpgradeShakeComponents();
@@ -327,15 +354,11 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     public void ResetUpgradesForNewLevel()
     {
         isUpgrading = false;
-        currentIndex = 0;
-        clickCount = 0;
-        currentCost = UpgradeCostStart;
-        launchForceLevel = 1;
-        launchForceClickCount = 0;
-        launchForceCurrentCost = UpgradeCostStart;
-        boostLevel = 0;
-        coinMultiplierLevel = 1;
-        coinMultiplierClickCount = 0;
+        SyncUpgradeSystemRefs();
+        partUpgrades.Reset();
+        launchForceUpgrades.Reset();
+        boostUpgrades.Reset();
+        coinMultiplierUpgrades.Reset();
 
         if (planeUpgradeConfig != null)
         {
@@ -360,9 +383,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         GetRubberBandVisual()?.ApplyLaunchForceLevel(1);
 
-        PlayerPrefs.SetInt(LevelProgress.CoinMultiplierLevelKey, 1);
-        PlayerPrefs.SetInt(LevelProgress.CoinMultiplierClickCountKey, 0);
-        PlayerPrefs.SetFloat(LevelProgress.CoinMultiplierValueKey, 1f);
+        UpgradeSaveStore.ResetCoinMultiplierDefaults();
         SaveLaunchForceProgress();
         SaveBoostProgress();
         SaveProgress();
@@ -987,8 +1008,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (VibrationManager.Instance != null)
             VibrationManager.Instance.VibrateButtonClick();
 
-        clickCount++;
-        RefreshPlaneUpgradeCost();
+        partUpgrades.RegisterClick();
 
         UpdateCoinUI();
         RefreshAllUpgradeCostUI();
@@ -1019,8 +1039,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (VibrationManager.Instance != null)
             VibrationManager.Instance.VibrateButtonClick();
 
-        launchForceClickCount++;
-        RefreshLaunchForceUpgradeCost();
+        launchForceUpgrades.RegisterClick();
 
         RefreshAllUpgradeCostUI();
         UpdateLaunchForceLevelUI();
@@ -1049,14 +1068,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (VibrationManager.Instance != null)
             VibrationManager.Instance.VibrateButtonClick();
 
-        coinMultiplierClickCount++;
-        if (coinMultiplierClickCount >= clicksRequired)
-        {
-            coinMultiplierClickCount = 0;
-            coinMultiplierLevel++;
-        }
-
-        ClampCoinMultiplierProgress();
+        coinMultiplierUpgrades.RegisterClick();
         SaveCoinMultiplierProgress();
 
         RefreshAllUpgradeCostUI();
@@ -1412,8 +1424,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         VibrationManager.Instance.VibrateButtonClick();
 
         // Progress and cost update
-        clickCount++;
-        RefreshPlaneUpgradeCost();
+        partUpgrades.RegisterClick();
 
         UpdateCoinUI();
         RefreshAllUpgradeCostUI();
@@ -1461,8 +1472,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         audioManager.PlanepartSFX();
         yield return StartCoroutine(PlayPartUpgradeParticlesRoutine(currentIndex, part));
 
-        currentIndex++;
-        clickCount = 0;
+        partUpgrades.CompletePartUnlock();
         UpdateSliderUI();
         RefreshAllUpgradeCostUI();
 
@@ -1511,8 +1521,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         audioManager.PlanepartSFX();
         yield return StartCoroutine(PlaySlingshotUpgradeParticlesRoutine(slingshotTarget));
 
-        launchForceClickCount = 0;
-        RefreshLaunchForceUpgradeCost();
+        launchForceUpgrades.RefreshCost();
         UpdateLaunchForceSliderUI();
         UpdateLaunchForceLevelUI();
         RefreshAllUpgradeCostUI();
@@ -1591,11 +1600,11 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void ApplySlingshotUpgradeLevel()
     {
-        launchForceLevel = Mathf.Clamp(launchForceLevel + 1, 1, maxLaunchForceLevel);
+        launchForceUpgrades.CompleteTier();
 
         if (dragLauncher != null)
         {
-            dragLauncher.launchForceMultiplier = GetLaunchForceMultiplierForLevel(launchForceLevel);
+            launchForceUpgrades.ApplyToLauncher(dragLauncher);
             dragLauncher.ResetForNewLaunch();
         }
 
@@ -2315,35 +2324,22 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private int GetLaunchForceClickCost()
     {
-        if (launchForceLevel >= maxLaunchForceLevel)
-            return 0;
-
-        return GetTrackedUpgradeCost(UpgradeCostStart, GetLaunchForceStepIndex());
+        return launchForceUpgrades.GetClickCost();
     }
 
     private void SaveLaunchForceProgress()
     {
-        PlayerPrefs.SetInt(LevelProgress.GetLaunchForceLevelKey(), launchForceLevel);
-        PlayerPrefs.SetInt(LevelProgress.GetLaunchForceClickCountKey(), launchForceClickCount);
-        PlayerPrefs.SetFloat(LevelProgress.GetLaunchForceCurrentCostKey(), launchForceCurrentCost);
-
-        if (dragLauncher != null)
-            PlayerPrefs.SetFloat(LevelProgress.GetLaunchForceMultiplierKey(), dragLauncher.launchForceMultiplier);
-
-        PlayerPrefs.Save();
+        launchForceUpgrades.Save(dragLauncher);
     }
 
     private void SaveBoostProgress()
     {
-        PlayerPrefs.SetInt(LevelProgress.GetBoostLevelKey(), boostLevel);
-        PlayerPrefs.SetFloat(LevelProgress.GetBoostDurationKey(), boostLevel > 0 ? GetBoostDurationForLevel(boostLevel) : 0f);
-        PlayerPrefs.Save();
+        boostUpgrades.Save();
     }
 
     private void LoadBoostLevel()
     {
-        boostLevel = PlayerPrefs.GetInt(LevelProgress.GetBoostLevelKey(), 0);
-        boostLevel = Mathf.Clamp(boostLevel, 0, maxBoostLevel);
+        boostUpgrades.Load();
         ApplyBoostSettings();
     }
 
@@ -2351,9 +2347,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     {
         ResolveSceneReferences();
 
-        float duration = boostLevel > 0 ? GetBoostDurationForLevel(boostLevel) : 0f;
-        if (planeController != null)
-            planeController.boostDuration = duration;
+        boostUpgrades.ApplyToPlane(planeController);
+        if (planeController != null && boostLevel <= 0)
+            planeController.boostDuration = 0f;
 
         bool boostUnlocked = boostLevel > 0;
         if (PlaneBoosters != null)
@@ -2542,25 +2538,22 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private int GetMaxCoinMultiplierTotalClicks()
     {
-        return Mathf.RoundToInt((maxCoinMultiplierValue - 1f) / coinMultiplierStep);
+        return coinMultiplierUpgrades.GetMaxTotalClicks();
     }
 
     private bool IsCoinMultiplierMax()
     {
-        return GetCoinMultiplierTotalClicks() >= GetMaxCoinMultiplierTotalClicks();
+        return coinMultiplierUpgrades.IsMax;
     }
 
     private void ClampCoinMultiplierProgress()
     {
-        int maxClicks = GetMaxCoinMultiplierTotalClicks();
-        int totalClicks = Mathf.Clamp(GetCoinMultiplierTotalClicks(), 0, maxClicks);
-        coinMultiplierLevel = totalClicks / clicksRequired + 1;
-        coinMultiplierClickCount = totalClicks % clicksRequired;
+        coinMultiplierUpgrades.Clamp();
     }
 
     private int GetCoinMultiplierTotalClicks()
     {
-        return (coinMultiplierLevel - 1) * clicksRequired + coinMultiplierClickCount;
+        return coinMultiplierUpgrades.GetTotalClicks();
     }
 
     private static string FormatCoinMultiplierDisplay(float value)
@@ -2574,23 +2567,17 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private float GetCoinMultiplierValue()
     {
-        return 1f + GetCoinMultiplierTotalClicks() * coinMultiplierStep;
+        return coinMultiplierUpgrades.GetValue();
     }
 
     private int GetCoinMultiplierClickCost()
     {
-        if (IsCoinMultiplierMax())
-            return 0;
-
-        return GetTrackedUpgradeCost(UpgradeCostStart, GetCoinMultiplierTotalClicks());
+        return coinMultiplierUpgrades.GetClickCost();
     }
 
     private void SaveCoinMultiplierProgress()
     {
-        PlayerPrefs.SetInt(LevelProgress.CoinMultiplierLevelKey, coinMultiplierLevel);
-        PlayerPrefs.SetInt(LevelProgress.CoinMultiplierClickCountKey, coinMultiplierClickCount);
-        PlayerPrefs.SetFloat(LevelProgress.CoinMultiplierValueKey, GetCoinMultiplierValue());
-        PlayerPrefs.Save();
+        coinMultiplierUpgrades.Save();
     }
 
     private void UpdateCoinMultiplierCostUI()
@@ -2668,7 +2655,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
     /// </summary>
     public void OnReturnedToMainMenu()
     {
-        UIManager uiManager = FindObjectOfType<UIManager>(true);
+        FlightHUD uiManager = FindObjectOfType<FlightHUD>(true);
         if (uiManager != null)
             uiManager.CancelPendingLevelCompleteAd();
 
@@ -2713,20 +2700,13 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void SaveProgress()
     {
-        PlayerPrefs.SetInt(LevelProgress.GetUpgradeCurrentIndexKey(), currentIndex);
-        PlayerPrefs.SetInt(LevelProgress.GetUpgradeClickCountKey(), clickCount);
-        PlayerPrefs.SetFloat(LevelProgress.GetUpgradeCurrentCostKey(), currentCost);
         SyncPlayerCoins();
-        PlayerPrefs.SetInt(LevelProgress.CoinsKey, playerCoins);
-        PlayerPrefs.Save();
+        partUpgrades.Save(playerCoins);
     }
 
     private void LoadProgress()
     {
-        currentIndex = PlayerPrefs.GetInt(LevelProgress.GetUpgradeCurrentIndexKey(), 0);
-        clickCount = PlayerPrefs.GetInt(LevelProgress.GetUpgradeClickCountKey(), 0);
-        currentCost = PlayerPrefs.GetFloat(LevelProgress.GetUpgradeCurrentCostKey(), UpgradeCostStart);
-        RefreshPlaneUpgradeCost();
+        partUpgrades.Load();
         SyncPlayerCoins();
     }
 
@@ -2740,8 +2720,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         currentIndex = PlayerPrefs.GetInt("Upgrade_CurrentIndex", currentIndex);
         clickCount = PlayerPrefs.GetInt("Upgrade_ClickCount", clickCount);
-        currentCost = PlayerPrefs.GetFloat("Upgrade_CurrentCost", currentCost);
-
+        partUpgrades.RefreshCost();
         if (planeUpgradeConfig != null)
         {
             foreach (PlaneUpgradePartEntry entry in planeUpgradeConfig.upgradeParts)
@@ -2879,25 +2858,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void LoadLaunchForceLevel()
     {
-        launchForceLevel = PlayerPrefs.GetInt(LevelProgress.GetLaunchForceLevelKey(), 1);
-        if (!PlayerPrefs.HasKey(LevelProgress.GetLaunchForceLevelKey()) && PlayerPrefs.HasKey("LaunchForceLevel"))
-            launchForceLevel = PlayerPrefs.GetInt("LaunchForceLevel", launchForceLevel);
-
-        launchForceClickCount = PlayerPrefs.GetInt(LevelProgress.GetLaunchForceClickCountKey(), 0);
-
-        launchForceLevel = Mathf.Clamp(launchForceLevel, 1, maxLaunchForceLevel);
-        launchForceClickCount = Mathf.Clamp(launchForceClickCount, 0, clicksRequired - 1);
-
-        if (launchForceLevel >= maxLaunchForceLevel)
-            launchForceClickCount = 0;
-
-        launchForceCurrentCost = PlayerPrefs.GetFloat(
-            LevelProgress.GetLaunchForceCurrentCostKey(),
-            GetLaunchForceCostForLevel(launchForceLevel));
-        RefreshLaunchForceUpgradeCost();
-
-        if (dragLauncher != null)
-            dragLauncher.launchForceMultiplier = GetLaunchForceMultiplierForLevel(launchForceLevel);
+        launchForceUpgrades.Load();
+        launchForceUpgrades.ApplyToLauncher(dragLauncher);
 
         GetRubberBandVisual()?.ApplyLaunchForceLevel(launchForceLevel);
     }
@@ -2933,8 +2895,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         VibrationManager.Instance.VibrateButtonClick();
         UpdateCoinUI();
 
-        launchForceClickCount++;
-        RefreshLaunchForceUpgradeCost();
+        launchForceUpgrades.RegisterClick();
 
         RefreshAllUpgradeCostUI();
         UpdateLaunchForceLevelUI();
@@ -2957,19 +2918,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void LoadCoinMultiplierLevel()
     {
-        coinMultiplierLevel = PlayerPrefs.GetInt(LevelProgress.CoinMultiplierLevelKey, 1);
-        coinMultiplierClickCount = PlayerPrefs.GetInt(LevelProgress.CoinMultiplierClickCountKey, 0);
-
-        if (PlayerPrefs.HasKey(LevelProgress.CoinMultiplierValueKey))
-        {
-            float savedValue = PlayerPrefs.GetFloat(LevelProgress.CoinMultiplierValueKey, 1f);
-            int totalClicks = Mathf.RoundToInt((savedValue - 1f) / coinMultiplierStep);
-            totalClicks = Mathf.Max(0, totalClicks);
-            coinMultiplierLevel = totalClicks / clicksRequired + 1;
-            coinMultiplierClickCount = totalClicks % clicksRequired;
-        }
-
-        ClampCoinMultiplierProgress();
+        coinMultiplierUpgrades.Load();
     }
 
     public void IncreaseCoinMultiplier()
@@ -2996,16 +2945,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         UpdateCoinUI();
 
-        coinMultiplierClickCount++;
-        bool batchComplete = coinMultiplierClickCount >= clicksRequired;
-
-        if (batchComplete)
-        {
-            coinMultiplierClickCount = 0;
-            coinMultiplierLevel++;
-        }
-
-        ClampCoinMultiplierProgress();
+        coinMultiplierUpgrades.RegisterClick();
+        bool batchComplete = coinMultiplierClickCount == 0;
         SaveCoinMultiplierProgress();
 
         RefreshAllUpgradeCostUI();

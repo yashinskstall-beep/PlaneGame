@@ -5,7 +5,7 @@ using UnityEngine;
 public class GoalTrigger : MonoBehaviour
 {
 
-    public UIManager uiManager;
+    public FlightHUD uiManager;
 
     
     public void OnTriggerEnter(Collider other)

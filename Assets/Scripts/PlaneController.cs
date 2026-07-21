@@ -14,7 +14,7 @@ public class PlaneController : MonoBehaviour
     [Tooltip("Aligns the plane to the ramp while rolling. Usually on the same object as the plane.")]
     public PlaneRampAligner rampAligner;
     [Tooltip("Spawns the landing flag prefab when the plane stops. Auto-added if missing.")]
-    public CollisionMarker collisionMarker;
+    public LandingFlagPlacer collisionMarker;
     [Tooltip("On-screen joystick for pitch and turn. Enable with Use Joystick Input.")]
     public JoystickController joystick;
     [Tooltip("Left booster particle effect. Plays during boost.")]
@@ -30,7 +30,7 @@ public class PlaneController : MonoBehaviour
     [Tooltip("Wind loop during flight. Stops when the plane lands.")]
     public AudioSource windSource;
     //public GameObject boostBtn;
-   // public CameraManager cameraManager;
+   // public CameraTransitionController cameraManager;
 
     [Header("Handling Settings")]
     [Tooltip("How fast the plane yaws left/right when you steer. Higher = snappier turns.")]
@@ -142,7 +142,7 @@ public class PlaneController : MonoBehaviour
     [Tooltip("How many boost button presses per flight.")]
     public int maxBoostUses = 2;
     [Tooltip("UI manager for boost counter and score screen.")]
-    public UIManager uiManager;
+    public FlightHUD uiManager;
 
     private bool blockForwardForceFromInput;
     
@@ -220,10 +220,10 @@ public class PlaneController : MonoBehaviour
         {
             Debug.LogWarning("No PlaneDamageHandler found. Wing damage effects won't work.");
         }
-        collisionMarker ??= GetComponent<CollisionMarker>() ?? gameObject.AddComponent<CollisionMarker>();
+        collisionMarker ??= GetComponent<LandingFlagPlacer>() ?? gameObject.AddComponent<LandingFlagPlacer>();
         rampAligner ??= GetComponent<PlaneRampAligner>() ?? FindObjectOfType<PlaneRampAligner>();
         cameraFollow ??= FindObjectOfType<SimpleCameraFollow>();
-        uiManager ??= FindObjectOfType<UIManager>();
+        uiManager ??= FindObjectOfType<FlightHUD>();
 
         if (cameraFollow == null)
         {
@@ -327,12 +327,7 @@ public class PlaneController : MonoBehaviour
         
         bool isOnRamp = false;
         if (rampAligner != null)
-        {
-            var field = typeof(PlaneRampAligner).GetField("isAligning",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (field != null)
-                isOnRamp = (bool)field.GetValue(rampAligner);
-        }
+            isOnRamp = rampAligner.IsAligning;
 
         CheckIfBeingDragged();
 
@@ -514,14 +509,7 @@ public class PlaneController : MonoBehaviour
         // 5. The plane is not on a ramp (ramp aligner handles rotation)
         
         // Check if plane is on ramp
-        bool isOnRamp = false;
-        if (rampAligner != null)
-        {
-            var field = typeof(PlaneRampAligner).GetField("isAligning",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (field != null)
-                isOnRamp = (bool)field.GetValue(rampAligner);
-        }
+        bool isOnRamp = rampAligner != null && rampAligner.IsAligning;
         
         // Check if plane is upside down or at extreme angles (roll > 90 degrees)
         float rollAngle = transform.localEulerAngles.z;
@@ -951,12 +939,7 @@ public class PlaneController : MonoBehaviour
 
     private bool IsOnRampAligner()
     {
-        if (rampAligner == null)
-            return false;
-
-        var field = typeof(PlaneRampAligner).GetField("isAligning",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        return field != null && (bool)field.GetValue(rampAligner);
+        return rampAligner != null && rampAligner.IsAligning;
     }
 
     private bool IsMisfireLaunch()
@@ -1057,34 +1040,13 @@ public class PlaneController : MonoBehaviour
         if (collisionMarker == null || collisionMarker.markerPrefab == null)
             return;
 
-        if (surfaceNormal.sqrMagnitude < 0.001f)
-            surfaceNormal = Vector3.up;
-        else
-            surfaceNormal.Normalize();
-
-        // Keep the flag upright on trees/slopes — only use the surface for seating height.
-        Quaternion markerRotation = Quaternion.identity;
-        Vector3 markerPosition = surfacePoint + Vector3.up * markerYOffset;
-
-        GameObject marker = Instantiate(collisionMarker.markerPrefab, markerPosition, markerRotation);
-
-        // Seat the flag so its mesh base rests on the surface (prefab pivot is mid-pole).
-        float baseOffset = GetMarkerBaseOffset(marker);
-        marker.transform.position = surfacePoint + Vector3.up * (markerYOffset + baseOffset);
+        GameObject marker = collisionMarker.PlaceLandingMarker(surfacePoint, surfaceNormal, markerYOffset);
+        if (marker == null)
+            return;
 
         audioManager?.MarkerSFX();
         VibrationManager.Instance?.VibrateButtonClick();
         placedMarker = marker;
-        marker.isStatic = false;
-
-        LandingMarker landingMarker = marker.GetComponent<LandingMarker>();
-        if (landingMarker == null)
-            landingMarker = marker.AddComponent<LandingMarker>();
-
-        if (landingMarker != null)
-            landingMarker.markerColor = collisionMarker.markerColor;
-        else
-            Destroy(marker, collisionMarker.markerLifetime);
 
         if (cameraFollow != null)
         {
@@ -1096,18 +1058,8 @@ public class PlaneController : MonoBehaviour
             Debug.LogWarning("Camera follow reference is missing. Cannot transition to marker.");
         }
 
-        uiManager ??= FindObjectOfType<UIManager>();
+        uiManager ??= FindObjectOfType<FlightHUD>();
         uiManager?.OnLandingMarkerPlaced();
-    }
-
-    private float GetMarkerBaseOffset(GameObject marker)
-    {
-        Renderer markerRenderer = marker.GetComponentInChildren<Renderer>();
-        if (markerRenderer == null)
-            return 0f;
-
-        // Local-space bottom of the mesh; positive value lifts the pivot so the base sits on the surface.
-        return -markerRenderer.localBounds.min.y;
     }
 
     /// <summary>

@@ -1,31 +1,42 @@
-using UnityEngine;
 using System.Collections;
+using UnityEngine;
 
-public class CameraManager : MonoBehaviour
+/// <summary>
+/// Camera pose transitions (menu / start / upgrade focus). Session enable uses GameFlow.
+/// Serialized airPlane / canvas refs stay here so existing scene wiring keeps working.
+/// </summary>
+public class CameraTransitionController : MonoBehaviour
 {
     public Transform mainMenuPosition;
     public Transform startPosition;
     [Tooltip("Camera focus when upgrading the slingshot. Falls back to SlingshotCamPos in scene, then startPosition.")]
     public Transform slingshotCameraPosition;
     public float transitionDuration = 2.0f;
-    private Camera mainCamera;
-    private bool inTransition = false;
-    public bool Atstart = false; // This can be removed if no other script uses it.
+
+    [Header("Session refs (used by GameFlow)")]
     public GameObject GUIcanvas;
     public GameObject MainMenu;
     public GameObject airPlane;
-    private bool gameStarted = false;
+
+    private Camera mainCamera;
+    private bool inTransition;
 
     void Start()
     {
         mainCamera = Camera.main;
         ResolveSlingshotCameraPosition();
-        if (mainMenuPosition != null)
+        if (mainMenuPosition != null && mainCamera != null)
         {
             mainCamera.transform.position = mainMenuPosition.position;
             mainCamera.transform.rotation = mainMenuPosition.rotation;
         }
-        airPlane.gameObject.GetComponent<Collider>().enabled = false;
+
+        if (airPlane != null)
+        {
+            Collider col = airPlane.GetComponent<Collider>();
+            if (col != null)
+                col.enabled = false;
+        }
     }
 
     public Transform GetSlingshotCameraPosition()
@@ -57,7 +68,7 @@ public class CameraManager : MonoBehaviour
 
         StartCoroutine(TransitionToPosition(startPosition.position, startPosition.rotation, transitionDuration, () =>
         {
-            BeginGameplay();
+            GameFlow.BeginGameplay(airPlane, GUIcanvas);
             onComplete?.Invoke();
         }));
     }
@@ -67,67 +78,8 @@ public class CameraManager : MonoBehaviour
         if (inTransition || mainMenuPosition == null)
             return;
 
-        gameStarted = false;
-        EndGameplay();
+        GameFlow.EndGameplay(airPlane);
         StartCoroutine(TransitionToPosition(mainMenuPosition.position, mainMenuPosition.rotation, transitionDuration, onComplete));
-    }
-
-    private void EndGameplay()
-    {
-        if (airPlane == null)
-            return;
-
-        Collider col = airPlane.GetComponent<Collider>();
-        if (col != null)
-            col.enabled = false;
-
-        PlaneController planeController = airPlane.GetComponent<PlaneController>();
-        if (planeController != null)
-            planeController.StopControlling();
-
-        SimpleDragLauncher launcher = airPlane.GetComponent<SimpleDragLauncher>();
-        if (launcher == null)
-            launcher = airPlane.GetComponentInChildren<SimpleDragLauncher>();
-
-        if (launcher != null)
-            launcher.SetDragEnabled(false);
-    }
-
-    private void BeginGameplay()
-    {
-        gameStarted = true;
-        Atstart = true;
-
-        if (GUIcanvas != null)
-            GUIcanvas.SetActive(true);
-
-        if (airPlane != null)
-            airPlane.GetComponent<Collider>().enabled = true;
-
-        SimpleDragLauncher launcher = airPlane != null ? airPlane.GetComponent<SimpleDragLauncher>() : null;
-        if (launcher == null && airPlane != null)
-            launcher = airPlane.GetComponentInChildren<SimpleDragLauncher>();
-
-        if (launcher != null)
-        {
-            launcher.SetDragEnabled(true);
-            launcher.ResetForNewLaunch();
-        }
-
-        PlaneController planeController = airPlane != null ? airPlane.GetComponent<PlaneController>() : null;
-        if (planeController != null)
-        {
-            planeController.InitializeDetachableParts();
-            planeController.UseRampColliders();
-        }
-        else
-            Debug.LogWarning("PlaneController not found on airplane object!");
-
-        UIManager uiManager = FindObjectOfType<UIManager>();
-        if (uiManager != null)
-            uiManager.OnGameplayStarted();
-
-        StartCoroutine(ResetAtStartFlag());
     }
 
     public IEnumerator TransitionToTarget(Transform target, float duration)
@@ -160,13 +112,18 @@ public class CameraManager : MonoBehaviour
         inTransition = false;
     }
 
-    IEnumerator TransitionToPosition(Vector3 targetPosition, Quaternion targetRotation, float duration, System.Action onComplete = null)
+    private System.Collections.IEnumerator TransitionToPosition(
+        Vector3 targetPosition,
+        Quaternion targetRotation,
+        float duration,
+        System.Action onComplete = null)
     {
         inTransition = true;
         float time = 0;
         Vector3 startingPos = mainCamera.transform.position;
         Quaternion startingRot = mainCamera.transform.rotation;
-        MainMenu.SetActive(false);
+        if (MainMenu != null)
+            MainMenu.SetActive(false);
 
         while (time < duration)
         {
@@ -183,15 +140,6 @@ public class CameraManager : MonoBehaviour
         mainCamera.transform.position = targetPosition;
         mainCamera.transform.rotation = targetRotation;
         inTransition = false;
-
-        // Invoke the callback if it exists
         onComplete?.Invoke();
-    }
-
-    IEnumerator ResetAtStartFlag()
-    {
-        // Wait for one frame.
-        yield return null;
-        Atstart = false;
     }
 }

@@ -118,8 +118,12 @@ public class SimpleDragLauncher : MonoBehaviour
             rotationHandler = cube.GetComponent<DragRotationHandler>();
         }
 
-        // Load saved launch force multiplier
-        launchForceMultiplier = PlayerPrefs.GetFloat("LaunchForceMultiplier", launchForceMultiplier);
+        // Scene-scoped key (same as MainMenu / LevelProgress). Legacy global key as fallback.
+        string sceneKey = LevelProgress.GetLaunchForceMultiplierKey();
+        if (PlayerPrefs.HasKey(sceneKey))
+            launchForceMultiplier = PlayerPrefs.GetFloat(sceneKey, launchForceMultiplier);
+        else if (PlayerPrefs.HasKey("LaunchForceMultiplier"))
+            launchForceMultiplier = PlayerPrefs.GetFloat("LaunchForceMultiplier", launchForceMultiplier);
 
         // AudioSource fallback
         if (rubberSource == null)

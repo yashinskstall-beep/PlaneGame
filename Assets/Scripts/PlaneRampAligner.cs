@@ -23,6 +23,9 @@ public class PlaneRampAligner : MonoBehaviour
     private Transform currentRamp; // The ramp we're currently in contact with
     private Quaternion originalRotation; // Store the original rotation of the plane
 
+    /// <summary>True while the plane is contact-aligned to a ramp.</summary>
+    public bool IsAligning => isAligning;
+
     private void Start()
     {
         // If no plane is assigned, use this GameObject

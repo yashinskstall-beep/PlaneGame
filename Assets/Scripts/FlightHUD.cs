@@ -5,9 +5,9 @@ using TMPro;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
-public class UIManager : MonoBehaviour
+public class FlightHUD : MonoBehaviour
 {
-    public CameraManager cameraManager;
+    public CameraTransitionController cameraManager;
     public PlaneController planeController;
     public GameObject boostBtn;
     public Button BackBtn;
@@ -169,13 +169,13 @@ public class UIManager : MonoBehaviour
 
         if (ScoreUIScreen == null)
         {
-            Debug.LogWarning("ScoreUIScreen is not assigned in UIManager");
+            Debug.LogWarning("ScoreUIScreen is not assigned in FlightHUD");
             return;
         }
 
         if (planeController == null)
         {
-            Debug.LogWarning("PlaneController is not assigned in UIManager");
+            Debug.LogWarning("PlaneController is not assigned in FlightHUD");
             return;
         }
 
@@ -183,13 +183,7 @@ public class UIManager : MonoBehaviour
             distanceText.text = $"Distance: {planeController.maxZDistance:F0}m";
 
         int distance = Mathf.RoundToInt(planeController.maxZDistance);
-
-        float coinMultiplier = CoinManager.Instance != null
-            ? CoinManager.Instance.GetCoinMultiplier()
-            : 1f;
-        int coinsEarned = planeController.LastFlightWasMisfire
-            ? 0
-            : Mathf.RoundToInt(distance * coinMultiplier);
+        int coinsEarned = FlightRewards.CalculateCoins(distance, planeController.LastFlightWasMisfire);
 
         if (titleText != null)
         {
@@ -203,7 +197,8 @@ public class UIManager : MonoBehaviour
         scoreCalculated = true;
         CancelScoreUISchedule();
 
-        AwardFlightCoins(coinsEarned);
+        FlightRewards.AwardCoins(coinsEarned);
+        RefreshMainMenuCoins();
 
         BestDistanceLayer.RecordFlightDistance(planeController.maxZDistance);
 
@@ -213,24 +208,6 @@ public class UIManager : MonoBehaviour
             coinCounterCoroutine = StartCoroutine(AnimateCoinCounter(coinsEarned, showLevelCompleteAd: isGoalReached));
         else if (isGoalReached)
             ShowLevelCompleteAd();
-    }
-
-    private void AwardFlightCoins(int coinsEarned)
-    {
-        if (coinsEarned <= 0)
-            return;
-
-        CoinManager.EnsureInstance();
-        if (CoinManager.Instance != null)
-            CoinManager.Instance.AddCoins(coinsEarned);
-        else
-        {
-            int updatedBalance = PlayerPrefs.GetInt("PlayerCoins", 0) + coinsEarned;
-            PlayerPrefs.SetInt("PlayerCoins", updatedBalance);
-            PlayerPrefs.Save();
-        }
-
-        RefreshMainMenuCoins();
     }
 
     private void RefreshMainMenuCoins()
@@ -280,8 +257,7 @@ public class UIManager : MonoBehaviour
     public void GoalScreen()
     {
         isGoalReached = true;
-        LevelProgress.MarkSceneCompleted();
-        LevelsUI.UnlockLevel(desertLevelIndex);
+        FlightRewards.OnGoalReached(desertLevelIndex);
         ScheduleScoreUI(2f);
     }
 
@@ -501,7 +477,7 @@ public class UIManager : MonoBehaviour
             if (mainMenuCanvas != null)
                 mainMenuCanvas.SetActive(true);
             else
-                Debug.LogError("mainMenuCanvas is not assigned in the UIManager inspector!");
+                Debug.LogError("mainMenuCanvas is not assigned in the FlightHUD inspector!");
 
             RefreshMainMenuCoins();
         });

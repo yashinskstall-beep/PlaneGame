@@ -1286,9 +1286,6 @@ MonoBehaviour:
   alignToVelocity: 1
   rampTag: RampTag
   useTagForDetection: 0
-  smoothLevelAfterExit: 1
-  exitLevelDuration: 1.75
-  exitLevelSpeed: 1.25
 --- !u!114 &549470097
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1420,10 +1417,10 @@ MonoBehaviour:
     orientationResistanceFactor: 0.12
     momentumDecayRate: 0.001
     groundDragFactor: 0.5
-  - glideDrag: 0
-    diveDrag: 0
-    airResistanceCoefficient: 0.01
-    velocityResistanceFactor: 0.01
+  - glideDrag: 0.001
+    diveDrag: 0.001
+    airResistanceCoefficient: 0.005
+    velocityResistanceFactor: 0.005
     orientationResistanceFactor: 0.001
     momentumDecayRate: 0.001
     groundDragFactor: 0.5
@@ -2725,7 +2722,6 @@ MonoBehaviour:
   startPosition: {fileID: 612690085}
   slingshotCameraPosition: {fileID: 1692080798}
   transitionDuration: 2
-  Atstart: 0
   GUIcanvas: {fileID: 278956797}
   MainMenu: {fileID: 1926194797}
   airPlane: {fileID: 549470086}
@@ -4059,7 +4055,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 349.2, y: 568.44, z: 59.01}
+  m_Size: {x: 349.2, y: 568.44, z: 2}
   m_Center: {x: 0, y: 98.25313, z: 0}
 --- !u!114 &1797748881
 MonoBehaviour:

@@ -518,9 +518,34 @@ PrefabInstance:
       objectReference: {fileID: 38257090}
     - target: {fileID: 513231841030903809, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
+      propertyPath: upgradeCostStart
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 513231841030903809, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
       propertyPath: planeUpgradeConfig
       value: 
       objectReference: {fileID: 549470101}
+    - target: {fileID: 513231841030903809, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: upgradeCostIncrement
+      value: 50
+      objectReference: {fileID: 0}
+    - target: {fileID: 513231841030903809, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: launchForceCosts.Array.data[0]
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 513231841030903809, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: launchForceCosts.Array.data[1]
+      value: 350
+      objectReference: {fileID: 0}
+    - target: {fileID: 513231841030903809, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: launchForceCosts.Array.data[2]
+      value: 600
+      objectReference: {fileID: 0}
     - target: {fileID: 1726490693675406617, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: m_Name
@@ -1544,9 +1569,6 @@ MonoBehaviour:
   alignToVelocity: 1
   rampTag: RampTag
   useTagForDetection: 0
-  smoothLevelAfterExit: 1
-  exitLevelDuration: 1.75
-  exitLevelSpeed: 1.25
 --- !u!114 &549470097
 MonoBehaviour:
   m_ObjectHideFlags: 0
