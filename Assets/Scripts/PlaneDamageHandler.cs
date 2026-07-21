@@ -79,7 +79,12 @@ public class PlaneDamageHandler : MonoBehaviour
     
     void CheckPartsStatus()
     {
-        if (planeController == null) return;
+        if (planeController == null)
+            return;
+
+        // After a crash PhysX owns drag/spin — do not keep overriding the rigidbody.
+        if (planeController.IsWreckPhysicsActive)
+            return;
         
         bool leftWingDisabled = leftWing != null && !leftWing.activeSelf;
         bool rightWingDisabled = rightWing != null && !rightWing.activeSelf;

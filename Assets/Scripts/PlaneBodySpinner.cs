@@ -48,6 +48,7 @@ public class PlaneBodySpinner : MonoBehaviour
     private bool isSpinning = false;
     private bool wasSpinning = false;
     private Rigidbody rb;
+    private Quaternion initialBodyLocalRotation = Quaternion.identity;
     
     void Start()
     {
@@ -76,6 +77,10 @@ public class PlaneBodySpinner : MonoBehaviour
         if (bodyGameObject == null)
         {
             Debug.LogError("PlaneBodySpinner: Body GameObject reference is missing!");
+        }
+        else
+        {
+            initialBodyLocalRotation = bodyGameObject.transform.localRotation;
         }
         
         if (damageHandler == null)
@@ -209,6 +214,26 @@ public class PlaneBodySpinner : MonoBehaviour
     }
     
     /// <summary>
+    /// Stop fake body spin and fold any visual tilt into the root rigidbody so PhysX owns the wreck.
+    /// </summary>
+    public void EnterPhysicsCrashMode()
+    {
+        currentSpinSpeed = 0f;
+        isSpinning = false;
+        wasSpinning = false;
+
+        if (bodyGameObject == null)
+            return;
+
+        Transform body = bodyGameObject.transform;
+        if (rb != null && body.localRotation != initialBodyLocalRotation)
+        {
+            rb.rotation = body.rotation;
+            body.localRotation = initialBodyLocalRotation;
+        }
+    }
+
+    /// <summary>
     /// Public method to stop spin immediately
     /// </summary>
     public void StopSpin()
@@ -216,6 +241,14 @@ public class PlaneBodySpinner : MonoBehaviour
         currentSpinSpeed = 0f;
         isSpinning = false;
         wasSpinning = false;
+    }
+
+    public void ResetBodyRotation()
+    {
+        if (bodyGameObject == null)
+            return;
+
+        bodyGameObject.transform.localRotation = initialBodyLocalRotation;
     }
     
     /// <summary>

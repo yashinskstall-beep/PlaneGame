@@ -1211,10 +1211,12 @@ MonoBehaviour:
   momentumConversionFactor: 0.2
   minSpeedForClimbing: 3
   momentumDecayRate: 0.009
-  groundDragFactor: 0.98
+  wreckDrag: 1.6
+  wreckAngularDrag: 1.2
   minGroundSpeed: 0.1
-  minZAxisSpeed: 0.05
-  groundAlignmentSpeed: 5
+  minGroundAngularSpeed: 0.35
+  minGroundSettleTime: 0.45
+  maxGroundSettleTime: 1.25
   groundCheckDistance: 0.5
   minImpactForceForDamage: 10
   fallDownForce: 10
@@ -1224,6 +1226,7 @@ MonoBehaviour:
   fallThroughTerrainRaycastHeight: 250
   misfireMaxDistance: 5
   misfireStopSpeed: 0.5
+  debugLandingRotation: 1
   inputSmoothness: 1000
   torqueSmoothness: 1000
   visualRotationSmoothing: 8
@@ -1402,28 +1405,28 @@ MonoBehaviour:
     velocityResistanceFactor: 0
     orientationResistanceFactor: 0.22
     momentumDecayRate: 0.012
-    groundDragFactor: 0.5
+    wreckDrag: 0.5
   - glideDrag: 0.1
     diveDrag: 0.1
     airResistanceCoefficient: 0.02
     velocityResistanceFactor: 0.02
     orientationResistanceFactor: 0.14
     momentumDecayRate: 0.009
-    groundDragFactor: 0.5
-  - glideDrag: 0.06
-    diveDrag: 0.06
-    airResistanceCoefficient: 0.01
-    velocityResistanceFactor: 0.01
-    orientationResistanceFactor: 0.12
-    momentumDecayRate: 0.001
-    groundDragFactor: 0.5
-  - glideDrag: 0.001
-    diveDrag: 0.001
+    wreckDrag: 0.5
+  - glideDrag: 0.1
+    diveDrag: 0.1
     airResistanceCoefficient: 0.005
     velocityResistanceFactor: 0.005
     orientationResistanceFactor: 0.001
     momentumDecayRate: 0.001
-    groundDragFactor: 0.5
+    wreckDrag: 0.5
+  - glideDrag: 0.1
+    diveDrag: 0.1
+    airResistanceCoefficient: 0.001
+    velocityResistanceFactor: 0.001
+    orientationResistanceFactor: 0.001
+    momentumDecayRate: 0.001
+    wreckDrag: 0.5
 --- !u!1 &591983656
 GameObject:
   m_ObjectHideFlags: 0
@@ -3328,6 +3331,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   detachImpactThreshold: 0.5
   detachmentForce: 0.5
+  impactForceScale: 0.35
+  maxBreakAwaySpeed: 2.5
+  impactTorqueScale: 0.2
+  cascadeForceMultiplier: 0.35
+  partMass: 0.35
+  partDrag: 0.15
+  partAngularDrag: 0.25
   forceRadius: 2
   isCoreBodyPart: 1
   joystickController: {fileID: 0}
@@ -3385,6 +3395,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   detachImpactThreshold: 0.5
   detachmentForce: 0.5
+  impactForceScale: 0.35
+  maxBreakAwaySpeed: 2.5
+  impactTorqueScale: 0.2
+  cascadeForceMultiplier: 0.35
+  partMass: 0.35
+  partDrag: 0.15
+  partAngularDrag: 0.25
   forceRadius: 2
   isCoreBodyPart: 0
   joystickController: {fileID: 0}
@@ -3424,6 +3441,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   detachImpactThreshold: 0.5
   detachmentForce: 0.5
+  impactForceScale: 0.35
+  maxBreakAwaySpeed: 2.5
+  impactTorqueScale: 0.2
+  cascadeForceMultiplier: 0.35
+  partMass: 0.35
+  partDrag: 0.15
+  partAngularDrag: 0.25
   forceRadius: 2
   isCoreBodyPart: 0
   joystickController: {fileID: 0}
@@ -3463,6 +3487,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   detachImpactThreshold: 0.5
   detachmentForce: 0.5
+  impactForceScale: 0.35
+  maxBreakAwaySpeed: 2.5
+  impactTorqueScale: 0.2
+  cascadeForceMultiplier: 0.35
+  partMass: 0.35
+  partDrag: 0.15
+  partAngularDrag: 0.25
   forceRadius: 2
   isCoreBodyPart: 0
   joystickController: {fileID: 0}

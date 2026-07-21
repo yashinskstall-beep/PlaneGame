@@ -1,136 +1,242 @@
 using UnityEngine;
 
+/// <summary>
+/// Detaches a plane part on hard impact and lets it simulate under normal PhysX.
+/// </summary>
 public class PlanePartDetach : MonoBehaviour
 {
     [Header("Detach Settings")]
-    public float detachImpactThreshold = 5f;     // Collision strength to detach
-    public float detachmentForce = 100f;         // Explosion force when detaching
-    public float forceRadius = 2f;               // Radius for explosion effect
-    [Tooltip("Check this for the main fuselage part. If this part detaches, all others will too.")]
+    [Tooltip("Minimum collision speed needed for this part to break off.")]
+    public float detachImpactThreshold = 5f;
+
+    [Tooltip("Small extra push away from the hit so the part clears the fuselage.")]
+    public float detachmentForce = 1.4f;
+
+    [Tooltip("How much crash speed adds to the break-off push.")]
+    public float impactForceScale = 0.1f;
+
+    [Tooltip("Max extra break-off speed added on top of the plane's inherited velocity.")]
+    public float maxBreakAwaySpeed = 5f;
+
+    [Tooltip("Extra tumble torque scale based on crash speed.")]
+    public float impactTorqueScale = 0.07f;
+
+    [Tooltip("Cascade (non-hit) parts get this fraction of the break-away push.")]
+    [Range(0.1f, 1f)]
+    public float cascadeForceMultiplier = 0.55f;
+
+    [Tooltip("Mass of the detached part rigidbody.")]
+    public float partMass = 0.55f;
+
+    [Tooltip("Linear drag after the part breaks free.")]
+    public float partDrag = 0.35f;
+
+    [Tooltip("Angular drag after the part breaks free.")]
+    public float partAngularDrag = 0.45f;
+
+    [Tooltip("Radius used when spreading the break-off impulse around the hit point.")]
+    public float forceRadius = 0.75f;
+
+    [Tooltip("Check this for the main fuselage. Hitting it can cascade-detach other parts.")]
     public bool isCoreBodyPart = false;
+
     public JoystickController joystickController;
 
-    private bool detached = false;
+    private bool detached;
     public bool IsDetached => detached;
-    private Rigidbody mainPlaneRb;
-   
 
+    private Rigidbody mainPlaneRb;
+    private PlaneController planeController;
 
     private void Awake()
     {
-        gameObject.layer = LayerMask.NameToLayer("Ignore Raycast");
+        int ignoreRaycast = LayerMask.NameToLayer("Ignore Raycast");
+        if (ignoreRaycast >= 0)
+            gameObject.layer = ignoreRaycast;
     }
 
     private void Start()
     {
-        // Find the main plane rigidbody (usually on the Airplane root)
         mainPlaneRb = GetComponentInParent<Rigidbody>();
-        // Ensure our part has a collider
-        Collider col = GetComponent<Collider>();
-        if (col == null)
-        {
-            Debug.LogWarning($"{name} has no collider; it won't trigger detachment.");
-        }
+        planeController = GetComponentInParent<PlaneController>();
 
-        gameObject.layer = LayerMask.NameToLayer("Ignore Raycast");
+        if (GetComponent<Collider>() == null)
+            Debug.LogWarning($"{name} has no collider; it won't trigger detachment.");
     }
 
     private void OnCollisionEnter(Collision collision)
     {
-        // This will only be called if the part itself has a Rigidbody, 
-        // but we're keeping it for flexibility.
-        VibrationManager.Instance.VibrateButtonClick();
+        VibrationManager.Instance?.VibrateButtonClick();
         HandleCollision(collision);
-       
-
-
     }
 
     public void HandleCollision(Collision collision)
     {
-        if (detached) return;
+        if (detached || collision == null)
+            return;
 
-       
-        // Special handling for trees: detach the part but don't stop the plane
+        float impactMagnitude = collision.relativeVelocity.magnitude;
+        Vector3 hitPoint = collision.contactCount > 0 ? collision.GetContact(0).point : transform.position;
+        Vector3 impactVelocity = collision.relativeVelocity;
+
+        // Tree hits: break the part free, but leave plane flight handling to PlaneController.
         if (collision.gameObject.CompareTag("Tree"))
         {
-            Debug.Log($"[{name}] Collided with a tree. Detaching part without applying major impact force.");
-            Vector3 hitPoint = collision.contacts.Length > 0 ? collision.contacts[0].point : transform.position;
-            Detach(hitPoint);
-            return; // Stop further processing for tree collisions
+            Detach(hitPoint, impactMagnitude, impactVelocity);
+            return;
         }
 
-        // Normal collision handling for ground and other objects
-        float impactMagnitude = collision.relativeVelocity.magnitude;
-        Debug.Log($"[{name}] Handling collision with {collision.gameObject.name}. Impact: {impactMagnitude}, Threshold: {detachImpactThreshold}");
+        Debug.Log(
+            $"[{name}] Handling collision with {collision.gameObject.name}. " +
+            $"Impact: {impactMagnitude:F2}, Threshold: {detachImpactThreshold:F2}");
 
-        if (impactMagnitude >= detachImpactThreshold)
-        {
-            if (joystickController != null && joystickController.joystickBG != null)
-            {
-                joystickController.joystickBG.gameObject.SetActive(false);
-            }
-            
-            Vector3 hitPoint = collision.contacts.Length > 0 ? collision.contacts[0].point : transform.position;
-            Detach(hitPoint);
-        }
+        if (impactMagnitude < detachImpactThreshold)
+            return;
+
+        if (joystickController != null && joystickController.joystickBG != null)
+            joystickController.joystickBG.gameObject.SetActive(false);
+
+        Detach(hitPoint, impactMagnitude, impactVelocity);
     }
 
     public void Detach(Vector3 hitPoint)
     {
-        if (detached) return;
+        Detach(hitPoint, detachImpactThreshold, Vector3.zero);
+    }
+
+    public void Detach(Vector3 hitPoint, float impactMagnitude, Vector3 impactVelocity)
+    {
+        if (detached)
+            return;
 
         detached = true;
 
-        // If this is the core part, trigger the chain reaction but DO NOT detach this part.
+        // Core fuselage stays on the main plane rigidbody and cascades other parts.
         if (isCoreBodyPart)
         {
             Debug.Log("Core body part hit. Triggering chain reaction to detach other parts.");
-            PlaneController controller = GetComponentInParent<PlaneController>();
-            if (controller != null)
-            {
-                // Use a coroutine to allow this part's logic to complete first
-                controller.StartCoroutine(controller.DetachAllParts());
-            }
-            // The core part itself does not get physically detached. It remains the primary object.
-            return; // End the method here for the core part.
+            if (planeController == null)
+                planeController = GetComponentInParent<PlaneController>();
+
+            if (planeController != null)
+                planeController.StartCoroutine(planeController.DetachAllParts(hitPoint, impactMagnitude, impactVelocity));
+
+            return;
         }
 
-        // --- The rest of the logic only applies to NON-CORE parts ---
+        ActivatePhysicsPart(hitPoint, impactMagnitude, impactVelocity);
+        Debug.Log($"{name} detached due to impact {impactMagnitude:F1}!");
+    }
 
-        // Stop this part from following the main plane
-        transform.SetParent(null);
+    /// <summary>
+    /// Used by cascade detach so non-core parts get the same crash impulse as the original hit.
+    /// </summary>
+    public void DetachFromCascade(Vector3 hitPoint, float impactMagnitude, Vector3 impactVelocity)
+    {
+        if (detached || isCoreBodyPart)
+            return;
 
-        // Add a rigidbody if it doesn't already have one
+        detached = true;
+        ActivatePhysicsPart(hitPoint, impactMagnitude, impactVelocity, cascadeForceMultiplier);
+        Debug.Log($"{name} cascade-detached due to impact {impactMagnitude:F1}!");
+    }
+
+    private void ActivatePhysicsPart(
+        Vector3 hitPoint,
+        float impactMagnitude,
+        Vector3 impactVelocity,
+        float forceMultiplier = 1f)
+    {
+        if (mainPlaneRb == null)
+            mainPlaneRb = GetComponentInParent<Rigidbody>();
+
+        // Inherit most of the plane motion so parts don't look rocketed away from the wreck.
+        Vector3 inheritVelocity = mainPlaneRb != null ? mainPlaneRb.velocity * 0.95f : Vector3.zero;
+        Vector3 inheritAngular = mainPlaneRb != null ? mainPlaneRb.angularVelocity * 0.75f : Vector3.zero;
+
+        // Unparent so this mesh becomes its own physics object.
+        transform.SetParent(null, true);
+
+        PrepareCollidersForPhysics();
+
         Rigidbody partRb = GetComponent<Rigidbody>();
         if (partRb == null)
             partRb = gameObject.AddComponent<Rigidbody>();
 
-        // Allow it to be affected by physics
         partRb.isKinematic = false;
+        partRb.useGravity = true;
+        partRb.mass = Mathf.Max(0.05f, partMass);
+        partRb.drag = partDrag;
+        partRb.angularDrag = partAngularDrag;
         partRb.interpolation = RigidbodyInterpolation.Interpolate;
-        partRb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+        partRb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        partRb.constraints = RigidbodyConstraints.None;
+        partRb.velocity = inheritVelocity;
+        partRb.angularVelocity = inheritAngular;
 
-        // Sweep test to prevent tunneling on frame 1
-        if (partRb.SweepTest(partRb.velocity, out RaycastHit hit, 0.1f)) {
-            partRb.transform.position += hit.normal * 0.1f; // Move it slightly away from the hit surface
-        }
+        // Avoid fighting the fuselage for a moment after break-off.
+        IgnoreCollisionWithMainPlane();
 
-        // If main plane has a rigidbody, ignore collision between them to prevent weird forces
-        if (mainPlaneRb != null)
-        { 
-            Collider partCol = GetComponent<Collider>();
-            Collider[] mainCols = mainPlaneRb.GetComponentsInChildren<Collider>();
-            foreach (var c in mainCols)
+        Vector3 outward = transform.position - hitPoint;
+        if (outward.sqrMagnitude < 0.0001f)
+            outward = Random.onUnitSphere;
+        outward.Normalize();
+
+        // Soft separation only — mostly keep the inherited crash motion.
+        float breakAway = (detachmentForce + impactMagnitude * impactForceScale) * Mathf.Clamp01(forceMultiplier);
+        breakAway = Mathf.Clamp(breakAway, 0f, maxBreakAwaySpeed);
+
+        partRb.AddForce(outward * breakAway, ForceMode.VelocityChange);
+
+        float torque = impactMagnitude * impactTorqueScale * Mathf.Clamp01(forceMultiplier);
+        torque = Mathf.Min(torque, 3f);
+        Vector3 torqueAxis = Vector3.Cross(outward, Vector3.up);
+        if (torqueAxis.sqrMagnitude < 0.0001f)
+            torqueAxis = Random.onUnitSphere;
+        partRb.AddTorque(torqueAxis.normalized * torque, ForceMode.VelocityChange);
+    }
+
+    private void PrepareCollidersForPhysics()
+    {
+        foreach (Collider col in GetComponentsInChildren<Collider>(true))
+        {
+            if (col == null)
+                continue;
+
+            if (col is MeshCollider meshCollider)
             {
-                if (partCol != null && c != null)
-                    Physics.IgnoreCollision(partCol, c, true);
+                // Dynamic rigidbodies need convex mesh colliders.
+                if (!meshCollider.convex)
+                    meshCollider.convex = true;
+                meshCollider.enabled = meshCollider.convex;
+            }
+            else
+            {
+                col.enabled = true;
             }
         }
+    }
 
-        // Apply small outward impulse
-        partRb.AddExplosionForce(detachmentForce, hitPoint, forceRadius, 0.5f, ForceMode.Impulse);
+    private void IgnoreCollisionWithMainPlane()
+    {
+        if (mainPlaneRb == null)
+            return;
 
-        Debug.Log($"{name} detached due to impact!");
+        Collider[] partCols = GetComponentsInChildren<Collider>(true);
+        Collider[] mainCols = mainPlaneRb.GetComponentsInChildren<Collider>(true);
+
+        foreach (Collider partCol in partCols)
+        {
+            if (partCol == null)
+                continue;
+
+            foreach (Collider mainCol in mainCols)
+            {
+                if (mainCol == null || mainCol.transform.IsChildOf(transform))
+                    continue;
+
+                Physics.IgnoreCollision(partCol, mainCol, true);
+            }
+        }
     }
 }

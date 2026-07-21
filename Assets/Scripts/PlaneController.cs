@@ -91,15 +91,19 @@ public class PlaneController : MonoBehaviour
     public float momentumDecayRate = 0.2f;
 
     [Header("Ground Movement Settings")]
-    [Tooltip("Friction while sliding on the ground after landing (0.98 = loses 2% speed per physics step).")]
-    public float groundDragFactor = 0.98f;
-    [Tooltip("Speed at which the plane is considered fully stopped on the ground.")]
-    public float minGroundSpeed = 0.1f;
-    [Tooltip("Forward slide speed threshold for placing the landing flag. Lower = flag appears sooner.")]
-    public float minZAxisSpeed = 0.05f;
-    [Tooltip("How fast the plane uprights to match ground slope while sliding.")]
-    public float groundAlignmentSpeed = 5.0f;
-    [Tooltip("Raycast distance to detect ground under the plane for alignment and markers.")]
+    [Tooltip("Extra linear drag applied after a ground crash so the wreck slows down naturally.")]
+    public float wreckDrag = 1.6f;
+    [Tooltip("Extra angular drag applied after a ground crash so tumbling settles naturally.")]
+    public float wreckAngularDrag = 1.2f;
+    [Tooltip("Speed at which the wreck is considered nearly stopped for flag placement.")]
+    public float minGroundSpeed = 0.35f;
+    [Tooltip("Spin speed at which the wreck is considered nearly stopped for flag placement.")]
+    public float minGroundAngularSpeed = 0.35f;
+    [Tooltip("Minimum time after ground impact before the landing flag can spawn.")]
+    public float minGroundSettleTime = 0.5f;
+    [Tooltip("Hard cap: place the flag even if the wreck is still moving a bit.")]
+    public float maxGroundSettleTime = 4f;
+    [Tooltip("Raycast distance to detect ground under the plane for markers / fall checks.")]
     public float groundCheckDistance = 0.5f;
     [Tooltip("Collision force needed to detach parts (wings/tail). Lower = parts break on lighter crashes.")]
     public float minImpactForceForDamage = 10f;
@@ -126,6 +130,10 @@ public class PlaneController : MonoBehaviour
     [Tooltip("Speed below which the plane is considered stopped on the shed.")]
     public float misfireStopSpeed = 0.5f;
 
+    [Header("Debug")]
+    [Tooltip("Log ground-landing rotation freeze diagnostics to the Console. Turn off when done.")]
+    [SerializeField] private bool debugLandingRotation = false;
+
     [Header("Smoothing Settings")]
     [Tooltip("Input smoothing. Higher = softer stick/keyboard response, less twitchy.")]
     public float inputSmoothness = 25f;
@@ -150,9 +158,17 @@ public class PlaneController : MonoBehaviour
     private Rigidbody rb;
     [Tooltip("True when player can steer the plane (after leaving the ramp). Read-only at runtime.")]
     public bool isControlling = false;
+    public bool IsWreckPhysicsActive => wreckPhysicsActive;
     private bool wasOnRamp = false;
     private bool exitedRamp = false;
     private bool isGrounded = false;
+    private bool wreckPhysicsActive = false;
+    private bool bothWingsFallLogged = false;
+    private bool wingDamageCheckStarted = false;
+    private float groundLandTime = -1f;
+    private Vector3 lastGroundNormal = Vector3.up;
+    private float nextLandingDebugTime;
+    private Vector3 landingImpactEuler;
     private bool isBeingDragged = false;
     private bool isBoosting = false;
     [Tooltip("Boost uses left this flight. Reset from Max Boost Uses at start.")]
@@ -183,7 +199,6 @@ public class PlaneController : MonoBehaviour
     public bool LastFlightWasMisfire { get; private set; }
     private bool markerPlaced = false;
     private GameObject placedMarker = null;
-    private float lastZPosition;
     private float lastRampZPosition;
     private float timeStoppedOnRamp = 0f;
     private const float rampStopThreshold = 1f; // Time in seconds before placing marker
@@ -240,7 +255,6 @@ public class PlaneController : MonoBehaviour
         // Initialize starting position (resting position on ramp)
         startPosition = transform.position;
         maxZDistance = 0f; // Start at 0 to measure distance traveled from resting position
-        lastZPosition = transform.position.z;
         lastRampZPosition = transform.position.z;
         
         // Initialize visual smoothing
@@ -346,10 +360,15 @@ public class PlaneController : MonoBehaviour
         {
             if (damageHandler.AreBothWingsMissing())
             {
-                Debug.Log("FixedUpdate: Both wings are missing, making plane fall");
-                //FallWithoutWings();
+                if (!bothWingsFallLogged)
+                {
+                    bothWingsFallLogged = true;
+                    Debug.Log("FixedUpdate: Both wings are missing, making plane fall");
+                }
                 return;
             }
+
+            bothWingsFallLogged = false;
         }
 
         if (isControlling)
@@ -390,6 +409,7 @@ public class PlaneController : MonoBehaviour
         // Always start controlling first to ensure the plane leaves the ramp
         isControlling = true;
         exitedRamp = true;
+        wreckPhysicsActive = false;
     
         Debug.Log("PlaneController.StartControlling() - isControlling set to TRUE");
         if (useJoystickInput && joystick != null)
@@ -398,12 +418,28 @@ public class PlaneController : MonoBehaviour
         // Ensure gravity is on and drag is reset at the start of control
         if(rb != null) 
         {
+            // Previous flight may have frozen the wreck kinematic after landing.
+            if (rb.isKinematic)
+            {
+                rb.isKinematic = false;
+                rb.velocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+            rb.constraints = RigidbodyConstraints.None;
+            rb.freezeRotation = false;
             rb.useGravity = true;
             rb.drag = glideDrag;
+            rb.angularDrag = angularDragAmount;
         }
+
+        GetComponent<PlaneBodySpinner>()?.ResetBodyRotation();
+        GetComponent<PlaneBodySpinner>()?.StopSpin();
         
-        // Start a delayed check for wing damage to ensure the plane gets off the ramp first
-        StartCoroutine(CheckWingDamageAfterDelay());
+        if (!wingDamageCheckStarted)
+        {
+            wingDamageCheckStarted = true;
+            StartCoroutine(CheckWingDamageAfterDelay());
+        }
 
         collisionMarker?.ResetCollisionState();
 
@@ -412,6 +448,8 @@ public class PlaneController : MonoBehaviour
         // Don't reset maxZDistance - it accumulates from the resting position
         timeStoppedOnRamp = 0f;
         markerPlaced = false;
+        bothWingsFallLogged = false;
+        wingDamageCheckStarted = false;
         LastFlightWasMisfire = false;
 
         StartGlideSound();
@@ -667,51 +705,171 @@ public class PlaneController : MonoBehaviour
 
     private void HandleGroundMovement()
     {
-        if (!isGrounded || rb == null) return;
+        if (!isGrounded || rb == null || markerPlaced)
+            return;
 
-        float currentZPosition = transform.position.z;
-        float zVelocity = (currentZPosition - lastZPosition) / Time.fixedDeltaTime;
-        lastZPosition = currentZPosition;
+        float secondsSinceLand = GetSecondsSinceLand();
+        float speed = rb.velocity.magnitude;
+        float angSpeed = rb.angularVelocity.magnitude;
+        bool minSettleElapsed = secondsSinceLand >= minGroundSettleTime;
+        bool nearlyStopped = speed <= minGroundSpeed && angSpeed <= minGroundAngularSpeed;
+        bool maxSettleElapsed = secondsSinceLand >= maxGroundSettleTime;
 
-        if (zVelocity < minZAxisSpeed && rb.velocity.magnitude < minGroundSpeed && !markerPlaced)
+        LogLandingDebugThrottled(
+            $"WRECK_PHYS t={secondsSinceLand:F2} speed={speed:F2} ang={angSpeed:F2} " +
+            $"euler={FormatEuler(transform.eulerAngles)} constraints={rb.constraints} " +
+            $"drag={rb.drag:F2} angDrag={rb.angularDrag:F2}");
+
+        // Let PhysX tumble/bounce freely. Only place the flag once the wreck has mostly settled
+        // (or after the hard timeout so score UI can still appear).
+        if (!minSettleElapsed)
+            return;
+
+        if (!nearlyStopped && !maxSettleElapsed)
+            return;
+
+        LogLandingDebug(
+            $"FINISH_LAND_PHYS tipErr={GetGroundTipErrorDegrees():F1} speed={speed:F2} ang={angSpeed:F2} " +
+            $"euler={FormatEuler(transform.eulerAngles)} ΔfromImpact={AngleFromImpactDegrees():F1} " +
+            $"forcedTimeout={maxSettleElapsed && !nearlyStopped}");
+
+        if (collisionMarker != null)
         {
-            if (collisionMarker != null)
-            {
-                Debug.Log($"Marker Check: zVelocity={zVelocity:F2}, markerPlaced={markerPlaced}");
-                PlaceMarkerAtCurrentPosition();
-                markerPlaced = true;
-            }
+            PlaceMarkerAtCurrentPosition();
+            markerPlaced = true;
         }
 
-        rb.velocity *= groundDragFactor;
-
-        if (rb.velocity.magnitude < minGroundSpeed)
-        {
-            rb.velocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-            rb.constraints = RigidbodyConstraints.None;
-
-            if (!markerPlaced && collisionMarker != null)
-            {
-                PlaceMarkerAtCurrentPosition();
-                markerPlaced = true;
-            }
-
-            isGrounded = false;
-        }
-        else
-        {
-            AlignToGround();
-        }
+        // Keep simulating — do not freeze / snap / make kinematic.
+        isGrounded = false;
+        groundLandTime = -1f;
     }
 
-    private void AlignToGround()
+    /// <summary>
+    /// Used for tree / fall-through endings where we need the plane to stop mid-air.
+    /// Normal ground crashes leave the wreck under PhysX.
+    /// </summary>
+    private void FreezePlaneAfterLanding(string reason)
     {
-        if (Physics.Raycast(transform.position, Vector3.down, out RaycastHit hit, groundCheckDistance))
+        if (rb == null)
+            return;
+
+        rb.velocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+        rb.constraints = RigidbodyConstraints.None;
+        rb.isKinematic = true;
+        isGrounded = false;
+        groundLandTime = -1f;
+
+        LogLandingDebug(
+            $"FREEZE_WRECK reason={reason} kinematic=True euler={FormatEuler(transform.eulerAngles)}");
+    }
+
+    private bool TryGetGroundHit(out RaycastHit hit)
+    {
+        return Physics.Raycast(
+            transform.position + Vector3.up * 0.2f,
+            Vector3.down,
+            out hit,
+            groundCheckDistance * 2f + 0.2f,
+            Physics.DefaultRaycastLayers,
+            QueryTriggerInteraction.Ignore);
+    }
+
+    private void BeginGroundLanding(string reason, Vector3? contactNormal = null)
+    {
+        // First impact only — bounce spam was resetting settle and re-killing spin.
+        if (isGrounded && groundLandTime >= 0f)
         {
-            Quaternion targetRotation = Quaternion.FromToRotation(transform.up, hit.normal) * transform.rotation;
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * groundAlignmentSpeed);
+            LogLandingDebug($"BEGIN_LAND ignored (already settling) reason={reason}");
+            return;
         }
+
+        if (contactNormal.HasValue && contactNormal.Value.sqrMagnitude > 0.001f)
+            lastGroundNormal = contactNormal.Value.normalized;
+        else if (TryGetGroundHit(out RaycastHit hit))
+            lastGroundNormal = hit.normal.normalized;
+
+        isGrounded = true;
+        wreckPhysicsActive = true;
+        groundLandTime = Time.time;
+        landingImpactEuler = transform.eulerAngles;
+        nextLandingDebugTime = 0f;
+
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.constraints = RigidbodyConstraints.None;
+            rb.freezeRotation = false;
+            rb.useGravity = true;
+            rb.interpolation = RigidbodyInterpolation.Interpolate;
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        }
+
+        GetComponent<PlaneBodySpinner>()?.EnterPhysicsCrashMode();
+
+        LogLandingDebug(
+            $"BEGIN_LAND reason={reason} euler={FormatEuler(landingImpactEuler)} " +
+            $"vel={(rb != null ? rb.velocity.magnitude : -1f):F2} " +
+            $"ang={(rb != null ? rb.angularVelocity.magnitude : -1f):F2} " +
+            $"constraints={(rb != null ? rb.constraints.ToString() : "null")} " +
+            $"freezeRot={(rb != null && rb.freezeRotation)} kinematic={(rb != null && rb.isKinematic)} " +
+            $"tipErr={GetGroundTipErrorDegrees():F1}");
+    }
+
+    private void LogLandingDebug(string message)
+    {
+        if (!debugLandingRotation)
+            return;
+        Debug.Log($"[LandingRot] t={Time.time:F2} {message}", this);
+    }
+
+    private void LogLandingDebugThrottled(string message)
+    {
+        if (!debugLandingRotation)
+            return;
+        if (Time.time < nextLandingDebugTime)
+            return;
+        nextLandingDebugTime = Time.time + 0.1f;
+        Debug.Log($"[LandingRot] t={Time.time:F2} {message}", this);
+    }
+
+    private float GetSecondsSinceLand()
+    {
+        return groundLandTime < 0f ? -1f : Time.time - groundLandTime;
+    }
+
+    private float AngleFromImpactDegrees()
+    {
+        return Quaternion.Angle(Quaternion.Euler(landingImpactEuler), transform.rotation);
+    }
+
+    private Vector3 GetGroundUpVector()
+    {
+        if (TryGetGroundHit(out RaycastHit hit))
+        {
+            Vector3 normal = hit.normal;
+            if (normal.y >= 0.55f)
+            {
+                lastGroundNormal = normal.normalized;
+                return lastGroundNormal;
+            }
+        }
+
+        if (lastGroundNormal.y >= 0.55f)
+            return lastGroundNormal;
+
+        return Vector3.up;
+    }
+
+    private float GetGroundTipErrorDegrees()
+    {
+        Quaternion rot = rb != null ? rb.rotation : transform.rotation;
+        return Vector3.Angle(rot * Vector3.up, GetGroundUpVector());
+    }
+
+    private static string FormatEuler(Vector3 euler)
+    {
+        return $"({euler.x:F1},{euler.y:F1},{euler.z:F1})";
     }
 
     void OnCollisionEnter(Collision collision)
@@ -722,80 +880,100 @@ public class PlaneController : MonoBehaviour
         // Terrain tree colliders report as Ground — don't freeze mid-air or put the flag in the sky.
         if (IsTreeCollision(collision, out ContactPoint treeContact))
         {
+            LogLandingDebug(
+                $"TREE_CRASH other='{collision.gameObject.name}' " +
+                $"euler={FormatEuler(transform.eulerAngles)} impactF={collision.relativeVelocity.magnitude:F1}");
             HandleTreeCrash(collision, treeContact);
             return;
         }
 
-        if (IsOutdoorGround(collision.gameObject))
+        if (!IsOutdoorGround(collision.gameObject))
         {
-            // Handle ground collision regardless of isControlling state
-            if (isControlling)
+            if (debugLandingRotation)
             {
-                StopGlideSound();
-                cameraFollow?.FreezePosition();
-                joystick?.joystickBG?.gameObject.SetActive(false);
+                LogLandingDebug(
+                    $"IGNORE_COLLISION other='{collision.gameObject.name}' tag='{collision.gameObject.tag}' " +
+                    "(not outdoor Ground)");
             }
-            
-            float impactForce = collision.relativeVelocity.magnitude;
+            return;
+        }
 
-            if (impactForce >= minImpactForceForDamage && isControlling)
+        float impactForce = collision.relativeVelocity.magnitude;
+        ContactPoint contact = collision.contacts[0];
+
+        LogLandingDebug(
+            $"GROUND_HIT other='{collision.gameObject.name}' tag='{collision.gameObject.tag}' " +
+            $"impactF={impactForce:F1} (dmgThresh={minImpactForceForDamage:F1}) " +
+            $"controlling={isControlling} alreadyGrounded={isGrounded} markerPlaced={markerPlaced} " +
+            $"vel={(rb != null ? rb.velocity.magnitude : -1f):F2} " +
+            $"ang={(rb != null ? rb.angularVelocity.magnitude : -1f):F2} " +
+            $"euler={FormatEuler(transform.eulerAngles)} " +
+            $"contactN={contact.normal} " +
+            $"constraints={(rb != null ? rb.constraints.ToString() : "null")}");
+
+        // Micro-bounces were re-entering soft-land, killing velocity/spin and resetting settle.
+        if (markerPlaced || isGrounded)
+        {
+            LogLandingDebug("IGNORE_ALREADY_LANDED (no soft-land re-entry)");
+            return;
+        }
+
+        if (isControlling)
+        {
+            StopGlideSound();
+            cameraFollow?.FreezePosition();
+            joystick?.joystickBG?.gameObject.SetActive(false);
+            LogLandingDebug("CAMERA_FREEZE + hide joystick (camera only)");
+        }
+
+        if (impactForce >= minImpactForceForDamage && isControlling)
+        {
+            HashSet<PlanePartDetach> partsToNotify = new HashSet<PlanePartDetach>();
+
+            foreach (ContactPoint c in collision.contacts)
             {
-                HashSet<PlanePartDetach> partsToNotify = new HashSet<PlanePartDetach>();
+                PlanePartDetach closestPart = null;
+                float minDistance = float.MaxValue;
 
-                foreach (ContactPoint contact in collision.contacts)
+                foreach (var part in detachableParts)
                 {
-                    PlanePartDetach closestPart = null;
-                    float minDistance = float.MaxValue;
+                    if (part == null) continue;
 
-                    foreach (var part in detachableParts)
+                    Collider partCollider = part.GetComponent<Collider>();
+                    if (partCollider == null) continue;
+
+                    Vector3 closestPointOnCollider = partCollider.ClosestPoint(c.point);
+                    float distance = Vector3.Distance(closestPointOnCollider, c.point);
+
+                    if (distance < minDistance)
                     {
-                        if (part == null) continue;
-
-                        Collider partCollider = part.GetComponent<Collider>();
-                        if (partCollider == null) continue;
-
-                        Vector3 closestPointOnCollider = partCollider.ClosestPoint(contact.point);
-                        float distance = Vector3.Distance(closestPointOnCollider, contact.point);
-
-                        if (distance < minDistance)
-                        {
-                            minDistance = distance;
-                            closestPart = part;
-                        }
+                        minDistance = distance;
+                        closestPart = part;
                     }
-
-                    if (closestPart != null)
-                        partsToNotify.Add(closestPart);
                 }
 
-                foreach (var part in partsToNotify)
-                    part.HandleCollision(collision);
-
-                StopControlling();
-                isGrounded = true;
-                return;
+                if (closestPart != null)
+                    partsToNotify.Add(closestPart);
             }
 
-            if (isControlling)
-                StopControlling();
+            foreach (var part in partsToNotify)
+                part.HandleCollision(collision);
 
-            if (rb != null && rb.velocity.magnitude > 0.1f)
-            {
-                Vector3 groundNormal = collision.contacts[0].normal;
-                Vector3 projectedVelocity = Vector3.ProjectOnPlane(rb.velocity, groundNormal) * 0.7f;
-                rb.velocity = projectedVelocity;
-                rb.angularVelocity *= 0.5f;
-                rb.constraints = RigidbodyConstraints.FreezePositionY;
-                isGrounded = true;
-                lastZPosition = transform.position.z;
-            }
-            else
-            {
-                // Even if velocity is low, set isGrounded so marker can be placed
-                isGrounded = true;
-                lastZPosition = transform.position.z;
-            }
+            StopControlling();
+            LogLandingDebug(
+                $"PATH=DAMAGE_LAND vel={(rb != null ? rb.velocity.magnitude : -1f):F2} " +
+                $"ang={(rb != null ? rb.angularVelocity.magnitude : -1f):F2}");
+            BeginGroundLanding("damage_land", contact.normal);
+            return;
         }
+
+        if (isControlling)
+            StopControlling();
+
+        LogLandingDebug(
+            $"PATH=SOFT_LAND vel={(rb != null ? rb.velocity.magnitude : -1f):F2} " +
+            $"ang={(rb != null ? rb.angularVelocity.magnitude : -1f):F2}");
+        BeginGroundLanding("soft_land", contact.normal);
     }
 
     private bool IsTreeCollision(Collision collision, out ContactPoint treeContact)
@@ -839,13 +1017,7 @@ public class PlaneController : MonoBehaviour
 
         StopControlling();
         isGrounded = false;
-
-        if (rb != null)
-        {
-            rb.constraints &= ~RigidbodyConstraints.FreezePositionY;
-            rb.velocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-        }
+        groundLandTime = -1f;
 
         // Place the flag on the tree at the impact point (not at airborne max-Z).
         maxZPosition = treeContact.point;
@@ -855,35 +1027,7 @@ public class PlaneController : MonoBehaviour
 
         markerPlaced = true;
         PlaceMarkerAtWorldPoint(treeContact.point, treeContact.normal);
-    }
-
-    void OnCollisionStay(Collision collision)
-    {
-        if (!isGrounded || isControlling || !IsOutdoorGround(collision.gameObject))
-            return;
-
-        if (IsTreeCollision(collision, out _))
-            return;
-
-        Vector3 groundNormal = collision.contacts[0].normal;
-        if (rb != null && rb.velocity.magnitude > 0.1f)
-        {
-            rb.velocity = Vector3.ProjectOnPlane(rb.velocity, groundNormal);
-            if ((rb.constraints & RigidbodyConstraints.FreezePositionY) == 0)
-                rb.constraints = RigidbodyConstraints.FreezePositionY;
-        }
-    }
-
-    void OnCollisionExit(Collision collision)
-    {
-        if (isGrounded && !isControlling && IsOutdoorGround(collision.gameObject))
-        {
-            if (!Physics.Raycast(transform.position, Vector3.down, out _, groundCheckDistance * 2f, LayerMask.GetMask("Ground")))
-            {
-                rb.constraints &= ~RigidbodyConstraints.FreezePositionY;
-                rb.AddForce(Vector3.down * 2f, ForceMode.Impulse);
-            }
-        }
+        FreezePlaneAfterLanding("tree_crash");
     }
 
     private void CheckIfStoppedOnShed()
@@ -1040,6 +1184,12 @@ public class PlaneController : MonoBehaviour
         if (collisionMarker == null || collisionMarker.markerPrefab == null)
             return;
 
+        LogLandingDebug(
+            $"PLACE_FLAG euler={FormatEuler(transform.eulerAngles)} impactEuler={FormatEuler(landingImpactEuler)} " +
+            $"ΔfromImpact={AngleFromImpactDegrees():F1} tipErr={GetGroundTipErrorDegrees():F1} " +
+            $"ang={(rb != null ? rb.angularVelocity.magnitude : -1f):F2} " +
+            $"constraints={(rb != null ? rb.constraints.ToString() : "null")}");
+
         GameObject marker = collisionMarker.PlaceLandingMarker(surfacePoint, surfaceNormal, markerYOffset);
         if (marker == null)
             return;
@@ -1165,15 +1315,30 @@ public class PlaneController : MonoBehaviour
         }
     }
 
-    public IEnumerator DetachAllParts()
+    public IEnumerator DetachAllParts(Vector3 hitPoint, float impactMagnitude, Vector3 impactVelocity)
     {
         yield return new WaitForEndOfFrame();
 
+        if (detachableParts == null)
+            yield break;
+
         foreach (var part in detachableParts)
         {
-            if (part != null && !part.IsDetached)
-                part.Detach(part.transform.position);
+            if (part == null || part.IsDetached || part.isCoreBodyPart)
+                continue;
+
+            // Slightly offset each part's hit point so wings/tail fly apart differently.
+            Vector3 partHit = part.transform.position;
+            part.DetachFromCascade(partHit, impactMagnitude, impactVelocity);
         }
+    }
+
+    public IEnumerator DetachAllParts()
+    {
+        Vector3 hitPoint = transform.position;
+        float impactMagnitude = rb != null ? Mathf.Max(rb.velocity.magnitude, 8f) : 10f;
+        Vector3 impactVelocity = rb != null ? rb.velocity : Vector3.down * impactMagnitude;
+        yield return StartCoroutine(DetachAllParts(hitPoint, impactMagnitude, impactVelocity));
     }
 
     public void ForceControl()
@@ -1193,7 +1358,6 @@ public class PlaneController : MonoBehaviour
         smoothTorque = Vector3.zero;
         joystick?.ResetInput();
         joystick?.gameObject.SetActive(false);
-        GetComponent<PlaneBodySpinner>()?.StopSpin();
     }
     
     /// <summary>
@@ -1207,8 +1371,11 @@ public class PlaneController : MonoBehaviour
         // Now check if both wings are missing
         if (damageHandler != null && damageHandler.AreBothWingsMissing() && isControlling)
         {
-            Debug.Log("Delayed check: Both wings are disabled. Making plane fall.");
-            //FallWithoutWings();
+            if (!bothWingsFallLogged)
+            {
+                bothWingsFallLogged = true;
+                Debug.Log("Delayed check: Both wings are disabled. Making plane fall.");
+            }
         }
     }
     
@@ -1243,3 +1410,4 @@ public class PlaneController : MonoBehaviour
     //     joystick?.gameObject.SetActive(false);
     // }
 }
+

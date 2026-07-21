@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [System.Serializable]
 public class PlaneUpgradePartEntry
@@ -24,8 +25,9 @@ public class PlaneGlideSettings
     public float orientationResistanceFactor;
     [Tooltip("How fast stored dive momentum is lost while climbing. Higher = shorter climb after a dive.")]
     public float momentumDecayRate;
-    [Tooltip("Speed kept each physics step while sliding on the ground (e.g. 0.98 keeps 98%). Lower = stops faster after landing.")]
-    public float groundDragFactor;
+    [Tooltip("Rigidbody drag while the wreck slides/tumbles after a ground crash. Higher = stops sooner.")]
+    [FormerlySerializedAs("groundDragFactor")]
+    public float wreckDrag;
 }
 
 /// <summary>
@@ -226,7 +228,7 @@ public class PlaneUpgradeConfig : MonoBehaviour
         planeController.velocityResistanceFactor = settings.velocityResistanceFactor;
         planeController.orientationResistanceFactor = settings.orientationResistanceFactor;
         planeController.momentumDecayRate = settings.momentumDecayRate;
-        planeController.groundDragFactor = settings.groundDragFactor;
+        planeController.wreckDrag = settings.wreckDrag;
     }
 
     private int GetUnlockedPartCount()
