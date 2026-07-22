@@ -31,6 +31,18 @@ public class SimpleDragLauncher : MonoBehaviour
     private bool dragEnabled;
 
     public bool DragEnabled => dragEnabled;
+    /// <summary>Last successful launch pull distance (world units).</summary>
+    public float OriginalDragDistance => originalDragDistance;
+
+    /// <summary>Current slingshot pull amount from 0 (rest) to 1 (max drag).</summary>
+    public float GetPullNormalized()
+    {
+        if (cube == null || restingPoint == null || maxDragDistance <= 0.01f)
+            return 0f;
+
+        float distance = Vector3.Distance(cube.position, restingPoint.position);
+        return Mathf.Clamp01(distance / maxDragDistance);
+    }
 
     public void SetDragEnabled(bool enabled)
     {
@@ -88,6 +100,7 @@ public class SimpleDragLauncher : MonoBehaviour
             planeEffects.RefreshFlightTrails();
 
         cube?.GetComponent<PlaneController>()?.UseRampColliders();
+        cube?.GetComponentInChildren<PlanePropeller>(true)?.ResetPropeller();
     }
 
     [Header("Rubber SFX")]

@@ -222,15 +222,20 @@ public class PlaneBodySpinner : MonoBehaviour
         isSpinning = false;
         wasSpinning = false;
 
-        if (bodyGameObject == null)
+        if (bodyGameObject == null || rb == null)
             return;
 
         Transform body = bodyGameObject.transform;
-        if (rb != null && body.localRotation != initialBodyLocalRotation)
-        {
-            rb.rotation = body.rotation;
-            body.localRotation = initialBodyLocalRotation;
-        }
+        if (body.localRotation == initialBodyLocalRotation)
+            return;
+
+        // Fold visual spin into the root without wiping crash momentum.
+        Vector3 keepVelocity = rb.velocity;
+        Vector3 keepAngular = rb.angularVelocity;
+        rb.rotation = body.rotation;
+        body.localRotation = initialBodyLocalRotation;
+        rb.velocity = keepVelocity;
+        rb.angularVelocity = keepAngular;
     }
 
     /// <summary>

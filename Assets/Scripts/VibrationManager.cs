@@ -86,6 +86,9 @@ public class VibrationManager : MonoBehaviour
         }
 
         instance = this;
+        // DontDestroyOnLoad only works on root objects.
+        if (transform.parent != null)
+            transform.SetParent(null, true);
         DontDestroyOnLoad(gameObject);
 
         SettingsManager.LoadSavedSettings();

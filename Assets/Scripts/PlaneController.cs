@@ -91,10 +91,10 @@ public class PlaneController : MonoBehaviour
     public float momentumDecayRate = 0.2f;
 
     [Header("Ground Movement Settings")]
-    [Tooltip("Extra linear drag applied after a ground crash so the wreck slows down naturally.")]
-    public float wreckDrag = 1.6f;
-    [Tooltip("Extra angular drag applied after a ground crash so tumbling settles naturally.")]
-    public float wreckAngularDrag = 1.2f;
+    [Tooltip("Rigidbody drag after a ground crash. Keep low so the wreck can slide/tumble (0 = pure PhysX).")]
+    public float wreckDrag = 0.05f;
+    [Tooltip("Rigidbody angular drag after a ground crash. Keep low so tumbling isn't killed instantly.")]
+    public float wreckAngularDrag = 0.05f;
     [Tooltip("Speed at which the wreck is considered nearly stopped for flag placement.")]
     public float minGroundSpeed = 0.35f;
     [Tooltip("Spin speed at which the wreck is considered nearly stopped for flag placement.")]
@@ -115,6 +115,8 @@ public class PlaneController : MonoBehaviour
     [Header("Marker Settings")]
     [Tooltip("Height above the landing surface where the landing flag is spawned.")]
     public float markerYOffset = 0.5f;
+    [Tooltip("How far ahead of the landing point (along flight +Z) to place the flag.")]
+    public float markerForwardOffset = 0.5f;
     [Tooltip("Contact this far above terrain height counts as hitting a tree (not the ground).")]
     public float treeContactHeightThreshold = 1.25f;
 
@@ -797,15 +799,33 @@ public class PlaneController : MonoBehaviour
 
         if (rb != null)
         {
+            // Keep crash momentum. Flight glideDrag was left on the RB before and killed speed instantly.
+            Vector3 keepVelocity = rb.velocity;
+            Vector3 keepAngular = rb.angularVelocity;
+
             rb.isKinematic = false;
             rb.constraints = RigidbodyConstraints.None;
             rb.freezeRotation = false;
             rb.useGravity = true;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            rb.drag = GetCrashDrag();
+            rb.angularDrag = GetCrashAngularDrag();
+            rb.velocity = keepVelocity;
+            rb.angularVelocity = keepAngular;
+            rb.WakeUp();
         }
 
         GetComponent<PlaneBodySpinner>()?.EnterPhysicsCrashMode();
+
+        // Re-apply after body-spin sync in case that touched the rigidbody pose.
+        if (rb != null)
+        {
+            rb.drag = GetCrashDrag();
+            rb.angularDrag = GetCrashAngularDrag();
+        }
+
+        GetComponentInChildren<PlanePropeller>(true)?.NotifyCrash();
 
         LogLandingDebug(
             $"BEGIN_LAND reason={reason} euler={FormatEuler(landingImpactEuler)} " +
@@ -814,6 +834,21 @@ public class PlaneController : MonoBehaviour
             $"constraints={(rb != null ? rb.constraints.ToString() : "null")} " +
             $"freezeRot={(rb != null && rb.freezeRotation)} kinematic={(rb != null && rb.isKinematic)} " +
             $"tipErr={GetGroundTipErrorDegrees():F1}");
+    }
+
+    private float GetCrashDrag()
+    {
+        // Old scenes mapped groundDragFactor (0.5–0.98) into wreckDrag; those values kill momentum.
+        if (wreckDrag > 0.25f)
+            return 0.05f;
+        return Mathf.Max(0f, wreckDrag);
+    }
+
+    private float GetCrashAngularDrag()
+    {
+        if (wreckAngularDrag > 0.25f)
+            return 0.05f;
+        return Mathf.Max(0f, wreckAngularDrag);
     }
 
     private void LogLandingDebug(string message)
@@ -1018,6 +1053,7 @@ public class PlaneController : MonoBehaviour
         StopControlling();
         isGrounded = false;
         groundLandTime = -1f;
+        GetComponentInChildren<PlanePropeller>(true)?.NotifyCrash();
 
         // Place the flag on the tree at the impact point (not at airborne max-Z).
         maxZPosition = treeContact.point;
@@ -1183,6 +1219,21 @@ public class PlaneController : MonoBehaviour
     {
         if (collisionMarker == null || collisionMarker.markerPrefab == null)
             return;
+
+        // Push the flag a bit forward along the flight direction, then re-snap to ground.
+        if (Mathf.Abs(markerForwardOffset) > 0.001f)
+        {
+            Vector3 forwardPoint = surfacePoint + Vector3.forward * markerForwardOffset;
+            if (TryFindLandingSurfaceUnderPoint(forwardPoint, useHighAltitudeRaycast: true, out RaycastHit forwardHit))
+            {
+                surfacePoint = forwardHit.point;
+                surfaceNormal = forwardHit.normal;
+            }
+            else
+            {
+                surfacePoint = forwardPoint;
+            }
+        }
 
         LogLandingDebug(
             $"PLACE_FLAG euler={FormatEuler(transform.eulerAngles)} impactEuler={FormatEuler(landingImpactEuler)} " +

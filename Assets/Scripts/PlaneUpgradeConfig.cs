@@ -228,7 +228,7 @@ public class PlaneUpgradeConfig : MonoBehaviour
         planeController.velocityResistanceFactor = settings.velocityResistanceFactor;
         planeController.orientationResistanceFactor = settings.orientationResistanceFactor;
         planeController.momentumDecayRate = settings.momentumDecayRate;
-        planeController.wreckDrag = settings.wreckDrag;
+        planeController.wreckDrag = settings.wreckDrag > 0.25f ? 0.05f : Mathf.Max(0f, settings.wreckDrag);
     }
 
     private int GetUnlockedPartCount()

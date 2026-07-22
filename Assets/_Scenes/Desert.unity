@@ -1362,6 +1362,7 @@ GameObject:
   - component: {fileID: 549470098}
   - component: {fileID: 549470099}
   - component: {fileID: 549470100}
+  - component: {fileID: 549470102}
   m_Layer: 0
   m_Name: Airplane
   m_TagString: Player
@@ -1494,19 +1495,23 @@ MonoBehaviour:
   momentumConversionFactor: 0.5
   minSpeedForClimbing: 3
   momentumDecayRate: 0.009
-  groundDragFactor: 0.98
+  wreckDrag: 0.05
+  wreckAngularDrag: 0.05
   minGroundSpeed: 0.1
-  minZAxisSpeed: 0.05
-  groundAlignmentSpeed: 5
+  minGroundAngularSpeed: 0.35
+  minGroundSettleTime: 0.5
+  maxGroundSettleTime: 4
   groundCheckDistance: 0.5
   minImpactForceForDamage: 10
   fallDownForce: 10
   markerYOffset: 0.5
+  markerForwardOffset: 0.5
   treeContactHeightThreshold: 1.25
   fallThroughYThreshold: -37
   fallThroughTerrainRaycastHeight: 250
   misfireMaxDistance: 5
   misfireStopSpeed: 0.5
+  debugLandingRotation: 0
   inputSmoothness: 1000
   torqueSmoothness: 1000
   visualRotationSmoothing: 8
@@ -1653,7 +1658,7 @@ MonoBehaviour:
   useKeyboardInput: 0
   useJoystickInput: 1
   joystick: {fileID: 120252931}
-  planeController: {fileID: 0}
+  planeController: {fileID: 549470094}
   inputDeadzone: 0.1
 --- !u!114 &549470101
 MonoBehaviour:
@@ -1688,42 +1693,74 @@ MonoBehaviour:
     velocityResistanceFactor: 0
     orientationResistanceFactor: 0
     momentumDecayRate: 0
-    groundDragFactor: 0
-  - glideDrag: 0
-    diveDrag: 0
-    airResistanceCoefficient: 0
-    velocityResistanceFactor: 0
-    orientationResistanceFactor: 0
-    momentumDecayRate: 0
-    groundDragFactor: 0
-  - glideDrag: 0
-    diveDrag: 0
-    airResistanceCoefficient: 0
-    velocityResistanceFactor: 0
-    orientationResistanceFactor: 0
-    momentumDecayRate: 0
-    groundDragFactor: 0
-  - glideDrag: 0
-    diveDrag: 0
-    airResistanceCoefficient: 0
-    velocityResistanceFactor: 0
-    orientationResistanceFactor: 0
-    momentumDecayRate: 0
-    groundDragFactor: 0
-  - glideDrag: 0
-    diveDrag: 0
-    airResistanceCoefficient: 0
-    velocityResistanceFactor: 0
-    orientationResistanceFactor: 0
-    momentumDecayRate: 0
-    groundDragFactor: 0
-  - glideDrag: 0
-    diveDrag: 0
-    airResistanceCoefficient: 0
-    velocityResistanceFactor: 0
-    orientationResistanceFactor: 0
-    momentumDecayRate: 0
-    groundDragFactor: 0
+    wreckDrag: 0
+  - glideDrag: 0.1
+    diveDrag: 0.1
+    airResistanceCoefficient: 0.001
+    velocityResistanceFactor: 0.001
+    orientationResistanceFactor: 0.001
+    momentumDecayRate: 0.001
+    wreckDrag: 0
+  - glideDrag: 0.1
+    diveDrag: 0.1
+    airResistanceCoefficient: 0.001
+    velocityResistanceFactor: 0.001
+    orientationResistanceFactor: 0.001
+    momentumDecayRate: 0.001
+    wreckDrag: 0
+  - glideDrag: 0.1
+    diveDrag: 0.1
+    airResistanceCoefficient: 0.001
+    velocityResistanceFactor: 0.001
+    orientationResistanceFactor: 0.001
+    momentumDecayRate: 0.001
+    wreckDrag: 0
+  - glideDrag: 0.1
+    diveDrag: 0.1
+    airResistanceCoefficient: 0.001
+    velocityResistanceFactor: 0.001
+    orientationResistanceFactor: 0.001
+    momentumDecayRate: 0.001
+    wreckDrag: 0
+  - glideDrag: 0.1
+    diveDrag: 0.1
+    airResistanceCoefficient: 0.001
+    velocityResistanceFactor: 0.001
+    orientationResistanceFactor: 0.001
+    momentumDecayRate: 0.001
+    wreckDrag: 0
+--- !u!114 &549470102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 549470086}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7e4c91a2f6d4e8a9c1d0e3f5a6b7c8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  propeller: {fileID: 0}
+  dragLauncher: {fileID: 549470095}
+  planeController: {fileID: 549470094}
+  localSpinAxis: {x: 0, y: 0, z: 1}
+  recenterPivotOnHub: 1
+  minSpinSpeed: 180
+  maxSpinSpeed: 2200
+  spinAcceleration: 8
+  crashSpinDownDuration: 1.75
+  propellerAudio: {fileID: 0}
+  propellerClip: {fileID: 0}
+  minVolume: 0.05
+  maxVolume: 0.85
+  minPitch: 0.75
+  maxPitch: 1.45
+  audioSmoothing: 6
+  respectAudioSettings: 1
+  debugPropeller: 1
+  debugLogInterval: 0.25
+  recordManualPose: 0
 --- !u!1 &563035415 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7879745583513211750, guid: c521a1009b15f344faac6b8303862c5c,
@@ -2972,7 +3009,6 @@ MonoBehaviour:
   startPosition: {fileID: 612690085}
   slingshotCameraPosition: {fileID: 0}
   transitionDuration: 2
-  Atstart: 0
   GUIcanvas: {fileID: 563035415}
   MainMenu: {fileID: 656326342}
   airPlane: {fileID: 549470086}
@@ -4361,6 +4397,21 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 549470090}
     m_Modifications:
+    - target: {fileID: 24340655253080380, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 24340655253080380, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
+        type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 24340655253080380, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 847406092885006331, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
         type: 3}
       propertyPath: m_Convex
@@ -4379,7 +4430,7 @@ PrefabInstance:
     - target: {fileID: 1614085666027269332, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4149654724333989163, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
         type: 3}
@@ -4496,6 +4547,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 6786296317519618245}
+    - targetCorrespondingSourceObject: {fileID: 1614085666027269332, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6786296317519618249}
   m_SourcePrefab: {fileID: 100100000, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca, type: 3}
 --- !u!1 &6786296317519618243 stripped
 GameObject:
@@ -4512,9 +4567,131 @@ MonoBehaviour:
   m_GameObject: {fileID: 6786296317519618243}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3bbb6480d45279d4884a0e3e58bb5ed9, type: 3}
+  m_Script: {fileID: 11500000, guid: b7e4c91a2f6d4e8a9c1d0e3f5a6b7c8d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  propeller: {fileID: 6786296317519618246}
+  dragLauncher: {fileID: 549470095}
+  planeController: {fileID: 549470094}
+  localSpinAxis: {x: 0, y: 0, z: 0}
+  recenterPivotOnHub: 0
+  minSpinSpeed: 180
+  maxSpinSpeed: 2200
+  spinAcceleration: 8
+  crashSpinDownDuration: 1.75
+  propellerAudio: {fileID: 6786296317519618249}
+  propellerClip: {fileID: 8300000, guid: 1658513281562734b888f6c495453174, type: 3}
+  minVolume: 0.05
+  maxVolume: 0.85
+  minPitch: 0.75
+  maxPitch: 1.45
+  audioSmoothing: 6
+  respectAudioSettings: 1
+  debugPropeller: 1
+  debugLogInterval: 0.25
+  recordManualPose: 0
+--- !u!4 &6786296317519618246 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 24340655253080380, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
+    type: 3}
+  m_PrefabInstance: {fileID: 6786296317519618242}
+  m_PrefabAsset: {fileID: 0}
+--- !u!82 &6786296317519618249
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6786296317519618243}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!4 &6835269249079798553 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 9102499296668919921, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,

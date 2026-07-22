@@ -105,7 +105,6 @@ public class RewardedAdManager : MonoBehaviour
     public void SetKeepRewardedAdWarm(bool enabled)
     {
         keepRewardedAdWarm = enabled;
-        Debug.Log($"{LogPrefix} SetKeepRewardedAdWarm enabled={enabled}");
 
         if (enabled)
             EnsureRewardedAdPreloaded();
@@ -114,14 +113,10 @@ public class RewardedAdManager : MonoBehaviour
     private void BeginAdMobInitialization()
     {
         if (initStarted || !SupportsAdMob())
-        {
-            Debug.Log($"{LogPrefix} BeginAdMobInitialization skipped. initStarted={initStarted} supports={SupportsAdMob()}");
             return;
-        }
 
         initStarted = true;
         SelectAdUnitIds();
-        Debug.Log($"{LogPrefix} BeginAdMobInitialization started.");
 
         if (initCoroutine != null)
             StopCoroutine(initCoroutine);
@@ -344,7 +339,6 @@ public class RewardedAdManager : MonoBehaviour
 
     public void EnsureRewardedAdPreloaded()
     {
-        Debug.Log($"{LogPrefix} EnsureRewardedAdPreloaded called. initialized={isInitialized} ready={IsRewardedAdReady()} loading={isRewardedLoading} showing={isShowingAd} pending={isPresentationPending}");
         if (!SupportsAdMob())
             return;
 
