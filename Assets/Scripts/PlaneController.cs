@@ -386,10 +386,15 @@ public class PlaneController : MonoBehaviour
             return;
         }
 
-        // Visual smoothing fights rigidbody pitch torque and causes nose-up wobble.
-        // Skip it while pitching, or when a single wing is missing (same issue).
+        // Writing smoothed rotation back onto a non-kinematic Rigidbody fights AddTorque.
+        // Pitch already skipped this; left/right bank must too or roll feels sticky/unsmooth.
         bool singleWingMissing = damageHandler != null && damageHandler.HasSingleWingMissing();
-        if (singleWingMissing || isPitchingUp || Mathf.Abs(smoothVerticalInput) > 0.05f)
+        bool isSteering =
+            isPitchingUp
+            || Mathf.Abs(smoothVerticalInput) > 0.05f
+            || Mathf.Abs(smoothHorizontalInput) > 0.05f;
+
+        if (singleWingMissing || isSteering)
         {
             smoothedRotation = transform.rotation;
             return;
