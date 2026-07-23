@@ -1,188 +1,243 @@
 using UnityEngine;
 
 /// <summary>
-/// Handles aligning a plane GameObject with a 3D ramp after being released
-/// Attach this script to the same GameObject as the SimpleDragLauncher or to the plane itself
+/// Handles aligning a plane GameObject with a 3D ramp after being released.
+/// Keep velocity on the ramp surface and debounce exit so strong slingshot upgrades
+/// do not skip the ramp via a one-frame contact loss.
 /// </summary>
 public class PlaneRampAligner : MonoBehaviour
 {
     [Header("References")]
-    public Transform plane;        // The plane GameObject to align
-    public SimpleDragLauncher dragLauncher; // Reference to the drag launcher script
-    public Transform[] ramps;     // Optional: Specific ramps to detect (if not using tags)
+    public Transform plane;
+    public SimpleDragLauncher dragLauncher;
+    public Transform[] ramps;
 
     [Header("Alignment Settings")]
-    public float alignmentSpeed = 10f;      // How quickly the plane aligns with the ramp (increased for better responsiveness)
-    public float minVelocityForAlignment = 1f; // Minimum velocity needed to align with direction of travel
-    public bool alignToVelocity = true;     // Whether to align the forward direction with velocity
-    public string rampTag = "RampTag";      // Tag to identify ramp objects (optional)
-    public bool useTagForDetection = false; // Whether to use tag for detection or check all collisions
+    public float alignmentSpeed = 10f;
+    public float minVelocityForAlignment = 1f;
+    public bool alignToVelocity = true;
+    public string rampTag = "RampTag";
+    public bool useTagForDetection = false;
+
+    [Header("Ramp Stick")]
+    [Tooltip("Project velocity onto the ramp plane while contacting it.")]
+    public bool projectVelocityOnRamp = true;
+
+    [Tooltip("Frames without ramp contact before switching to flight. Absorbs high-force contact flicker.")]
+    public int exitConfirmFrames = 4;
+
+    [Tooltip("While confirming exit, a downward ray this long can cancel exit if the ramp is still under the plane.")]
+    public float exitRaycastDistance = 1.25f;
 
     private Rigidbody planeRb;
     private bool isAligning = false;
-    private Transform currentRamp; // The ramp we're currently in contact with
-    private Quaternion originalRotation; // Store the original rotation of the plane
+    private Transform currentRamp;
+    private Quaternion originalRotation;
+    private int framesWithoutRampContact;
+    private bool exitPending;
 
-    /// <summary>True while the plane is contact-aligned to a ramp.</summary>
-    public bool IsAligning => isAligning;
+    /// <summary>True while stuck to the ramp, including brief exit-confirm frames.</summary>
+    public bool IsAligning => isAligning || exitPending;
+
+    /// <summary>Ramp transform currently sticking the plane, if any.</summary>
+    public Transform CurrentRamp => currentRamp;
 
     private void Start()
     {
-        // If no plane is assigned, use this GameObject
         if (plane == null)
             plane = transform;
 
-        // Get the rigidbody component
         planeRb = plane.GetComponent<Rigidbody>();
-        
-        // If no drag launcher is assigned, try to find one on this GameObject
+
         if (dragLauncher == null)
             dragLauncher = GetComponent<SimpleDragLauncher>();
     }
 
     private void FixedUpdate()
     {
-        // Align if we're in contact with a ramp, regardless of release state
         if (isAligning && currentRamp != null)
         {
+            framesWithoutRampContact = 0;
+            exitPending = false;
             AlignWithRamp();
+            return;
         }
+
+        if (!exitPending || currentRamp == null)
+            return;
+
+        framesWithoutRampContact++;
+
+        // Still over the ramp after a bounce/tunnel flicker — stay on ramp mode.
+        if (IsRampStillUnderPlane())
+        {
+            isAligning = true;
+            exitPending = false;
+            framesWithoutRampContact = 0;
+            AlignWithRamp();
+            return;
+        }
+
+        if (framesWithoutRampContact >= Mathf.Max(1, exitConfirmFrames))
+            CompleteRampExit();
     }
 
     private void AlignWithRamp()
     {
-        if (currentRamp == null || plane == null || planeRb == null) return;
+        if (currentRamp == null || plane == null || planeRb == null)
+            return;
 
-        // Get the ramp's up direction (normal to the ramp surface)
         Vector3 rampNormal = currentRamp.up;
-        
-        // Get the ramp's forward direction (direction plane should face)
         Vector3 rampForward = currentRamp.forward;
-        
-        // Create a rotation that aligns the plane with the ramp
-        // Plane's up should match ramp's up, and plane's forward should match ramp's forward
         Quaternion targetRotation = Quaternion.LookRotation(rampForward, rampNormal);
-        
-        // If we should also align with velocity direction AND plane is moving
+
         if (alignToVelocity && planeRb.velocity.magnitude > minVelocityForAlignment)
         {
-            // Project the velocity onto the ramp surface to get a forward direction
-            Vector3 projectedVelocity = Vector3.ProjectOnPlane(planeRb.velocity, rampNormal).normalized;
-            
-            if (projectedVelocity.magnitude > 0.1f) // Make sure we have a valid direction
-            {
-                // Create a rotation that looks in the direction of travel while keeping the up aligned with the ramp
-                targetRotation = Quaternion.LookRotation(projectedVelocity, rampNormal);
-            }
+            Vector3 projectedVelocity = Vector3.ProjectOnPlane(planeRb.velocity, rampNormal);
+            if (projectedVelocity.sqrMagnitude > 0.01f)
+                targetRotation = Quaternion.LookRotation(projectedVelocity.normalized, rampNormal);
         }
-        
-        // Smoothly interpolate to the target rotation
+
         plane.rotation = Quaternion.Slerp(plane.rotation, targetRotation, Time.fixedDeltaTime * alignmentSpeed);
-        
-        // Debug visualization
+
+        // Keep strong launch impulses sliding along the shed instead of leaping off.
+        if (projectVelocityOnRamp && !planeRb.isKinematic)
+        {
+            Vector3 planarVelocity = Vector3.ProjectOnPlane(planeRb.velocity, rampNormal);
+            // Preserve a little speed into the surface so gravity/contact stay engaged.
+            float intoSurface = Vector3.Dot(planeRb.velocity, -rampNormal);
+            if (intoSurface > 0f)
+                planarVelocity += -rampNormal * intoSurface;
+            planeRb.velocity = planarVelocity;
+        }
+
         Debug.DrawRay(plane.position, rampNormal * 2f, Color.green);
         Debug.DrawRay(plane.position, rampForward * 2f, Color.red);
         if (planeRb.velocity.magnitude > 0.1f)
             Debug.DrawRay(plane.position, planeRb.velocity.normalized * 2f, Color.blue);
     }
 
-    // Called when the plane collider enters another collider
     private void OnCollisionEnter(Collision collision)
     {
-        // Check if this is a ramp we should align with
-        if (IsRamp(collision.transform))
-        {
-            // Store the original rotation when first contacting a ramp
-            if (currentRamp == null)
-            {
-                originalRotation = plane.rotation;
-            }
-            
-            currentRamp = collision.transform;
-            isAligning = true;
-        }
+        if (!IsRamp(collision.transform))
+            return;
+
+        if (currentRamp == null)
+            originalRotation = plane.rotation;
+
+        currentRamp = collision.transform;
+        isAligning = true;
+        exitPending = false;
+        framesWithoutRampContact = 0;
     }
-    
-    // Called when the plane collider stays in contact with another collider
+
     private void OnCollisionStay(Collision collision)
     {
-        // If we're already aligning with a ramp, don't change to a new one
-        if (currentRamp == null)
+        if (currentRamp != null)
         {
-            if (IsRamp(collision.transform))
+            if (collision.transform == currentRamp)
             {
-                currentRamp = collision.transform;
                 isAligning = true;
+                exitPending = false;
+                framesWithoutRampContact = 0;
             }
+            return;
+        }
+
+        if (IsRamp(collision.transform))
+        {
+            currentRamp = collision.transform;
+            isAligning = true;
+            exitPending = false;
+            framesWithoutRampContact = 0;
         }
     }
-    
-    // Called when the plane collider exits another collider
+
     private void OnCollisionExit(Collision collision)
     {
-        // If we're leaving the current ramp, stop aligning
-        if (currentRamp == collision.transform)
-        {
-            currentRamp = null;
-            isAligning = false;
-            
-            // Restore the original rotation when leaving the ramp
-            // StartCoroutine(SmoothlyRestoreRotation()); // DISABLED: Don't restore original rotation
-            
-            // Notify the PlaneController that we've exited a ramp
-            PlaneController planeController = plane.GetComponent<PlaneController>();
-            if (planeController != null)
-            {
-                // ForceControl refuses grounded / marker-placed states so a crash
-                // cannot be turned back into flight by leaving a collider.
-                planeController.ForceControl();
+        if (currentRamp != collision.transform)
+            return;
 
-                if (planeController.isControlling && planeController.useJoystickInput && planeController.joystick != null)
-                {
-                    planeController.joystick.gameObject.SetActive(true);
-                }
-            }
-            gameObject.layer = LayerMask.NameToLayer("Ignore Raycast"); // this is a fix for taking input on flight mode
-            
-            // Remove all rotation constraints
+        // Do not leave ramp mode on a single exit event — high force often flickers contact.
+        isAligning = false;
+        exitPending = true;
+        framesWithoutRampContact = 0;
+    }
+
+    private bool IsRampStillUnderPlane()
+    {
+        if (plane == null || currentRamp == null)
+            return false;
+
+        Vector3 origin = plane.position + Vector3.up * 0.35f;
+        if (!Physics.Raycast(origin, Vector3.down, out RaycastHit hit, exitRaycastDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            return false;
+
+        return hit.collider != null &&
+               (hit.collider.transform == currentRamp || hit.collider.transform.IsChildOf(currentRamp));
+    }
+
+    private void CompleteRampExit()
+    {
+        currentRamp = null;
+        isAligning = false;
+        exitPending = false;
+        framesWithoutRampContact = 0;
+
+        PlaneController planeController = plane != null ? plane.GetComponent<PlaneController>() : null;
+        if (planeController != null)
+        {
+            planeController.ForceControl();
+
+            if (planeController.isControlling && planeController.useJoystickInput && planeController.joystick != null)
+                planeController.joystick.gameObject.SetActive(true);
+        }
+
+        gameObject.layer = LayerMask.NameToLayer("Ignore Raycast");
+
+        if (planeRb != null)
+        {
             planeRb.constraints &= ~RigidbodyConstraints.FreezeRotationX;
             planeRb.constraints &= ~RigidbodyConstraints.FreezeRotationY;
             planeRb.constraints &= ~RigidbodyConstraints.FreezeRotationZ;
-
-            // Switch from root sphere → part MeshColliders for realistic flight collisions.
-            if (planeController != null)
-                planeController.UseFlightPartColliders();
-            else
-                gameObject.GetComponent<Collider>().enabled = false;
-        
-            
         }
-    } 
-    
-    // Coroutine to smoothly restore the original rotation
+
+        if (planeController != null)
+            planeController.UseFlightPartColliders();
+        else
+        {
+            Collider col = GetComponent<Collider>();
+            if (col != null)
+                col.enabled = false;
+        }
+    }
+
     private System.Collections.IEnumerator SmoothlyRestoreRotation()
     {
         float elapsedTime = 0f;
-        float duration = 2.5f; // Time to restore rotation (adjust as needed)
+        float duration = 2.5f;
         Quaternion startRotation = plane.rotation;
-        
+
         while (elapsedTime < duration)
         {
-            // Smoothly interpolate from current rotation to original rotation
             plane.rotation = Quaternion.Slerp(startRotation, originalRotation, elapsedTime / duration);
-            
             elapsedTime += Time.deltaTime;
             yield return null;
         }
-        
-        // Ensure we end exactly at the original rotation
+
         plane.rotation = originalRotation;
     }
-    
-    // Helper method to determine if a transform is a ramp we should align with
+
+    public bool IsRampTransform(Transform potentialRamp)
+    {
+        return IsRamp(potentialRamp);
+    }
+
     private bool IsRamp(Transform potentialRamp)
     {
-        // If using tag detection and the tag exists on this object
+        if (potentialRamp == null)
+            return false;
+
         if (useTagForDetection)
         {
             try
@@ -191,13 +246,11 @@ public class PlaneRampAligner : MonoBehaviour
             }
             catch (UnityException)
             {
-                // Tag doesn't exist, fall back to other methods
                 Debug.LogWarning($"Tag '{rampTag}' is not defined in Unity Tags. Using fallback detection.");
-                useTagForDetection = false; // Disable tag detection for future calls
+                useTagForDetection = false;
             }
         }
-        
-        // If specific ramps are assigned, check if this is one of them
+
         if (ramps != null && ramps.Length > 0)
         {
             foreach (Transform ramp in ramps)
@@ -207,20 +260,17 @@ public class PlaneRampAligner : MonoBehaviour
             }
             return false;
         }
-        
-        // If no specific detection method is available, accept any collision as a ramp
-        // You might want to add additional checks here based on your game's needs
+
         return true;
     }
 
-    // Visualize the alignment in the editor
     private void OnDrawGizmos()
     {
         if (plane != null && currentRamp != null)
         {
             Gizmos.color = Color.yellow;
             Gizmos.DrawLine(plane.position, currentRamp.position);
-            
+
             Gizmos.color = Color.green;
             Gizmos.DrawRay(currentRamp.position, currentRamp.up * 2f);
         }

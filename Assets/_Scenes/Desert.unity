@@ -2967,12 +2967,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   airplaneTarget: {fileID: 549470090}
   isCameraZoomedOut: 0
-  offset: {x: 0, y: 2.5, z: -1.8}
+  offset: {x: 0, y: 2, z: -1.8}
   followSpeed: 5
   rotationSmoothness: 5
   rotationSmoothnessWhenSpinning: 1.5
   frozenZoomAmount: 5
   zoomSmoothness: 2
+  forwardViewPitchDegrees: 14
   speedThresholdForSlowdown: 5
   speedThresholdForStop: 1
   cameraSlowdownFactor: 0.8

@@ -15,16 +15,27 @@ public class SimpleDragLauncher : MonoBehaviour
     public float maxDragDistance = 5f;
     public float minDragToLaunch = 1f; // Minimum drag distance to launch
     public float launchForceMultiplier = 10f;
-    public float verticalForceMultiplier = 5f;
-    public float liftDuration = 2f; // How long the lift lasts
+    [Tooltip("While on the ramp, aim the launch along the ramp surface instead of flattening Y. Stops high upgrades from skipping the ramp.")]
+    public bool aimLaunchAlongRamp = true;
+
+    [Header("Post-Launch Climb")]
+    [Tooltip("After leaving the ramp, gently lift the plane for more height. No instant upward impulse.")]
+    public bool enablePostLaunchLift = true;
+    [Tooltip("Climb strength scaled by pull distance. Higher = more altitude.")]
+    public float verticalForceMultiplier = 14f;
+    [Tooltip("How long the smooth climb lasts after leaving the ramp.")]
+    public float liftDuration = 2.75f;
+    [Tooltip("Wait until the plane leaves the ramp before climbing, so lift does not fight the shed.")]
+    public bool waitUntilOffRamp = true;
 
     private Rigidbody cubeRb;
     private bool isDragging = false;
     public bool IsDragging => isDragging;
     private Vector3 dragStartPos;
     private bool isLifting = false;
-    private float liftStartTime = 0f;
+    private float liftStartTime = -1f;
     private float originalDragDistance; // Store the drag distance for lift calculation
+    private CollisionDetectionMode cachedCollisionDetection = CollisionDetectionMode.Discrete;
 
     public bool released = false;
     private Vector3 launchDir;
@@ -64,6 +75,7 @@ public class SimpleDragLauncher : MonoBehaviour
         released = false;
         isDragging = false;
         isLifting = false;
+        liftStartTime = -1f;
 
         if (rubberSource != null && rubberSource.isPlaying)
             rubberSource.Stop();
@@ -79,6 +91,7 @@ public class SimpleDragLauncher : MonoBehaviour
                 cubeRb.angularVelocity = Vector3.zero;
             }
 
+            cubeRb.collisionDetectionMode = cachedCollisionDetection;
             cubeRb.isKinematic = true;
             cubeRb.useGravity = false;
         }
@@ -119,6 +132,7 @@ public class SimpleDragLauncher : MonoBehaviour
     {
         if (!cam) cam = Camera.main;
         cubeRb = cube.GetComponent<Rigidbody>();
+        cachedCollisionDetection = cubeRb.collisionDetectionMode;
         cubeRb.isKinematic = true;
         cube.position = restingPoint.position;
 
@@ -195,35 +209,45 @@ public class SimpleDragLauncher : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (isLifting)
+        if (!isLifting || cubeRb == null || cubeRb.isKinematic)
+            return;
+
+        // Hold climb until the plane is free of the ramp so contact projection cannot cancel lift.
+        if (waitUntilOffRamp)
         {
-            float elapsed = Time.time - liftStartTime;
-
-            if (elapsed < liftDuration)
-            {
-                // Gradually apply lift force over time
-                Vector3 currentVelocity = cubeRb.velocity;
-
-                // Use launch direction if velocity is too small
-                Vector3 forwardDir = currentVelocity.magnitude > 0.1f ? currentVelocity.normalized : launchDir;
-
-                // Lift direction becomes more forward as we gain speed
-                float forwardInfluence = Mathf.Clamp01(elapsed / liftDuration);
-                Vector3 liftDirection = (Vector3.up * (1f - forwardInfluence) + forwardDir * forwardInfluence).normalized;
-
-                // Calculate force - INCREASED FORCE and removed Time.fixedDeltaTime for stronger impulse
-                float verticalForce = originalDragDistance * verticalForceMultiplier * (1f - elapsed / liftDuration);
-
-                cubeRb.AddForce(liftDirection * verticalForce, ForceMode.Force);
-
-                Debug.Log($"Lifting... Elapsed: {elapsed:F2}, Force: {verticalForce:F2}, Direction: {liftDirection}");
-            }
-            else
-            {
-                isLifting = false;
-                Debug.Log("Lift completed");
-            }
+            PlaneRampAligner rampAligner = cube != null ? cube.GetComponent<PlaneRampAligner>() : null;
+            if (rampAligner != null && rampAligner.IsAligning)
+                return;
         }
+
+        if (liftStartTime < 0f)
+            liftStartTime = Time.time;
+
+        float elapsed = Time.time - liftStartTime;
+        if (elapsed >= liftDuration)
+        {
+            isLifting = false;
+            return;
+        }
+
+        float t = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, liftDuration));
+        // Smooth bell curve: zero at start/end, peak in the middle — no sudden shove.
+        float envelope = Mathf.Sin(t * Mathf.PI);
+
+        float strength = originalDragDistance * verticalForceMultiplier * envelope;
+        if (strength <= 0.01f)
+            return;
+
+        Vector3 forwardDir = cubeRb.velocity.sqrMagnitude > 0.25f
+            ? cubeRb.velocity.normalized
+            : launchDir;
+        if (forwardDir.sqrMagnitude < 0.0001f)
+            forwardDir = Vector3.forward;
+        // Keep climb biased upward early, then ease toward travel direction.
+        float upBlend = Mathf.Lerp(0.9f, 0.4f, t);
+        Vector3 liftDirection = (Vector3.up * upBlend + forwardDir * (1f - upBlend)).normalized;
+
+        cubeRb.AddForce(liftDirection * strength, ForceMode.Acceleration);
     }
 
     void DragCube()
@@ -288,29 +312,74 @@ public class SimpleDragLauncher : MonoBehaviour
             cube.GetComponent<PlaneController>()?.UseRampColliders();
             cubeRb.isKinematic = false;
             cubeRb.useGravity = true;
+            // High upgrade impulses skip Discrete contacts; Continuous keeps the plane on the ramp.
+            cubeRb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
             originalDragDistance = dragDistance; // Store for lift calculation
 
             float horizontalForce = dragDistance * launchForceMultiplier;
             launchDir = (restingPoint.position - cube.position).normalized;
-            launchDir.y = 0;
-            launchDir = launchDir.normalized;
+            launchDir = ResolveLaunchDirectionAlongRamp(launchDir);
 
             cubeRb.AddForce(launchDir * horizontalForce, ForceMode.Impulse);
 
-            if (rotationHandler != null)
-            {
+            // Flat yaw snap fights the ramp pitch and helps strong launches skip the shed.
+            if (rotationHandler != null && !aimLaunchAlongRamp)
                 rotationHandler.SetLaunchRotation();
-            }
 
             released = true;
             lineRenderer.enabled = false;
+
+            // Smooth altitude after ramp exit (not an instant upward impulse).
+            if (enablePostLaunchLift)
+            {
+                isLifting = true;
+                liftStartTime = waitUntilOffRamp ? -1f : Time.time;
+            }
         }
         else
         {
             // Not enough drag, return to resting point
             StartCoroutine(ReturnToRest());
         }
+    }
+
+    private Vector3 ResolveLaunchDirectionAlongRamp(Vector3 desiredDir)
+    {
+        if (desiredDir.sqrMagnitude < 0.0001f)
+            desiredDir = Vector3.forward;
+        else
+            desiredDir.Normalize();
+
+        if (!aimLaunchAlongRamp || cube == null)
+        {
+            desiredDir.y = 0f;
+            return desiredDir.sqrMagnitude > 0.0001f ? desiredDir.normalized : Vector3.forward;
+        }
+
+        PlaneRampAligner rampAligner = cube.GetComponent<PlaneRampAligner>();
+        Transform ramp = rampAligner != null ? rampAligner.CurrentRamp : null;
+
+        // Fallback: short ray under the plane for the shed / ramp surface.
+        if (ramp == null && Physics.Raycast(cube.position + Vector3.up * 0.5f, Vector3.down, out RaycastHit hit, 3f))
+        {
+            if (rampAligner == null || rampAligner.IsRampTransform(hit.collider.transform))
+                ramp = hit.collider.transform;
+        }
+
+        if (ramp != null)
+        {
+            Vector3 alongRamp = Vector3.ProjectOnPlane(desiredDir, ramp.up);
+            if (alongRamp.sqrMagnitude > 0.0001f)
+                return alongRamp.normalized;
+
+            alongRamp = Vector3.ProjectOnPlane(ramp.forward, ramp.up);
+            if (alongRamp.sqrMagnitude > 0.0001f)
+                return alongRamp.normalized;
+        }
+
+        desiredDir.y = 0f;
+        return desiredDir.sqrMagnitude > 0.0001f ? desiredDir.normalized : Vector3.forward;
     }
 
     private IEnumerator ReturnToRest()

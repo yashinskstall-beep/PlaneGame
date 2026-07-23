@@ -8,12 +8,14 @@ public class SimpleCameraFollow : MonoBehaviour
     private bool markerSpawned = false; // Flag to check if marker is spawned
     public bool isCameraZoomedOut = false;
     [Header("Camera Settings")]
-    public Vector3 offset = new Vector3(0f, 3f, -6f); // How far behind/above the target
+    public Vector3 offset = new Vector3(0f, 2.2f, -1.8f); // How far behind/above the target
     public float followSpeed = 5f;                    // How quickly the camera catches up
     public float rotationSmoothness = 5f;             // How smoothly the camera rotates
     public float rotationSmoothnessWhenSpinning = 1.5f; // Rotation smoothness when plane is spinning (lower = smoother)
     public float frozenZoomAmount = 5f;               // How much to zoom out when camera freezes
     public float zoomSmoothness = 2f;                 // How smoothly to zoom out
+    [Tooltip("Tilt the camera up from looking at the plane (degrees). Distance stays the same; higher = more forward view.")]
+    public float forwardViewPitchDegrees = 14f;
     
     [Header("Landing Camera Settings")]
     public float speedThresholdForSlowdown = 5.0f;     // Speed at which camera starts to slow down
@@ -286,12 +288,8 @@ public class SimpleCameraFollow : MonoBehaviour
                 }
                 else
                 {
-                    // Normal rotation when not spinning
-                    Vector3 directionToTarget = target.position - transform.position;
-                    Quaternion targetRotation = Quaternion.LookRotation(directionToTarget);
-                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * 3f);
-                    
-                    // Store this good rotation for when spinning starts
+                    // Same distance — only tip the aim up so more course is visible ahead.
+                    AimForForwardView(target, 3f);
                     lastGoodCameraRotation = transform.rotation;
                 }
                 
@@ -311,8 +309,7 @@ public class SimpleCameraFollow : MonoBehaviour
                 float smoothTime = 0.1f; // Lower value = faster response
                 transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref cameraVelocity, smoothTime);
                 
-                // Look at target
-                transform.LookAt(target);
+                AimForForwardView(target, rotationSmoothness);
                 
                 // Store this good position and rotation
                 lastGoodCameraPosition = transform.position;
@@ -334,8 +331,7 @@ public class SimpleCameraFollow : MonoBehaviour
                 // Move camera with reduced speed
                 transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref cameraVelocity, smoothTime);
                 
-                // Look at target
-                transform.LookAt(target);
+                AimForForwardView(target, rotationSmoothness);
             }
             // If plane has nearly stopped
             else if (currentSpeed <= speedThresholdForStop && hasStartedFollowing && !hasFrozenCamera)
@@ -365,10 +361,27 @@ public class SimpleCameraFollow : MonoBehaviour
                 // Smoothly move the camera to the zoomed-out position
                 transform.position = Vector3.Lerp(transform.position, zoomedOutPosition, Time.deltaTime * zoomSmoothness);
 
-                // Keep looking at the target
-                transform.LookAt(target);
+                // Keep looking toward the plane with the same forward tilt
+                AimForForwardView(target, zoomSmoothness);
             }
         }
+    }
+
+    /// <summary>
+    /// Keeps chase distance unchanged; only rotates the camera up so more forward scenery is visible.
+    /// </summary>
+    private void AimForForwardView(Transform plane, float rotSpeed)
+    {
+        if (plane == null)
+            return;
+
+        Vector3 toPlane = plane.position - transform.position;
+        if (toPlane.sqrMagnitude < 0.0001f)
+            return;
+
+        Quaternion lookAtPlane = Quaternion.LookRotation(toPlane.normalized, Vector3.up);
+        Quaternion pitchedUp = lookAtPlane * Quaternion.Euler(-forwardViewPitchDegrees, 0f, 0f);
+        transform.rotation = Quaternion.Slerp(transform.rotation, pitchedUp, Time.fixedDeltaTime * Mathf.Max(0.1f, rotSpeed));
     }
 
 }
