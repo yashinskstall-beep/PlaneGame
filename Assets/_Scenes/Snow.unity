@@ -1710,7 +1710,7 @@ MonoBehaviour:
   boostSpeedMultiplier: 0.3
   boostDuration: 1.5
   maxBoostUses: 2
-  uiManager: {fileID: 0}
+  uiManager: {fileID: 999950920}
   isControlling: 0
   boostUsesRemaining: 0
   maxZDistance: 0
@@ -1820,8 +1820,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   wingTrails:
-  - {fileID: 728755411}
-  - {fileID: 1077653638}
+  - {fileID: 553846390}
+  - {fileID: 2005754670}
   minSpeedForTrail: 10
   trailColorSlow: {r: 1, g: 1, b: 1, a: 1}
   trailColorFast: {r: 0, g: 1, b: 1, a: 1}
@@ -1965,6 +1965,12 @@ PrefabInstance:
 --- !u!4 &553846389 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1012239039275572301, guid: 821bbe9b05cf30a4994137c9ba997930,
+    type: 3}
+  m_PrefabInstance: {fileID: 553846388}
+  m_PrefabAsset: {fileID: 0}
+--- !u!96 &553846390 stripped
+TrailRenderer:
+  m_CorrespondingSourceObject: {fileID: 3137951747119878206, guid: 821bbe9b05cf30a4994137c9ba997930,
     type: 3}
   m_PrefabInstance: {fileID: 553846388}
   m_PrefabAsset: {fileID: 0}
@@ -2680,12 +2686,6 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 728755409}
   m_PrefabAsset: {fileID: 0}
---- !u!96 &728755411 stripped
-TrailRenderer:
-  m_CorrespondingSourceObject: {fileID: 3137951747119878206, guid: 821bbe9b05cf30a4994137c9ba997930,
-    type: 3}
-  m_PrefabInstance: {fileID: 728755409}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &763624239
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3178,6 +3178,18 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 992191085}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &999950920 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6995557172876886332, guid: c521a1009b15f344faac6b8303862c5c,
+    type: 3}
+  m_PrefabInstance: {fileID: 2078838817}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2078838820}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ec02c8ab305057408fcbebddfd477bb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &1003645406
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3246,80 +3258,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2e7a4be9509d2794d96567eba0173225, type: 3}
---- !u!1001 &1006539472
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 6835269249079798553}
-    m_Modifications:
-    - target: {fileID: 1012239039275572301, guid: 821bbe9b05cf30a4994137c9ba997930,
-        type: 3}
-      propertyPath: m_LocalPosition.x
-      value: -0.065
-      objectReference: {fileID: 0}
-    - target: {fileID: 1012239039275572301, guid: 821bbe9b05cf30a4994137c9ba997930,
-        type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.0228
-      objectReference: {fileID: 0}
-    - target: {fileID: 1012239039275572301, guid: 821bbe9b05cf30a4994137c9ba997930,
-        type: 3}
-      propertyPath: m_LocalPosition.z
-      value: -0.003
-      objectReference: {fileID: 0}
-    - target: {fileID: 1012239039275572301, guid: 821bbe9b05cf30a4994137c9ba997930,
-        type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 1012239039275572301, guid: 821bbe9b05cf30a4994137c9ba997930,
-        type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1012239039275572301, guid: 821bbe9b05cf30a4994137c9ba997930,
-        type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1012239039275572301, guid: 821bbe9b05cf30a4994137c9ba997930,
-        type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1012239039275572301, guid: 821bbe9b05cf30a4994137c9ba997930,
-        type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1012239039275572301, guid: 821bbe9b05cf30a4994137c9ba997930,
-        type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1012239039275572301, guid: 821bbe9b05cf30a4994137c9ba997930,
-        type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2896124673367335106, guid: 821bbe9b05cf30a4994137c9ba997930,
-        type: 3}
-      propertyPath: m_Name
-      value: Wingtrail (1)
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 821bbe9b05cf30a4994137c9ba997930, type: 3}
---- !u!4 &1006539473 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 1012239039275572301, guid: 821bbe9b05cf30a4994137c9ba997930,
-    type: 3}
-  m_PrefabInstance: {fileID: 1006539472}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1030708546
 GameObject:
   m_ObjectHideFlags: 0
@@ -3519,12 +3457,6 @@ PrefabInstance:
 --- !u!4 &1077653637 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1012239039275572301, guid: 821bbe9b05cf30a4994137c9ba997930,
-    type: 3}
-  m_PrefabInstance: {fileID: 1077653636}
-  m_PrefabAsset: {fileID: 0}
---- !u!96 &1077653638 stripped
-TrailRenderer:
-  m_CorrespondingSourceObject: {fileID: 3137951747119878206, guid: 821bbe9b05cf30a4994137c9ba997930,
     type: 3}
   m_PrefabInstance: {fileID: 1077653636}
   m_PrefabAsset: {fileID: 0}
@@ -6039,6 +5971,12 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 2005754668}
   m_PrefabAsset: {fileID: 0}
+--- !u!96 &2005754670 stripped
+TrailRenderer:
+  m_CorrespondingSourceObject: {fileID: 3137951747119878206, guid: 821bbe9b05cf30a4994137c9ba997930,
+    type: 3}
+  m_PrefabInstance: {fileID: 2005754668}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &2027274732
 GameObject:
   m_ObjectHideFlags: 0
@@ -6264,6 +6202,21 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6995557172876886332, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: boosters
+      value: 
+      objectReference: {fileID: 1575113373}
+    - target: {fileID: 6995557172876886332, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: cameraManager
+      value: 
+      objectReference: {fileID: 1209805506}
+    - target: {fileID: 6995557172876886332, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: planeController
+      value: 
+      objectReference: {fileID: 549470094}
     - target: {fileID: 7209789211225023183, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: m_AnchorMax.y
@@ -6704,10 +6657,6 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 728755410}
-    - targetCorrespondingSourceObject: {fileID: 9102499296668919921, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
-        type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1006539473}
     - targetCorrespondingSourceObject: {fileID: 2456829373816477493, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
         type: 3}
       insertIndex: -1

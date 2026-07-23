@@ -681,7 +681,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Toy Plane
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 48151183ad3b17541a39649faecebfd0, type: 2}
   m_sharedMaterial: {fileID: -7337404343391928600, guid: 48151183ad3b17541a39649faecebfd0,
@@ -1452,9 +1452,9 @@ RectTransform:
   - {fileID: 3286038942228126541}
   m_Father: {fileID: 3999142731424011237}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 444.92, y: -408.7}
   m_SizeDelta: {x: 889.84, y: 241}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4429205925323982297
@@ -5129,7 +5129,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 
+  m_text: '50
+
+    KM/H'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 77b8ab04c7ca83d4d8001d0e0a828beb, type: 2}
   m_sharedMaterial: {fileID: -7337404343391928600, guid: 77b8ab04c7ca83d4d8001d0e0a828beb,
@@ -5860,6 +5862,8 @@ MonoBehaviour:
   upgradeParticleScale: 1
   cheatCoinsButton: {fileID: 7251148230480090393}
   debugUpgradeVfx: 0
+  upgradeCostStart: 50
+  upgradeCostIncrement: 25
   launchForceLevels:
   - 25
   - 30
@@ -11011,9 +11015,9 @@ RectTransform:
   - {fileID: 4739417864235489886}
   m_Father: {fileID: 3999142731424011237}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 444.92, y: -985.10004}
   m_SizeDelta: {x: 889.84, y: 241}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4402681241401844864
@@ -11282,8 +11286,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchoredPosition: {x: -144.97859, y: 0}
+  m_SizeDelta: {x: -289.9572, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6427761970898111038
 CanvasRenderer:
@@ -11313,7 +11317,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Coming soon
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 48151183ad3b17541a39649faecebfd0, type: 2}
   m_sharedMaterial: {fileID: -7337404343391928600, guid: 48151183ad3b17541a39649faecebfd0,
@@ -11341,14 +11345,14 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 91.1
-  m_fontSizeBase: 91.1
+  m_fontSize: 82.3
+  m_fontSizeBase: 82.3
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 2
-  m_HorizontalAlignment: 2
+  m_HorizontalAlignment: 1
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -11377,7 +11381,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 43.044067, y: 15.269592, z: 111.9064, w: 0}
+  m_margin: {x: 43.044067, y: 15.269592, z: -1.3313295, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -11481,6 +11485,15 @@ MonoBehaviour:
     displayName: High - Wing
     speedLabel: 40 KM/H
     sceneName: Desert
+    upgradePartNamesForReset: []
+    unlockedByDefault: 0
+  - button: {fileID: 2920252491954271134}
+    nameText: {fileID: 799938824517085798}
+    speedText: {fileID: 2367324736388829520}
+    lockIcon: {fileID: 0}
+    displayName: Winter Spirit
+    speedLabel: 50 KM/H
+    sceneName: Snow
     upgradePartNamesForReset: []
     unlockedByDefault: 0
   unlockedButtonSprite: {fileID: 348082629, guid: 6e0cdc1b2351ece4fbe28dbefed672b5,
@@ -13521,9 +13534,9 @@ RectTransform:
   - {fileID: 4303560133150911848}
   m_Father: {fileID: 3999142731424011237}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 444.92, y: -696.9}
   m_SizeDelta: {x: 889.84, y: 241}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3075646785637039576
@@ -13554,7 +13567,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: -2100662008, guid: a579252e876aa9c4c956811396ff37a0, type: 3}
+  m_Sprite: {fileID: 107549436, guid: 6e0cdc1b2351ece4fbe28dbefed672b5, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -13643,9 +13656,9 @@ RectTransform:
   - {fileID: 4987164813123131838}
   m_Father: {fileID: 3999142731424011237}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 444.92, y: -1273.3}
   m_SizeDelta: {x: 889.84, y: 241}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3167818840340752073
@@ -13978,9 +13991,9 @@ RectTransform:
   - {fileID: 473854802132948357}
   m_Father: {fileID: 3999142731424011237}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 444.92, y: -120.5}
   m_SizeDelta: {x: 889.84, y: 241}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6803826881167499348
