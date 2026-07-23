@@ -86,10 +86,6 @@ public class PlanePartDetach : MonoBehaviour
             return;
         }
 
-        Debug.Log(
-            $"[{name}] Handling collision with {collision.gameObject.name}. " +
-            $"Impact: {impactMagnitude:F2}, Threshold: {detachImpactThreshold:F2}");
-
         if (impactMagnitude < detachImpactThreshold)
             return;
 
@@ -114,7 +110,6 @@ public class PlanePartDetach : MonoBehaviour
         // Core fuselage stays on the main plane rigidbody and cascades other parts.
         if (isCoreBodyPart)
         {
-            Debug.Log("Core body part hit. Triggering chain reaction to detach other parts.");
             if (planeController == null)
                 planeController = GetComponentInParent<PlaneController>();
 
@@ -125,7 +120,6 @@ public class PlanePartDetach : MonoBehaviour
         }
 
         ActivatePhysicsPart(hitPoint, impactMagnitude, impactVelocity);
-        Debug.Log($"{name} detached due to impact {impactMagnitude:F1}!");
     }
 
     /// <summary>

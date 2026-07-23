@@ -1293,8 +1293,16 @@ MonoBehaviour:
   player: {fileID: 549470090}
   pointA: {fileID: 95573069}
   pointB: {fileID: 1797748879}
-  slider: {fileID: 0}
+  slider: {fileID: 418747497}
   percentText: {fileID: 0}
+  percentTMP: {fileID: 0}
+  autoCreatePercentLabel: 1
+  percentOffset: {x: -55, y: 0}
+  percentFontSize: 40
+  percentColor: {r: 1, g: 1, b: 1, a: 1}
+  percentOutlineColor: {r: 0, g: 0, b: 0, a: 1}
+  percentOutlineWidth: 0.35
+  percentShadowDistance: {x: 2.5, y: -2.5}
   smooth: 1
   smoothSpeed: 10
 --- !u!4 &418747495
@@ -1342,6 +1350,18 @@ MonoBehaviour:
     m_Bits: 4294967295
   hideWhenNoRecord: 1
   wallMaterialTemplate: {fileID: 0}
+--- !u!114 &418747497 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 7380470399935104730, guid: c521a1009b15f344faac6b8303862c5c,
+    type: 3}
+  m_PrefabInstance: {fileID: 120252930}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67db9e8f0e2ae9c40bc1e2b64352a6b4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &549470086
 GameObject:
   m_ObjectHideFlags: 0
@@ -1362,7 +1382,6 @@ GameObject:
   - component: {fileID: 549470098}
   - component: {fileID: 549470099}
   - component: {fileID: 549470100}
-  - component: {fileID: 549470102}
   m_Layer: 0
   m_Name: Airplane
   m_TagString: Player
@@ -1504,7 +1523,7 @@ MonoBehaviour:
   groundCheckDistance: 0.5
   minImpactForceForDamage: 10
   fallDownForce: 10
-  markerYOffset: 0.5
+  markerYOffset: 0
   markerForwardOffset: 0.5
   treeContactHeightThreshold: 1.25
   fallThroughYThreshold: -37
@@ -1722,45 +1741,13 @@ MonoBehaviour:
     orientationResistanceFactor: 0.001
     momentumDecayRate: 0.001
     wreckDrag: 0
-  - glideDrag: 0.1
-    diveDrag: 0.1
+  - glideDrag: 0.001
+    diveDrag: 0.001
     airResistanceCoefficient: 0.001
     velocityResistanceFactor: 0.001
     orientationResistanceFactor: 0.001
     momentumDecayRate: 0.001
     wreckDrag: 0
---- !u!114 &549470102
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 549470086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b7e4c91a2f6d4e8a9c1d0e3f5a6b7c8d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  propeller: {fileID: 0}
-  dragLauncher: {fileID: 549470095}
-  planeController: {fileID: 549470094}
-  localSpinAxis: {x: 0, y: 0, z: 1}
-  recenterPivotOnHub: 1
-  minSpinSpeed: 180
-  maxSpinSpeed: 2200
-  spinAcceleration: 8
-  crashSpinDownDuration: 1.75
-  propellerAudio: {fileID: 0}
-  propellerClip: {fileID: 0}
-  minVolume: 0.05
-  maxVolume: 0.85
-  minPitch: 0.75
-  maxPitch: 1.45
-  audioSmoothing: 6
-  respectAudioSettings: 1
-  debugPropeller: 1
-  debugLogInterval: 0.25
-  recordManualPose: 0
 --- !u!1 &563035415 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7879745583513211750, guid: c521a1009b15f344faac6b8303862c5c,
@@ -4430,7 +4417,7 @@ PrefabInstance:
     - target: {fileID: 1614085666027269332, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
         type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4149654724333989163, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
         type: 3}
@@ -4587,7 +4574,7 @@ MonoBehaviour:
   maxPitch: 1.45
   audioSmoothing: 6
   respectAudioSettings: 1
-  debugPropeller: 1
+  debugPropeller: 0
   debugLogInterval: 0.25
   recordManualPose: 0
 --- !u!4 &6786296317519618246 stripped

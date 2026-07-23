@@ -96,12 +96,10 @@ public class PlaneRampAligner : MonoBehaviour
             if (currentRamp == null)
             {
                 originalRotation = plane.rotation;
-                Debug.Log("Stored original plane rotation");
             }
             
             currentRamp = collision.transform;
             isAligning = true;
-            Debug.Log($"Plane contacted ramp: {collision.gameObject.name}");
         }
     }
     
@@ -142,19 +140,14 @@ public class PlaneRampAligner : MonoBehaviour
                 if (planeController.isControlling && planeController.useJoystickInput && planeController.joystick != null)
                 {
                     planeController.joystick.gameObject.SetActive(true);
-                    Debug.Log("Joystick enabled on ramp exit");
                 }
             }
             gameObject.layer = LayerMask.NameToLayer("Ignore Raycast"); // this is a fix for taking input on flight mode
-            Debug.Log("Raycast ignored");
             
-            Debug.Log("Plane left the ramp, restoring original rotation");
-
             // Remove all rotation constraints
             planeRb.constraints &= ~RigidbodyConstraints.FreezeRotationX;
             planeRb.constraints &= ~RigidbodyConstraints.FreezeRotationY;
             planeRb.constraints &= ~RigidbodyConstraints.FreezeRotationZ;
-            Debug.Log("Plane RB rotation unfrozen");
 
             // Switch from root sphere → part MeshColliders for realistic flight collisions.
             if (planeController != null)

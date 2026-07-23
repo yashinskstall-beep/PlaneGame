@@ -35,6 +35,9 @@ public class RewardedAdManager : MonoBehaviour
     [SerializeField] private float rewardedShowWaitTimeoutSeconds = 20f;
     [SerializeField] private float backgroundPreloadIntervalSeconds = 2f;
 
+    [Header("Debug")]
+    [SerializeField] private bool debugAds = false;
+
     private string interstitialId;
     private string rewardedId;
 
@@ -83,7 +86,7 @@ public class RewardedAdManager : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        Debug.Log($"{LogPrefix} Awake. warm={keepRewardedAdWarm} platform={Application.platform}");
+        Log($"Awake. warm={keepRewardedAdWarm} platform={Application.platform}");
         BeginAdMobInitialization();
     }
 
@@ -133,7 +136,7 @@ public class RewardedAdManager : MonoBehaviour
 
         ConfigureMobileAdsSettings();
 
-        Debug.Log($"{LogPrefix} Initializing AdMob ({GetRuntimeModeLabel()})...");
+        Log($"Initializing AdMob ({GetRuntimeModeLabel()})...");
         bool initCompleted = false;
 
         try
@@ -142,7 +145,7 @@ public class RewardedAdManager : MonoBehaviour
             {
                 initCompleted = true;
                 isInitialized = true;
-                Debug.Log($"{LogPrefix} AdMob initialized ({GetRuntimeModeLabel()}).");
+                Log($"AdMob initialized ({GetRuntimeModeLabel()}).");
                 SafeInvoke("LoadAllAds after init", LoadAllAds);
 
                 if (preloadRewardedPending)
@@ -201,7 +204,7 @@ public class RewardedAdManager : MonoBehaviour
 
     public bool TryShowRewardedAdOrQueue(Action<bool> onComplete)
     {
-        Debug.Log($"{LogPrefix} TryShowRewardedAdOrQueue called. initialized={isInitialized} ready={IsRewardedAdReady()} loading={isRewardedLoading} showing={isShowingAd} pending={isPresentationPending} hasRewarded={rewardedAd != null}");
+        Log($"TryShowRewardedAdOrQueue called. initialized={isInitialized} ready={IsRewardedAdReady()} loading={isRewardedLoading} showing={isShowingAd} pending={isPresentationPending} hasRewarded={rewardedAd != null}");
         if (onComplete == null)
             return false;
 
@@ -240,7 +243,7 @@ public class RewardedAdManager : MonoBehaviour
 
     public void ShowRewardedAd(Action<bool> onComplete)
     {
-        Debug.Log($"{LogPrefix} ShowRewardedAd called. initialized={isInitialized} ready={(rewardedAd != null && rewardedAd.CanShowAd())} loading={isRewardedLoading} showing={isShowingAd} pending={isPresentationPending}");
+        Log($"ShowRewardedAd called. initialized={isInitialized} ready={(rewardedAd != null && rewardedAd.CanShowAd())} loading={isRewardedLoading} showing={isShowingAd} pending={isPresentationPending}");
         if (isShowingAd || isPresentationPending)
         {
             onComplete?.Invoke(false);
@@ -268,10 +271,10 @@ public class RewardedAdManager : MonoBehaviour
 
         try
         {
-            Debug.Log($"{LogPrefix} Showing rewarded ad now. rewardedId={rewardedId}");
+            Log($"Showing rewarded ad now. rewardedId={rewardedId}");
             rewardedAd.Show(reward =>
             {
-                Debug.Log($"{LogPrefix} Reward earned: {reward.Type} x{reward.Amount}");
+                Log($"Reward earned: {reward.Type} x{reward.Amount}");
                 rewardEarned = true;
             });
         }
@@ -286,7 +289,7 @@ public class RewardedAdManager : MonoBehaviour
 
     public bool TryShowBoostRewardedAd(Action<bool> onComplete)
     {
-        Debug.Log($"{LogPrefix} TryShowBoostRewardedAd. rewardedId={rewardedId} ready={IsRewardedAdReady()}");
+        Log($"TryShowBoostRewardedAd. rewardedId={rewardedId} ready={IsRewardedAdReady()}");
         return TryShowRewardedAdOrQueue(onComplete);
     }
 
@@ -316,7 +319,7 @@ public class RewardedAdManager : MonoBehaviour
 
         try
         {
-            Debug.Log($"{LogPrefix} Showing interstitial ad now. interstitialId={interstitialId}");
+            Log($"Showing interstitial ad now. interstitialId={interstitialId}");
             interstitialAd.Show();
         }
         catch (Exception e)
@@ -382,8 +385,8 @@ public class RewardedAdManager : MonoBehaviour
         rewardedId = iosRewardedId;
 #endif
 
-        Debug.Log($"{LogPrefix} Interstitial ID: {interstitialId}");
-        Debug.Log($"{LogPrefix} Rewarded ID: {rewardedId}");
+        Log($"Interstitial ID: {interstitialId}");
+        Log($"Rewarded ID: {rewardedId}");
     }
 
     private string GetRuntimeModeLabel()
@@ -414,7 +417,7 @@ public class RewardedAdManager : MonoBehaviour
             return;
 
         backgroundPreloadTimer = 0f;
-        Debug.Log($"{LogPrefix} LoadAllAds requesting rewarded + interstitial.");
+        Log($"LoadAllAds requesting rewarded + interstitial.");
         RequestRewarded();
         RequestInterstitial();
     }
@@ -423,7 +426,7 @@ public class RewardedAdManager : MonoBehaviour
     {
         if (!SupportsAdMob() || isInterstitialLoading || string.IsNullOrEmpty(interstitialId) || !isInitialized)
         {
-            Debug.Log($"{LogPrefix} RequestInterstitial skipped. supports={SupportsAdMob()} loading={isInterstitialLoading} hasId={!string.IsNullOrEmpty(interstitialId)} initialized={isInitialized}");
+            Log($"RequestInterstitial skipped. supports={SupportsAdMob()} loading={isInterstitialLoading} hasId={!string.IsNullOrEmpty(interstitialId)} initialized={isInitialized}");
             return;
         }
 
@@ -447,7 +450,7 @@ public class RewardedAdManager : MonoBehaviour
 
                 interstitialAd = ad;
                 RegisterInterstitialCallbacks(interstitialAd);
-                Debug.Log($"{LogPrefix} Interstitial loaded.");
+                Log($"Interstitial loaded.");
             });
         });
     }
@@ -456,20 +459,20 @@ public class RewardedAdManager : MonoBehaviour
     {
         if (!SupportsAdMob() || string.IsNullOrEmpty(rewardedId))
         {
-            Debug.Log($"{LogPrefix} RequestRewarded skipped. supports={SupportsAdMob()} rewardedIdEmpty={string.IsNullOrEmpty(rewardedId)}");
+            Log($"RequestRewarded skipped. supports={SupportsAdMob()} rewardedIdEmpty={string.IsNullOrEmpty(rewardedId)}");
             return;
         }
 
         if (!isInitialized)
         {
             preloadRewardedPending = true;
-            Debug.Log($"{LogPrefix} RequestRewarded deferred until init completes.");
+            Log($"RequestRewarded deferred until init completes.");
             return;
         }
 
         if (isRewardedLoading)
         {
-            Debug.Log($"{LogPrefix} RequestRewarded skipped because a rewarded ad is already loading.");
+            Log($"RequestRewarded skipped because a rewarded ad is already loading.");
             return;
         }
 
@@ -484,7 +487,7 @@ public class RewardedAdManager : MonoBehaviour
         rewardedAd?.Destroy();
         rewardedAd = null;
 
-        Debug.Log($"{LogPrefix} Requesting rewarded ad. reachability={Application.internetReachability}");
+        Log($"Requesting rewarded ad. reachability={Application.internetReachability}");
         RewardedAd.Load(rewardedId, new AdRequest(), (ad, error) =>
         {
             SafeInvoke("Rewarded load callback", () =>
@@ -501,7 +504,7 @@ public class RewardedAdManager : MonoBehaviour
 
                 rewardedAd = ad;
                 RegisterRewardedCallbacks(rewardedAd);
-                Debug.Log($"{LogPrefix} Rewarded ad loaded.");
+                Log($"Rewarded ad loaded.");
                 OnRewardedAdLoaded?.Invoke();
                 TryFulfillPendingAutoShow();
             });
@@ -519,13 +522,13 @@ public class RewardedAdManager : MonoBehaviour
     private IEnumerator WaitForRewardedAndShowRoutine()
     {
         float elapsed = 0f;
-        Debug.Log($"{LogPrefix} WaitForRewardedAndShowRoutine started. timeout={rewardedShowWaitTimeoutSeconds}s");
+        Log($"WaitForRewardedAndShowRoutine started. timeout={rewardedShowWaitTimeoutSeconds}s");
 
         while (pendingAutoShowCallback != null && elapsed < rewardedShowWaitTimeoutSeconds)
         {
             if (IsRewardedAdReady())
             {
-                Debug.Log($"{LogPrefix} WaitForRewardedAndShowRoutine detected ready ad after {elapsed:F2}s.");
+                Log($"WaitForRewardedAndShowRoutine detected ready ad after {elapsed:F2}s.");
                 TryFulfillPendingAutoShow();
                 waitForRewardedShowCoroutine = null;
                 yield break;
@@ -552,7 +555,7 @@ public class RewardedAdManager : MonoBehaviour
         if (pendingAutoShowCallback == null || !IsRewardedAdReady())
             return;
 
-        Debug.Log($"{LogPrefix} TryFulfillPendingAutoShow promoting queued request into ShowRewardedAd.");
+        Log($"TryFulfillPendingAutoShow promoting queued request into ShowRewardedAd.");
         Action<bool> callback = pendingAutoShowCallback;
         pendingAutoShowCallback = null;
 
@@ -598,10 +601,16 @@ public class RewardedAdManager : MonoBehaviour
         }
     }
 
+    private void Log(string message)
+    {
+        if (debugAds)
+            Debug.Log($"{LogPrefix} {message}");
+    }
+
     private void ScheduleRetry(ref Coroutine retryCoroutine, Action requestAction)
     {
         CancelRetry(ref retryCoroutine);
-        Debug.Log($"{LogPrefix} Scheduling retry in {loadRetryDelaySeconds:F1}s for {requestAction?.Method.Name}");
+        Log($"Scheduling retry in {loadRetryDelaySeconds:F1}s for {requestAction?.Method.Name}");
         retryCoroutine = StartCoroutine(RetryLoadRoutine(requestAction));
     }
 
@@ -626,7 +635,7 @@ public class RewardedAdManager : MonoBehaviour
         {
             SafeInvoke("Interstitial opened callback", () =>
             {
-                Debug.Log($"{LogPrefix} Interstitial opened.");
+                Log($"Interstitial opened.");
                 isShowingAd = true;
                 PauseGameForAd();
             });
@@ -634,7 +643,7 @@ public class RewardedAdManager : MonoBehaviour
 
         ad.OnAdFullScreenContentClosed += () =>
         {
-            Debug.Log($"{LogPrefix} Interstitial closed.");
+            Log($"Interstitial closed.");
             SafeInvoke("Interstitial closed callback", () => RunAfterAdClosed(() => RequestInterstitial()));
         };
 
@@ -651,7 +660,7 @@ public class RewardedAdManager : MonoBehaviour
         {
             SafeInvoke("Rewarded opened callback", () =>
             {
-                Debug.Log($"{LogPrefix} Rewarded ad opened.");
+                Log($"Rewarded ad opened.");
                 isPresentationPending = false;
                 isShowingAd = true;
                 PauseGameForAd();
@@ -661,7 +670,7 @@ public class RewardedAdManager : MonoBehaviour
         ad.OnAdFullScreenContentClosed += () =>
         {
             bool earned = rewardEarned;
-            Debug.Log($"{LogPrefix} Rewarded ad closed. earned={earned}");
+            Log($"Rewarded ad closed. earned={earned}");
             SafeInvoke("Rewarded closed callback", () => RunAfterAdClosed(() =>
             {
                 DestroyRewardedAdInstance();
@@ -757,7 +766,7 @@ public class RewardedAdManager : MonoBehaviour
 
     private void CompleteRewardedAd(bool success)
     {
-        Debug.Log($"{LogPrefix} CompleteRewardedAd success={success} rewardEarned={rewardEarned}");
+        Log($"CompleteRewardedAd success={success} rewardEarned={rewardEarned}");
         Action<bool> callback = pendingRewardedCallback;
         pendingRewardedCallback = null;
         rewardEarned = false;

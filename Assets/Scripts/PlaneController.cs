@@ -270,7 +270,6 @@ public class PlaneController : MonoBehaviour
     public void InitializeDetachableParts()
     {
         detachableParts = GetComponentsInChildren<PlanePartDetach>();
-        Debug.Log($"Initialized {detachableParts.Length} detachable parts.");
         UseRampColliders();
     }
 
@@ -413,7 +412,6 @@ public class PlaneController : MonoBehaviour
         exitedRamp = true;
         wreckPhysicsActive = false;
     
-        Debug.Log("PlaneController.StartControlling() - isControlling set to TRUE");
         if (useJoystickInput && joystick != null)
             joystick.gameObject.SetActive(true);
 
@@ -1251,7 +1249,6 @@ public class PlaneController : MonoBehaviour
 
         if (cameraFollow != null)
         {
-            Debug.Log("Transitioning camera to marker");
             cameraFollow.TransitionToMarker(marker.transform);
         }
         else

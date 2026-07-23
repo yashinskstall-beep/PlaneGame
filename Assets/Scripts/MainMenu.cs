@@ -85,7 +85,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     [Header("Debug")]
     [SerializeField] private GameObject cheatCoinsButton;
-    [SerializeField] private bool debugUpgradeVfx = true;
+    [SerializeField] private bool debugUpgradeVfx = false;
 
     private PartUpgradeSystem partUpgrades = new PartUpgradeSystem();
     private LaunchForceUpgradeSystem launchForceUpgrades = new LaunchForceUpgradeSystem();

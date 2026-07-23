@@ -1473,6 +1473,14 @@ MonoBehaviour:
   pointB: {fileID: 1797748879}
   slider: {fileID: 2078838821}
   percentText: {fileID: 0}
+  percentTMP: {fileID: 0}
+  autoCreatePercentLabel: 1
+  percentOffset: {x: -55, y: 0}
+  percentFontSize: 40
+  percentColor: {r: 1, g: 1, b: 1, a: 1}
+  percentOutlineColor: {r: 0, g: 0, b: 0, a: 1}
+  percentOutlineWidth: 0.35
+  percentShadowDistance: {x: 2.5, y: -2.5}
   smooth: 1
   smoothSpeed: 10
 --- !u!4 &418747495

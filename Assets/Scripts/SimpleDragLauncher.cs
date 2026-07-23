@@ -305,7 +305,6 @@ public class SimpleDragLauncher : MonoBehaviour
 
             released = true;
             lineRenderer.enabled = false;
-            Debug.Log($"Launched! Drag: {dragDistance:F2}, Horizontal: {horizontalForce:F2}");
         }
         else
         {

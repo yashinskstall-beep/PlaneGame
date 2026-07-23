@@ -584,66 +584,15 @@ public class PlanePropeller : MonoBehaviour
 
     private void LogStartup(string phase)
     {
-        if (!debugPropeller || loggedStartup)
+        if (loggedStartup)
             return;
-
         loggedStartup = true;
-        string propInfo = propeller != null
-            ? $"{FormatTransform(propeller)} parent='{(propeller.parent != null ? propeller.parent.name : "null")}' " +
-              $"hasMesh={(propeller.GetComponent<MeshFilter>() != null || propeller.GetComponent<Renderer>() != null)} " +
-              $"childCount={propeller.childCount} " +
-              $"localEuler={FormatEuler(propeller.localEulerAngles)} " +
-              $"lossyScale={FormatVec(propeller.lossyScale)} " +
-              $"fwd={FormatVec(propeller.forward)} up={FormatVec(propeller.up)} right={FormatVec(propeller.right)}"
-            : "NULL";
-
-        LogPropDebug(
-            $"STARTUP[{phase}] prop={propInfo} " +
-            $"axis={localSpinAxis} " +
-            $"launcher={(dragLauncher != null ? dragLauncher.name : "null")} " +
-            $"plane={(planeController != null ? planeController.name : "null")} " +
-            $"clip={(propellerClip != null ? propellerClip.name : "null")} " +
-            $"audio={(propellerAudio != null ? "ok" : "null")}");
-
         if (propeller != null)
             accumulatedDeltaAngle = 0f;
     }
 
     private void LogRuntimeState()
     {
-        if (!debugPropeller)
-            return;
-
-        bool stateChanged = lastState != lastLoggedState;
-        bool active = Mathf.Abs(currentSpinSpeed) > 0.5f || isCrashing || hasLaunched
-            || (dragLauncher != null && dragLauncher.IsDragging);
-
-        // Idle menu spam was drowning the console — only tick while active or on state change.
-        if (!active && !stateChanged)
-            return;
-
-        if (!stateChanged && Time.time < nextDebugLogTime)
-            return;
-
-        nextDebugLogTime = Time.time + Mathf.Max(0.05f, debugLogInterval);
-        lastLoggedState = lastState;
-
-        bool dragging = dragLauncher != null && dragLauncher.IsDragging;
-        bool released = dragLauncher != null && dragLauncher.released;
-        float pullNow = dragLauncher != null ? dragLauncher.GetPullNormalized() : -1f;
-
-        LogPropDebug(
-            $"TICK state={lastState} dragging={dragging} released={released} launched={hasLaunched} crashing={isCrashing} " +
-            $"pullNow={pullNow:F2} pullLock={lastPull01:F2} " +
-            $"spin={currentSpinSpeed:F0}/{targetSpinSpeed:F0} cumAngle={accumulatedDeltaAngle:F1} " +
-            $"axis={localSpinAxis} applyΔ={lastAppliedDelta:F2} appliedAngle={lastAppliedAngle:F2} " +
-            $"eulerΔ=({lastEulerDelta.x:F1},{lastEulerDelta.y:F1},{lastEulerDelta.z:F1}) " +
-            $"prop='{(propeller != null ? propeller.name : "null")}' " +
-            $"localEuler={FormatEuler(propeller != null ? propeller.localEulerAngles : Vector3.zero)} " +
-            $"worldFwd={FormatVec(propeller != null ? propeller.forward : Vector3.zero)} " +
-            $"hubDist={(propRenderer != null && propeller != null ? Vector3.Distance(propeller.position, propRenderer.bounds.center).ToString("F3") : "n/a")} " +
-            $"wreck={(planeController != null && planeController.IsWreckPhysicsActive)}");
-
         lastAppliedDelta = 0f;
         lastAppliedAngle = 0f;
         lastEulerDelta = Vector3.zero;
@@ -651,19 +600,10 @@ public class PlanePropeller : MonoBehaviour
 
     private void LogPropDebug(string message)
     {
-        if (!debugPropeller)
-            return;
-        Debug.Log($"[Propeller] t={Time.time:F2} {message}", this);
     }
 
     private void LogPropDebugThrottled(string message)
     {
-        if (!debugPropeller)
-            return;
-        if (Time.time < nextDebugLogTime)
-            return;
-        nextDebugLogTime = Time.time + Mathf.Max(0.05f, debugLogInterval);
-        Debug.Log($"[Propeller] t={Time.time:F2} {message}", this);
     }
 
     private static string FormatTransform(Transform t)

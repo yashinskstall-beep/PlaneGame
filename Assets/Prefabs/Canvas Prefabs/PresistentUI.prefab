@@ -2347,7 +2347,7 @@ MonoBehaviour:
   upgradeParticleYOffset: 0
   upgradeParticleScale: 1
   cheatCoinsButton: {fileID: 4873725566859333872}
-  debugUpgradeVfx: 1
+  debugUpgradeVfx: 0
   launchForceLevels:
   - 25
   - 30

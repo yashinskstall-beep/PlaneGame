@@ -9548,7 +9548,7 @@ MonoBehaviour:
   upgradeParticleYOffset: 0
   upgradeParticleScale: 1
   cheatCoinsButton: {fileID: 3850036247653176452}
-  debugUpgradeVfx: 1
+  debugUpgradeVfx: 0
   boostSlideOffsetX: 500
   boostSlideDuration: 0.4
   cameraTransitionDuration: 1.5
