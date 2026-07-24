@@ -221,9 +221,10 @@ public class SimpleCameraFollow : MonoBehaviour
             transform.LookAt(target);
             return;
         }
-        
-        // Check if the plane is in controlling mode
+
         PlaneController planeController = target.GetComponent<PlaneController>();
+        bool wreckSliding = planeController != null && planeController.IsWreckPhysicsActive;
+
         if (planeController != null)
         {
             if (!isPlaneControlling && planeController.isControlling)
@@ -234,136 +235,88 @@ public class SimpleCameraFollow : MonoBehaviour
             else if (isPlaneControlling && !planeController.isControlling)
             {
                 isPlaneControlling = false;
+                // Keep chase framing when control ends so the sliding wreck stays on screen.
+                if (wreckSliding)
+                    fixedOffset = transform.position - target.position;
             }
-        }
-        else
-        {
-            Debug.LogWarning("PlaneController component not found on target!");
         }
 
         if (dragLauncher == null) return;
+        if (!dragLauncher.released) return;
 
-        if (dragLauncher.released)
+        Rigidbody targetRb = target.GetComponent<Rigidbody>();
+        if (targetRb == null) return;
+
+        float currentSpeed = targetRb.velocity.magnitude;
+        float currentAngSpeed = targetRb.angularVelocity.magnitude;
+
+        if (currentSpeed > maxPlaneSpeed)
         {
-            Rigidbody targetRb = target.GetComponent<Rigidbody>();
-            if (targetRb == null) return;
-            
-            float currentSpeed = targetRb.velocity.magnitude;
-            
-            // Track max speed for reference
-            if (currentSpeed > maxPlaneSpeed)
+            maxPlaneSpeed = currentSpeed;
+            hasStartedFollowing = true;
+        }
+
+        float speedRatio = maxPlaneSpeed > 0 ? currentSpeed / maxPlaneSpeed : 0f;
+
+        // Keep chasing while flying or while the wreck is still sliding/tumbling.
+        bool wreckStillMoving = wreckSliding &&
+            (currentSpeed > Mathf.Max(0.2f, speedThresholdForStop * 0.35f) || currentAngSpeed > 0.2f);
+        bool shouldChase = isPlaneControlling || wreckStillMoving;
+
+        if (shouldChase)
+        {
+            PlaneDamageHandler damageHandler = target.GetComponent<PlaneDamageHandler>();
+            bool isSpinning = damageHandler != null
+                && damageHandler.IsLeftWingMissing() != damageHandler.IsRightWingMissing();
+
+            Vector3 chaseOffset = fixedOffset.sqrMagnitude > 0.01f ? fixedOffset : offset;
+            Vector3 targetPosition = target.position + chaseOffset;
+            float smoothTime = wreckSliding ? 0.15f : 0.1f;
+            transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref cameraVelocity, smoothTime);
+
+            if (!(isSpinning && isPlaneControlling))
             {
-                maxPlaneSpeed = currentSpeed;
-                hasStartedFollowing = true;
-            }
-            
-            // Calculate what percentage of max speed we're at
-            float speedRatio = maxPlaneSpeed > 0 ? currentSpeed / maxPlaneSpeed : 0;
-            
-            // If the plane is in controlling mode, maintain a fixed distance
-            if (isPlaneControlling)
-            {
-                // Check if plane has wing damage causing spinning
-                PlaneDamageHandler damageHandler = target.GetComponent<PlaneDamageHandler>();
-                bool isSpinning = false;
-                if (damageHandler != null)
-                {
-                    // Check if only one wing is missing (causes spinning)
-                    isSpinning = damageHandler.IsLeftWingMissing() != damageHandler.IsRightWingMissing();
-                }
-                
-                // Use the fixed offset captured when controlling started
-                Vector3 targetPosition = target.position + fixedOffset;
-                
-                // Use smooth damp for more controlled camera movement
-                float smoothTime = 0.1f; // Lower value = faster response
-                transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref cameraVelocity, smoothTime);
-                
-                // Handle rotation: if spinning, keep rotation stable; otherwise follow normally
-                if (isSpinning)
-                {
-                    // When spinning, maintain the current camera rotation (don't follow plane's rotation)
-                    // Camera keeps plane centered via position following, but rotation stays still
-                    // No rotation update - camera maintains its current orientation
-                }
-                else
-                {
-                    // Same distance — only tip the aim up so more course is visible ahead.
-                    AimForForwardView(target, 3f);
-                    lastGoodCameraRotation = transform.rotation;
-                }
-                
-                // Store this good position
-                lastGoodCameraPosition = transform.position;
-                
-                // Reset frozen flag if we're moving again
-                hasFrozenCamera = false;
-            }
-            // If plane is moving well and not in controlling mode, update the good camera position and rotation
-            else if (currentSpeed > speedThresholdForSlowdown && hasStartedFollowing)
-            {
-                // Normal camera following
-                Vector3 targetPosition = target.position + offset;
-                
-                // Use smooth damp for more controlled camera movement
-                float smoothTime = 0.1f; // Lower value = faster response
-                transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref cameraVelocity, smoothTime);
-                
-                AimForForwardView(target, rotationSmoothness);
-                
-                // Store this good position and rotation
-                lastGoodCameraPosition = transform.position;
+                AimForForwardView(target, 3f);
                 lastGoodCameraRotation = transform.rotation;
-                
-                // Reset frozen flag if we're moving again
-                hasFrozenCamera = false;
             }
-            // If plane is slowing down but still moving
-            else if (currentSpeed <= speedThresholdForSlowdown && currentSpeed > speedThresholdForStop && hasStartedFollowing)
-            {
-                // Calculate a position that gradually slows down with the plane
-                Vector3 targetPosition = target.position + offset;
-                
-                // Gradually reduce camera movement as plane slows
-                float slowdownFactor = Mathf.Lerp(1.0f, 0.1f, 1.0f - speedRatio) * cameraSlowdownFactor;
-                float smoothTime = 0.1f / slowdownFactor; // Higher value = slower response
-                
-                // Move camera with reduced speed
-                transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref cameraVelocity, smoothTime);
-                
-                AimForForwardView(target, rotationSmoothness);
-            }
-            // If plane has nearly stopped
-            else if (currentSpeed <= speedThresholdForStop && hasStartedFollowing && !hasFrozenCamera)
-            {
-                // Freeze the camera at its last good position and rotation
-                hasFrozenCamera = true;
-                
-                // Just to be safe, update the last good position one more time
-                // but maintain the same relative angle to the target
-                Vector3 directionToTarget = (target.position - transform.position).normalized;
-                float distanceToTarget = Vector3.Distance(transform.position, target.position);
-                
-                // Slightly adjust position to keep the same distance from target
-                lastGoodCameraPosition = target.position - directionToTarget * distanceToTarget;
-            }
-            
-            // If camera is frozen, zoom out
-            if (hasFrozenCamera)
-            {
-                // Calculate the direction from the target to the last good camera position
-                Vector3 directionFromTarget = (lastGoodCameraPosition - target.position).normalized;
 
-                // Calculate the new zoomed-out position by adding the zoom amount
-                float targetDistance = Vector3.Distance(lastGoodCameraPosition, target.position) + frozenZoomAmount;
-                Vector3 zoomedOutPosition = target.position + directionFromTarget * targetDistance;
+            lastGoodCameraPosition = transform.position;
+            hasFrozenCamera = false;
+            return;
+        }
 
-                // Smoothly move the camera to the zoomed-out position
-                transform.position = Vector3.Lerp(transform.position, zoomedOutPosition, Time.deltaTime * zoomSmoothness);
+        if (currentSpeed > speedThresholdForSlowdown && hasStartedFollowing)
+        {
+            Vector3 targetPosition = target.position + offset;
+            transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref cameraVelocity, 0.1f);
+            AimForForwardView(target, rotationSmoothness);
+            lastGoodCameraPosition = transform.position;
+            lastGoodCameraRotation = transform.rotation;
+            hasFrozenCamera = false;
+        }
+        else if (currentSpeed <= speedThresholdForSlowdown && currentSpeed > speedThresholdForStop && hasStartedFollowing)
+        {
+            Vector3 targetPosition = target.position + offset;
+            float slowdownFactor = Mathf.Lerp(1.0f, 0.1f, 1.0f - speedRatio) * cameraSlowdownFactor;
+            float smoothTime = 0.1f / Mathf.Max(0.05f, slowdownFactor);
+            transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref cameraVelocity, smoothTime);
+            AimForForwardView(target, rotationSmoothness);
+        }
+        else if (currentSpeed <= speedThresholdForStop && hasStartedFollowing && !hasFrozenCamera)
+        {
+            hasFrozenCamera = true;
+            Vector3 directionToTarget = (target.position - transform.position).normalized;
+            float distanceToTarget = Vector3.Distance(transform.position, target.position);
+            lastGoodCameraPosition = target.position - directionToTarget * distanceToTarget;
+        }
 
-                // Keep looking toward the plane with the same forward tilt
-                AimForForwardView(target, zoomSmoothness);
-            }
+        if (hasFrozenCamera)
+        {
+            Vector3 directionFromTarget = (lastGoodCameraPosition - target.position).normalized;
+            float targetDistance = Vector3.Distance(lastGoodCameraPosition, target.position) + frozenZoomAmount;
+            Vector3 zoomedOutPosition = target.position + directionFromTarget * targetDistance;
+            transform.position = Vector3.Lerp(transform.position, zoomedOutPosition, Time.deltaTime * zoomSmoothness);
+            AimForForwardView(target, zoomSmoothness);
         }
     }
 

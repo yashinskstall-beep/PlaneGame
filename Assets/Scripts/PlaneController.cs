@@ -749,6 +749,7 @@ public class PlaneController : MonoBehaviour
 
         // Keep simulating — do not freeze / snap / make kinematic.
         isGrounded = false;
+        wreckPhysicsActive = false;
         groundLandTime = -1f;
     }
 
@@ -962,9 +963,8 @@ public class PlaneController : MonoBehaviour
         if (isControlling)
         {
             StopGlideSound();
-            cameraFollow?.FreezePosition();
             joystick?.joystickBG?.gameObject.SetActive(false);
-            LogLandingDebug("CAMERA_FREEZE + hide joystick (camera only)");
+            LogLandingDebug("hide joystick (camera keeps following wreck until stop)");
         }
 
         if (impactForce >= minImpactForceForDamage && isControlling)
