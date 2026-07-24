@@ -1248,11 +1248,8 @@ MonoBehaviour:
   maxDragDistance: 1.2
   minDragToLaunch: 0.3
   launchForceMultiplier: 25
-  aimLaunchAlongRamp: 1
-  enablePostLaunchLift: 1
   verticalForceMultiplier: 5
   liftDuration: 2
-  waitUntilOffRamp: 1
   released: 0
   rubberSource: {fileID: 17727456}
   rubberClip: {fileID: 8300000, guid: 5c5faa35eb6ee3f4c89683d1e8c66bc6, type: 3}
@@ -1283,9 +1280,6 @@ MonoBehaviour:
   alignToVelocity: 1
   rampTag: RampTag
   useTagForDetection: 0
-  projectVelocityOnRamp: 1
-  exitConfirmFrames: 4
-  exitRaycastDistance: 1.25
 --- !u!114 &549470097
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1410,15 +1404,15 @@ MonoBehaviour:
     orientationResistanceFactor: 0.001
     momentumDecayRate: 0.01
     wreckDrag: 0.5
-  - glideDrag: 0.001
-    diveDrag: 0.001
-    airResistanceCoefficient: 0.001
-    velocityResistanceFactor: 0.001
+  - glideDrag: 0.1
+    diveDrag: 0.1
+    airResistanceCoefficient: 0.005
+    velocityResistanceFactor: 0.005
     orientationResistanceFactor: 0.0008
     momentumDecayRate: 0.0008
     wreckDrag: 0.5
-  - glideDrag: 0.001
-    diveDrag: 0.001
+  - glideDrag: 0.1
+    diveDrag: 0.1
     airResistanceCoefficient: 0.001
     velocityResistanceFactor: 0.001
     orientationResistanceFactor: 0.001
@@ -3867,26 +3861,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 148183218137501221, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 148183218137501221, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchorMin.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 148183218137501221, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 148183218137501221, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 513231841030903809, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: audioManager
@@ -3935,26 +3909,6 @@ PrefabInstance:
     - target: {fileID: 4459153842000650881, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5303205698642771725, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5303205698642771725, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchorMin.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5303205698642771725, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5303205698642771725, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6995557172876886332, guid: c521a1009b15f344faac6b8303862c5c,
@@ -4047,26 +4001,6 @@ PrefabInstance:
       propertyPath: target
       value: 
       objectReference: {fileID: 549470088}
-    - target: {fileID: 9005714955667767510, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 9005714955667767510, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchorMin.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 9005714955667767510, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 9005714955667767510, guid: c521a1009b15f344faac6b8303862c5c,
-        type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 0
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
