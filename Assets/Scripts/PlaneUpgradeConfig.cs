@@ -171,6 +171,20 @@ public class PlaneUpgradeConfig : MonoBehaviour
             part.SetActive(true);
     }
 
+    public bool IsConfiguredUpgradePart(GameObject part)
+    {
+        if (part == null || upgradeParts == null)
+            return false;
+
+        foreach (PlaneUpgradePartEntry entry in upgradeParts)
+        {
+            if (entry != null && entry.part == part)
+                return true;
+        }
+
+        return false;
+    }
+
     public static bool IsPartUnlocked(GameObject part)
     {
         if (part == null)

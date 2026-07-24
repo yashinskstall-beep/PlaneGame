@@ -668,6 +668,9 @@ public class PlaneController : MonoBehaviour
             // Use normal drag when not diving
             rb.drag = glideDrag;
         }
+
+        if (damageHandler != null)
+            rb.drag += damageHandler.CurrentDamageDrag;
         
         // Calculate air resistance
         float velocityResistance = speed * speed * velocityResistanceFactor;

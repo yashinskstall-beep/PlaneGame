@@ -39,6 +39,7 @@ public class PlaneDamageHandler : MonoBehaviour
     
     // Reference to the plane controller
     private PlaneController planeController;
+    private PlaneUpgradeConfig upgradeConfig;
     
     // Store original values to restore if parts are re-enabled
     private float originalTurnSpeed;
@@ -46,11 +47,17 @@ public class PlaneDamageHandler : MonoBehaviour
     private float originalPitchSpeed;
     private float originalDrag;
     private float originalAngularDrag;
+
+    /// <summary>
+    /// Extra rigidbody drag from mid-flight damage. PlaneController adds this on top of glide/dive drag.
+    /// </summary>
+    public float CurrentDamageDrag { get; private set; }
     
     void Start()
     {
         // Get the plane controller reference
         planeController = GetComponent<PlaneController>();
+        upgradeConfig = GetComponent<PlaneUpgradeConfig>();
         
         if (planeController == null)
         {
@@ -84,11 +91,15 @@ public class PlaneDamageHandler : MonoBehaviour
 
         // After a crash PhysX owns drag/spin — do not keep overriding the rigidbody.
         if (planeController.IsWreckPhysicsActive)
+        {
+            CurrentDamageDrag = 0f;
             return;
-        
-        bool leftWingDisabled = leftWing != null && !leftWing.activeSelf;
-        bool rightWingDisabled = rightWing != null && !rightWing.activeSelf;
-        bool tailDisabled = tail != null && !tail.activeSelf;
+        }
+
+        // Locked upgrade parts are inactive by design — that is not mid-flight damage.
+        bool leftWingDisabled = IsFlightDamageMissing(leftWing);
+        bool rightWingDisabled = IsFlightDamageMissing(rightWing);
+        bool tailDisabled = IsFlightDamageMissing(tail);
         
         // Reset to original values first
         planeController.turnSpeed = originalTurnSpeed;
@@ -96,49 +107,64 @@ public class PlaneDamageHandler : MonoBehaviour
         planeController.pitchSpeed = originalPitchSpeed;
         
         Rigidbody rb = GetComponent<Rigidbody>();
-        if (rb != null)
-        {
-            rb.drag = originalDrag;
-            rb.angularDrag = originalAngularDrag;
-        }
-        
         bool bothWingsMissing = leftWingDisabled && rightWingDisabled;
         bool singleWingMissing = leftWingDisabled != rightWingDisabled;
 
         // Slightly more rotational damping with one wing keeps pitch-up from turning into roll wobble.
-        if (singleWingMissing && rb != null)
-            rb.angularDrag = originalAngularDrag * 1.75f;
-
-        // Apply tail damage effects
-        if (tailDisabled)
-        {
-            planeController.pitchSpeed *= tailDamagePitchMultiplier;
-        }
-
-        // Apply additional drag based on missing parts
         if (rb != null)
         {
-            if (leftWingDisabled && rightWingDisabled && tailDisabled)
-            {
-                rb.drag = originalDrag + allPartsMissingDrag;
-            }
-            else
-            {
-                // One wing missing: no extra wing drag (same as all wings attached).
-                // Both wings missing: apply the full "no wings" resistance.
-                int dragPartCount = 0;
-                if (bothWingsMissing)
-                    dragPartCount += 2;
-                if (tailDisabled)
-                    dragPartCount++;
-
-                float additionalDrag = additionalDragPerMissingPart * dragPartCount;
-                if (bothWingsMissing)
-                    additionalDrag += bothWingsMissingResistance;
-
-                rb.drag = originalDrag + additionalDrag;
-            }
+            rb.angularDrag = singleWingMissing
+                ? originalAngularDrag * 1.75f
+                : (planeController.isControlling ? planeController.angularDragAmount : originalAngularDrag);
         }
+
+        // Apply tail damage effects only when the unlocked tail was lost in flight
+        if (tailDisabled)
+            planeController.pitchSpeed *= tailDamagePitchMultiplier;
+
+        // Extra damage drag — PlaneController owns base glide/dive drag during flight.
+        float damageDrag = 0f;
+        if (leftWingDisabled && rightWingDisabled && tailDisabled)
+        {
+            damageDrag = allPartsMissingDrag;
+        }
+        else
+        {
+            int dragPartCount = 0;
+            if (bothWingsMissing)
+                dragPartCount += 2;
+            if (tailDisabled)
+                dragPartCount++;
+
+            damageDrag = additionalDragPerMissingPart * dragPartCount;
+            if (bothWingsMissing)
+                damageDrag += bothWingsMissingResistance;
+        }
+
+        CurrentDamageDrag = damageDrag;
+
+        // Only write rigidbody drag when not in player flight control.
+        // During flight PlaneController.ApplyAirResistance owns rb.drag.
+        if (rb != null && !planeController.isControlling)
+            rb.drag = originalDrag + damageDrag;
+    }
+
+    /// <summary>
+    /// True when a part is inactive because it broke in flight (unlocked then lost),
+    /// not because the player has not purchased that upgrade yet.
+    /// </summary>
+    private bool IsFlightDamageMissing(GameObject part)
+    {
+        if (part == null || part.activeSelf)
+            return false;
+
+        if (upgradeConfig == null)
+            upgradeConfig = GetComponent<PlaneUpgradeConfig>();
+
+        if (upgradeConfig != null && upgradeConfig.IsConfiguredUpgradePart(part))
+            return PlaneUpgradeConfig.IsPartUnlocked(part);
+
+        return true;
     }
     
     /// <summary>
@@ -151,9 +177,9 @@ public class PlaneDamageHandler : MonoBehaviour
 
         Vector3 additionalTorque = Vector3.zero;
 
-        bool leftWingDisabled = leftWing != null && !leftWing.activeSelf;
-        bool rightWingDisabled = rightWing != null && !rightWing.activeSelf;
-        bool tailDisabled = tail != null && !tail.activeSelf;
+        bool leftWingDisabled = IsFlightDamageMissing(leftWing);
+        bool rightWingDisabled = IsFlightDamageMissing(rightWing);
+        bool tailDisabled = IsFlightDamageMissing(tail);
         bool singleWingMissing = leftWingDisabled != rightWingDisabled;
         float pitchInput = Mathf.Abs(verticalInput);
 
@@ -213,19 +239,14 @@ public class PlaneDamageHandler : MonoBehaviour
     /// <summary>
     /// Check if both wings are missing/disabled
     /// </summary>
-    /// <returns>True if both wings are disabled, false otherwise</returns>
     public bool AreBothWingsMissing()
     {
-        bool leftWingDisabled = leftWing != null && !leftWing.activeSelf;
-        bool rightWingDisabled = rightWing != null && !rightWing.activeSelf;
-        
-        return leftWingDisabled && rightWingDisabled;
+        return IsLeftWingMissing() && IsRightWingMissing();
     }
     
     /// <summary>
     /// Check if left wing is missing/disabled
     /// </summary>
-    /// <returns>True if left wing is disabled, false otherwise</returns>
     public bool IsLeftWingMissing()
     {
         return leftWing != null && !leftWing.activeSelf;
@@ -234,7 +255,6 @@ public class PlaneDamageHandler : MonoBehaviour
     /// <summary>
     /// Check if right wing is missing/disabled
     /// </summary>
-    /// <returns>True if right wing is disabled, false otherwise</returns>
     public bool IsRightWingMissing()
     {
         return rightWing != null && !rightWing.activeSelf;

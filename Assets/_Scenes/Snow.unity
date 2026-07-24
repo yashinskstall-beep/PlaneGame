@@ -1660,7 +1660,7 @@ MonoBehaviour:
   joystick: {fileID: 2078838819}
   boostA: {fileID: 2068058684}
   boostB: {fileID: 783529497}
-  damageHandler: {fileID: 0}
+  damageHandler: {fileID: 549470098}
   cameraFollow: {fileID: 0}
   audioManager: {fileID: 333958396}
   windSource: {fileID: 1030708548}
@@ -1734,8 +1734,11 @@ MonoBehaviour:
   maxDragDistance: 1.2
   minDragToLaunch: 0.5
   launchForceMultiplier: 25
+  aimLaunchAlongRamp: 1
+  enablePostLaunchLift: 1
   verticalForceMultiplier: 5
   liftDuration: 2
+  waitUntilOffRamp: 1
   released: 0
   rubberSource: {fileID: 17727456}
   rubberClip: {fileID: 8300000, guid: 5c5faa35eb6ee3f4c89683d1e8c66bc6, type: 3}
@@ -1766,6 +1769,9 @@ MonoBehaviour:
   alignToVelocity: 1
   rampTag: RampTag
   useTagForDetection: 0
+  projectVelocityOnRamp: 1
+  exitConfirmFrames: 4
+  exitRaycastDistance: 1.25
 --- !u!114 &549470097
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1878,7 +1884,42 @@ MonoBehaviour:
     cameraFocusPoint: {fileID: 612690085}
     upgradeVfxPoint: {fileID: 0}
   planeController: {fileID: 549470094}
-  glideByUnlockCount: []
+  glideByUnlockCount:
+  - glideDrag: 0.12
+    diveDrag: 0.1
+    airResistanceCoefficient: 0
+    velocityResistanceFactor: 0
+    orientationResistanceFactor: 0.22
+    momentumDecayRate: 0.012
+    wreckDrag: 0.05
+  - glideDrag: 0.1
+    diveDrag: 0.1
+    airResistanceCoefficient: 0.001
+    velocityResistanceFactor: 0.001
+    orientationResistanceFactor: 0.001
+    momentumDecayRate: 0.01
+    wreckDrag: 0.05
+  - glideDrag: 0.1
+    diveDrag: 0.1
+    airResistanceCoefficient: 0.005
+    velocityResistanceFactor: 0.005
+    orientationResistanceFactor: 0.0008
+    momentumDecayRate: 0.0008
+    wreckDrag: 0.05
+  - glideDrag: 0.1
+    diveDrag: 0.1
+    airResistanceCoefficient: 0.001
+    velocityResistanceFactor: 0.001
+    orientationResistanceFactor: 0.001
+    momentumDecayRate: 0.001
+    wreckDrag: 0.05
+  - glideDrag: 0.08
+    diveDrag: 0.08
+    airResistanceCoefficient: 0.001
+    velocityResistanceFactor: 0.001
+    orientationResistanceFactor: 0.001
+    momentumDecayRate: 0.001
+    wreckDrag: 0.05
 --- !u!1001 &553846388
 PrefabInstance:
   m_ObjectHideFlags: 0
