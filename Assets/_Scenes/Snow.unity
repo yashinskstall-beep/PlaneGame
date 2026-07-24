@@ -1892,12 +1892,12 @@ MonoBehaviour:
     orientationResistanceFactor: 0.22
     momentumDecayRate: 0.012
     wreckDrag: 0.05
-  - glideDrag: 0.1
+  - glideDrag: 0.5
     diveDrag: 0.1
-    airResistanceCoefficient: 0.001
-    velocityResistanceFactor: 0.001
+    airResistanceCoefficient: 0.005
+    velocityResistanceFactor: 0.005
     orientationResistanceFactor: 0.001
-    momentumDecayRate: 0.01
+    momentumDecayRate: 0.1
     wreckDrag: 0.05
   - glideDrag: 0.1
     diveDrag: 0.1
@@ -3126,7 +3126,7 @@ GameObject:
   - component: {fileID: 992191088}
   - component: {fileID: 992191087}
   m_Layer: 0
-  m_Name: Plane
+  m_Name: WaterPlane
   m_TagString: Ground
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3140,13 +3140,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 992191085}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 240.6, y: 49, z: 224.3}
+  m_LocalRotation: {x: -0, y: -0.5086797, z: -0, w: 0.8609559}
+  m_LocalPosition: {x: 240.6, y: 49, z: 224.29999}
   m_LocalScale: {x: 42.2, y: 42.2, z: 42.2}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 1474229578}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -61.152, z: 0}
 --- !u!64 &992191087
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -3189,7 +3189,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 36876bde56cb0e34f86803b419d3a767, type: 2}
+  - {fileID: 2100000, guid: 3e36df56c6fa5f64085c14d9d4f6f8d9, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
