@@ -34,8 +34,10 @@ public class PlaneRampAligner : MonoBehaviour
     public float intoSurfaceStickSpeed = 0.75f;
 
     [Header("Exit Flight Align")]
-    [Tooltip("After leaving the tip, blend the nose toward travel direction so flight starts aligned.")]
-    public float exitAlignDuration = 0.35f;
+    [Tooltip("After leaving the tip, blend the nose toward travel direction. Higher = slower, less snappy.")]
+    public float exitAlignDuration = 0.85f;
+    [Tooltip("How strongly each frame pulls toward travel direction during the exit blend (higher = snappier).")]
+    public float exitAlignFollowSpeed = 3.5f;
 
     private Rigidbody planeRb;
     private bool isAligning = false;
@@ -268,8 +270,7 @@ public class PlaneRampAligner : MonoBehaviour
         framesWithoutRampContact = 0;
         launchStickUntil = -1f;
 
-        // Point the nose along travel before flight control / post-ramp boost take over.
-        AlignNoseToVelocityImmediate();
+        // Ease nose toward travel — no instant snap (that reads as a hard pop).
         if (exitAlignRoutine != null)
             StopCoroutine(exitAlignRoutine);
         if (exitAlignDuration > 0.01f && gameObject.activeInHierarchy)
@@ -303,24 +304,10 @@ public class PlaneRampAligner : MonoBehaviour
         }
     }
 
-    private void AlignNoseToVelocityImmediate()
-    {
-        if (planeRb == null || planeRb.isKinematic)
-            return;
-        if (planeRb.velocity.sqrMagnitude < 0.25f)
-            return;
-
-        Quaternion target = Quaternion.LookRotation(planeRb.velocity.normalized, Vector3.up);
-        planeRb.MoveRotation(target);
-        if (plane != null)
-            plane.rotation = target;
-    }
-
     private IEnumerator SmoothlyAlignToVelocity()
     {
         float duration = Mathf.Max(0.05f, exitAlignDuration);
         float elapsed = 0f;
-        Quaternion startRotation = planeRb != null ? planeRb.rotation : plane.rotation;
 
         while (elapsed < duration)
         {
@@ -331,10 +318,14 @@ public class PlaneRampAligner : MonoBehaviour
             if (planeRb != null && planeRb.velocity.sqrMagnitude > 0.25f)
                 travelDir = planeRb.velocity.normalized;
 
+            Quaternion current = planeRb != null ? planeRb.rotation : plane.rotation;
             Quaternion target = Quaternion.LookRotation(travelDir, Vector3.up);
+
+            // Ease-in weight so early frames stay close to ramp attitude, then catch up.
             float t = Mathf.Clamp01(elapsed / duration);
-            t = t * t * (3f - 2f * t);
-            Quaternion next = Quaternion.Slerp(startRotation, target, t);
+            float easeIn = t * t;
+            float follow = Mathf.Clamp01(exitAlignFollowSpeed * Time.deltaTime * Mathf.Lerp(0.35f, 1.25f, easeIn));
+            Quaternion next = Quaternion.Slerp(current, target, follow);
 
             if (planeRb != null && !planeRb.isKinematic)
                 planeRb.MoveRotation(next);
