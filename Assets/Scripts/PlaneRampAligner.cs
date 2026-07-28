@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 /// <summary>
 /// Handles aligning a plane GameObject with a 3D ramp after being released.
@@ -27,7 +28,14 @@ public class PlaneRampAligner : MonoBehaviour
     public int exitConfirmFrames = 4;
 
     [Tooltip("While confirming exit, a downward ray this long can cancel exit if the ramp is still under the plane.")]
-    public float exitRaycastDistance = 1.25f;
+    public float exitRaycastDistance = 1.5f;
+
+    [Tooltip("Extra into-surface speed kept while launch-sticking (m/s).")]
+    public float intoSurfaceStickSpeed = 0.75f;
+
+    [Header("Exit Flight Align")]
+    [Tooltip("After leaving the tip, blend the nose toward travel direction so flight starts aligned.")]
+    public float exitAlignDuration = 0.35f;
 
     private Rigidbody planeRb;
     private bool isAligning = false;
@@ -35,12 +43,19 @@ public class PlaneRampAligner : MonoBehaviour
     private Quaternion originalRotation;
     private int framesWithoutRampContact;
     private bool exitPending;
+    private float launchStickUntil = -1f;
+    private Coroutine exitAlignRoutine;
 
     /// <summary>True while stuck to the ramp, including brief exit-confirm frames.</summary>
-    public bool IsAligning => isAligning || exitPending;
+    public bool IsAligning => isAligning || exitPending || IsLaunchStickHolding;
 
     /// <summary>Ramp transform currently sticking the plane, if any.</summary>
     public Transform CurrentRamp => currentRamp;
+
+    private bool IsLaunchStickActive => Time.time < launchStickUntil;
+
+    /// <summary>Launch stick only counts while the ramp is still under the plane — never past the tip.</summary>
+    private bool IsLaunchStickHolding => IsLaunchStickActive && currentRamp != null && IsRampStillUnderPlane();
 
     private void Start()
     {
@@ -53,8 +68,49 @@ public class PlaneRampAligner : MonoBehaviour
             dragLauncher = GetComponent<SimpleDragLauncher>();
     }
 
+    /// <summary>
+    /// Force ramp stick for a short window after launch so brief contact loss
+    /// at the start of the roll does not unlock flight early.
+    /// </summary>
+    public void BeginLaunchStick(float duration)
+    {
+        launchStickUntil = Time.time + Mathf.Max(0.05f, duration);
+        exitPending = false;
+        framesWithoutRampContact = 0;
+
+        if (currentRamp == null)
+            TryResolveRampUnderPlane();
+
+        if (currentRamp != null)
+            isAligning = true;
+    }
+
     private void FixedUpdate()
     {
+        if (IsLaunchStickActive)
+        {
+            if (currentRamp == null)
+                TryResolveRampUnderPlane();
+
+            // Stick only while still over the shed. Past the tip → end stick and exit normally.
+            if (currentRamp != null && IsRampStillUnderPlane())
+            {
+                isAligning = true;
+                exitPending = false;
+                framesWithoutRampContact = 0;
+                AlignWithRamp();
+                return;
+            }
+
+            launchStickUntil = -1f;
+            if (currentRamp != null && !exitPending)
+            {
+                isAligning = false;
+                exitPending = true;
+                framesWithoutRampContact = 0;
+            }
+        }
+
         if (isAligning && currentRamp != null)
         {
             framesWithoutRampContact = 0;
@@ -68,7 +124,6 @@ public class PlaneRampAligner : MonoBehaviour
 
         framesWithoutRampContact++;
 
-        // Still over the ramp after a bounce/tunnel flicker — stay on ramp mode.
         if (IsRampStillUnderPlane())
         {
             isAligning = true;
@@ -98,16 +153,19 @@ public class PlaneRampAligner : MonoBehaviour
                 targetRotation = Quaternion.LookRotation(projectedVelocity.normalized, rampNormal);
         }
 
-        plane.rotation = Quaternion.Slerp(plane.rotation, targetRotation, Time.fixedDeltaTime * alignmentSpeed);
+        // Keep Rigidbody + transform in sync (writing transform alone desyncs flight exit).
+        Quaternion nextRotation = Quaternion.Slerp(planeRb.rotation, targetRotation, Time.fixedDeltaTime * alignmentSpeed);
+        planeRb.MoveRotation(nextRotation);
 
-        // Keep strong launch impulses sliding along the shed instead of leaping off.
         if (projectVelocityOnRamp && !planeRb.isKinematic)
         {
             Vector3 planarVelocity = Vector3.ProjectOnPlane(planeRb.velocity, rampNormal);
-            // Preserve a little speed into the surface so gravity/contact stay engaged.
             float intoSurface = Vector3.Dot(planeRb.velocity, -rampNormal);
-            if (intoSurface > 0f)
-                planarVelocity += -rampNormal * intoSurface;
+            float stick = intoSurface > 0f ? intoSurface : 0f;
+            if (IsLaunchStickHolding)
+                stick = Mathf.Max(stick, intoSurfaceStickSpeed);
+            if (stick > 0f)
+                planarVelocity += -rampNormal * stick;
             planeRb.velocity = planarVelocity;
         }
 
@@ -158,10 +216,35 @@ public class PlaneRampAligner : MonoBehaviour
         if (currentRamp != collision.transform)
             return;
 
-        // Do not leave ramp mode on a single exit event — high force often flickers contact.
+        // Ignore flicker only while still over the ramp.
+        if (IsLaunchStickActive && IsRampStillUnderPlane())
+        {
+            isAligning = true;
+            exitPending = false;
+            framesWithoutRampContact = 0;
+            return;
+        }
+
         isAligning = false;
         exitPending = true;
         framesWithoutRampContact = 0;
+    }
+
+    private bool TryResolveRampUnderPlane()
+    {
+        if (plane == null)
+            return false;
+
+        Vector3 origin = plane.position + Vector3.up * 0.35f;
+        float distance = Mathf.Max(exitRaycastDistance, 2.5f);
+        if (!Physics.Raycast(origin, Vector3.down, out RaycastHit hit, distance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            return false;
+
+        if (hit.collider == null || !IsRamp(hit.collider.transform))
+            return false;
+
+        currentRamp = hit.collider.transform;
+        return true;
     }
 
     private bool IsRampStillUnderPlane()
@@ -183,6 +266,14 @@ public class PlaneRampAligner : MonoBehaviour
         isAligning = false;
         exitPending = false;
         framesWithoutRampContact = 0;
+        launchStickUntil = -1f;
+
+        // Point the nose along travel before flight control / post-ramp boost take over.
+        AlignNoseToVelocityImmediate();
+        if (exitAlignRoutine != null)
+            StopCoroutine(exitAlignRoutine);
+        if (exitAlignDuration > 0.01f && gameObject.activeInHierarchy)
+            exitAlignRoutine = StartCoroutine(SmoothlyAlignToVelocity());
 
         PlaneController planeController = plane != null ? plane.GetComponent<PlaneController>() : null;
         if (planeController != null)
@@ -212,20 +303,49 @@ public class PlaneRampAligner : MonoBehaviour
         }
     }
 
-    private System.Collections.IEnumerator SmoothlyRestoreRotation()
+    private void AlignNoseToVelocityImmediate()
     {
-        float elapsedTime = 0f;
-        float duration = 2.5f;
-        Quaternion startRotation = plane.rotation;
+        if (planeRb == null || planeRb.isKinematic)
+            return;
+        if (planeRb.velocity.sqrMagnitude < 0.25f)
+            return;
 
-        while (elapsedTime < duration)
+        Quaternion target = Quaternion.LookRotation(planeRb.velocity.normalized, Vector3.up);
+        planeRb.MoveRotation(target);
+        if (plane != null)
+            plane.rotation = target;
+    }
+
+    private IEnumerator SmoothlyAlignToVelocity()
+    {
+        float duration = Mathf.Max(0.05f, exitAlignDuration);
+        float elapsed = 0f;
+        Quaternion startRotation = planeRb != null ? planeRb.rotation : plane.rotation;
+
+        while (elapsed < duration)
         {
-            plane.rotation = Quaternion.Slerp(startRotation, originalRotation, elapsedTime / duration);
-            elapsedTime += Time.deltaTime;
+            if (plane == null)
+                yield break;
+
+            Vector3 travelDir = plane.forward;
+            if (planeRb != null && planeRb.velocity.sqrMagnitude > 0.25f)
+                travelDir = planeRb.velocity.normalized;
+
+            Quaternion target = Quaternion.LookRotation(travelDir, Vector3.up);
+            float t = Mathf.Clamp01(elapsed / duration);
+            t = t * t * (3f - 2f * t);
+            Quaternion next = Quaternion.Slerp(startRotation, target, t);
+
+            if (planeRb != null && !planeRb.isKinematic)
+                planeRb.MoveRotation(next);
+            else
+                plane.rotation = next;
+
+            elapsed += Time.deltaTime;
             yield return null;
         }
 
-        plane.rotation = originalRotation;
+        exitAlignRoutine = null;
     }
 
     public bool IsRampTransform(Transform potentialRamp)

@@ -15,8 +15,19 @@ public class SimpleDragLauncher : MonoBehaviour
     public float maxDragDistance = 5f;
     public float minDragToLaunch = 1f; // Minimum drag distance to launch
     public float launchForceMultiplier = 10f;
-    [Tooltip("While on the ramp, aim the launch along the ramp surface instead of flattening Y. Stops high upgrades from skipping the ramp.")]
+    [Tooltip("While on the ramp, aim the launch along the ramp surface instead of flattening Y.")]
     public bool aimLaunchAlongRamp = true;
+    [Tooltip("Extra push into the ramp surface on launch (0-1). Helps PhysX keep contact.")]
+    [Range(0f, 0.35f)]
+    public float rampLaunchStickBias = 0.08f;
+    [Tooltip("How long the ramp aligner forces stick/align after launch.")]
+    public float rampLaunchStickDuration = 0.35f;
+
+    [Header("Ramp-Safe Launch + Post-Ramp Boost")]
+    [Tooltip("Force multiplier used on the ramp for every slingshot level (usually level 1). Higher upgrade force is added after exit.")]
+    public float rampSafeForceMultiplier = 25f;
+    [Tooltip("Seconds to gradually apply leftover upgrade impulse after leaving the ramp.")]
+    public float postRampBoostDuration = 1.35f;
 
     [Header("Post-Launch Climb")]
     [Tooltip("After leaving the ramp, gently lift the plane for more height. No instant upward impulse.")]
@@ -34,6 +45,9 @@ public class SimpleDragLauncher : MonoBehaviour
     private Vector3 dragStartPos;
     private bool isLifting = false;
     private float liftStartTime = -1f;
+    private bool isBoosting;
+    private float boostElapsed;
+    private float pendingBoostImpulse;
     private float originalDragDistance; // Store the drag distance for lift calculation
     private CollisionDetectionMode cachedCollisionDetection = CollisionDetectionMode.Discrete;
 
@@ -76,6 +90,9 @@ public class SimpleDragLauncher : MonoBehaviour
         isDragging = false;
         isLifting = false;
         liftStartTime = -1f;
+        isBoosting = false;
+        boostElapsed = 0f;
+        pendingBoostImpulse = 0f;
 
         if (rubberSource != null && rubberSource.isPlaying)
             rubberSource.Stop();
@@ -209,16 +226,67 @@ public class SimpleDragLauncher : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (!isLifting || cubeRb == null || cubeRb.isKinematic)
+        if (cubeRb == null || cubeRb.isKinematic)
+            return;
+
+        bool onRamp = waitUntilOffRamp && IsCurrentlyOnRamp();
+        UpdatePostRampBoost(onRamp);
+        UpdatePostLaunchLift(onRamp);
+    }
+
+    private bool IsCurrentlyOnRamp()
+    {
+        PlaneRampAligner rampAligner = cube != null ? cube.GetComponent<PlaneRampAligner>() : null;
+        return rampAligner != null && rampAligner.IsAligning;
+    }
+
+    private void UpdatePostRampBoost(bool onRamp)
+    {
+        if (!isBoosting || pendingBoostImpulse <= 0.01f)
+            return;
+
+        // Hold upgrade speed until free of the shed — every level rides the ramp at safe speed.
+        if (onRamp)
+            return;
+
+        float duration = Mathf.Max(0.05f, postRampBoostDuration);
+        boostElapsed += Time.fixedDeltaTime;
+        if (boostElapsed >= duration)
+        {
+            isBoosting = false;
+            pendingBoostImpulse = 0f;
+            return;
+        }
+
+        float t = Mathf.Clamp01(boostElapsed / duration);
+        // Bell curve; scaled so total impulse over the window ≈ pendingBoostImpulse.
+        float envelope = Mathf.Sin(t * Mathf.PI);
+        float impulseThisFrame = pendingBoostImpulse * (Mathf.PI * 0.5f) * envelope * (Time.fixedDeltaTime / duration);
+
+        Vector3 forwardDir = cubeRb.velocity.sqrMagnitude > 0.25f
+            ? cubeRb.velocity.normalized
+            : launchDir;
+        if (cube != null && cubeRb.velocity.sqrMagnitude > 0.25f)
+        {
+            // Prefer nose direction once flight attitude is set so boost does not skid sideways.
+            float noseAlign = Vector3.Dot(cube.forward, cubeRb.velocity.normalized);
+            if (noseAlign > 0.5f)
+                forwardDir = cube.forward;
+        }
+        if (forwardDir.sqrMagnitude < 0.0001f)
+            forwardDir = Vector3.forward;
+
+        cubeRb.AddForce(forwardDir.normalized * impulseThisFrame, ForceMode.Impulse);
+    }
+
+    private void UpdatePostLaunchLift(bool onRamp)
+    {
+        if (!isLifting)
             return;
 
         // Hold climb until the plane is free of the ramp so contact projection cannot cancel lift.
-        if (waitUntilOffRamp)
-        {
-            PlaneRampAligner rampAligner = cube != null ? cube.GetComponent<PlaneRampAligner>() : null;
-            if (rampAligner != null && rampAligner.IsAligning)
-                return;
-        }
+        if (onRamp)
+            return;
 
         if (liftStartTime < 0f)
             liftStartTime = Time.time;
@@ -317,11 +385,21 @@ public class SimpleDragLauncher : MonoBehaviour
 
             originalDragDistance = dragDistance; // Store for lift calculation
 
-            float horizontalForce = dragDistance * launchForceMultiplier;
+            // Full upgraded impulse vs ramp-safe impulse (level-1 speed on the shed).
+            float fullImpulse = dragDistance * launchForceMultiplier;
+            float safeMultiplier = Mathf.Min(launchForceMultiplier, Mathf.Max(0.01f, rampSafeForceMultiplier));
+            float rampImpulse = dragDistance * safeMultiplier;
+            pendingBoostImpulse = Mathf.Max(0f, fullImpulse - rampImpulse);
+
             launchDir = (restingPoint.position - cube.position).normalized;
             launchDir = ResolveLaunchDirectionAlongRamp(launchDir);
 
-            cubeRb.AddForce(launchDir * horizontalForce, ForceMode.Impulse);
+            PlaneRampAligner rampAligner = cube.GetComponent<PlaneRampAligner>();
+            if (rampAligner != null)
+                rampAligner.BeginLaunchStick(rampLaunchStickDuration);
+
+            // Always ride the ramp at safe speed; leftover upgrade speed is added after exit.
+            cubeRb.AddForce(launchDir * rampImpulse, ForceMode.Impulse);
 
             // Flat yaw snap fights the ramp pitch and helps strong launches skip the shed.
             if (rotationHandler != null && !aimLaunchAlongRamp)
@@ -329,6 +407,17 @@ public class SimpleDragLauncher : MonoBehaviour
 
             released = true;
             lineRenderer.enabled = false;
+
+            if (pendingBoostImpulse > 0.01f)
+            {
+                isBoosting = true;
+                boostElapsed = 0f;
+            }
+            else
+            {
+                isBoosting = false;
+                pendingBoostImpulse = 0f;
+            }
 
             // Smooth altitude after ramp exit (not an instant upward impulse).
             if (enablePostLaunchLift)
@@ -370,12 +459,16 @@ public class SimpleDragLauncher : MonoBehaviour
         if (ramp != null)
         {
             Vector3 alongRamp = Vector3.ProjectOnPlane(desiredDir, ramp.up);
-            if (alongRamp.sqrMagnitude > 0.0001f)
-                return alongRamp.normalized;
+            if (alongRamp.sqrMagnitude <= 0.0001f)
+                alongRamp = Vector3.ProjectOnPlane(ramp.forward, ramp.up);
 
-            alongRamp = Vector3.ProjectOnPlane(ramp.forward, ramp.up);
             if (alongRamp.sqrMagnitude > 0.0001f)
-                return alongRamp.normalized;
+            {
+                // Bias slightly into the surface so ContinuousDynamic keeps contact after big upgrades.
+                Vector3 sticky = (alongRamp.normalized - ramp.up * rampLaunchStickBias).normalized;
+                Vector3 planarSticky = Vector3.ProjectOnPlane(sticky, ramp.up);
+                return planarSticky.sqrMagnitude > 0.0001f ? planarSticky.normalized : alongRamp.normalized;
+            }
         }
 
         desiredDir.y = 0f;
