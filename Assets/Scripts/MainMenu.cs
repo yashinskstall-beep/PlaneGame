@@ -1615,6 +1615,16 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private IEnumerator PlaySlingshotUpgradeParticlesRoutine(GameObject slingshotTarget)
     {
+        RubberBandVisual band = GetRubberBandVisual();
+
+        // Preferred VFX: emissive glow along the rubber strings.
+        if (band != null && band.upgradeGlowMaterial != null)
+        {
+            ApplySlingshotUpgradeLevel();
+            yield return StartCoroutine(band.PlayUpgradeGlow());
+            yield break;
+        }
+
         if (slingshotTarget == null)
         {
             ApplySlingshotUpgradeLevel();
@@ -1644,6 +1654,13 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         if (particleSystems.Count == 0)
         {
+            // Fallback: still pulse the band if possible.
+            if (band != null)
+            {
+                yield return StartCoroutine(band.PlayUpgradeGlow());
+                yield break;
+            }
+
             LogUpgradeVfxWarning("Slingshot: no particle systems to play.");
             yield return new WaitForSeconds(particleEffectDuration);
             yield break;

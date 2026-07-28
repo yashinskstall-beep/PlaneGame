@@ -33,6 +33,16 @@ public class RubberBandVisual : MonoBehaviour
     [Tooltip("Materials for each launch force level. Level 1 = white, Level 2 = brown, Level 3 = red.")]
     public Material[] levelMaterials = new Material[3];
 
+    [Header("Upgrade Glow VFX")]
+    [Tooltip("Emissive rope material shown during slingshot/string upgrade.")]
+    public Material upgradeGlowMaterial;
+    [Tooltip("How long the glow stays on during upgrade.")]
+    public float upgradeGlowDuration = 0.85f;
+    [Tooltip("Line width multiplier while glowing.")]
+    public float upgradeGlowWidthMultiplier = 1.85f;
+    [Tooltip("How many brightness pulses during the glow.")]
+    public int upgradeGlowPulseCount = 2;
+
     [Header("Level Colors")]
     [Tooltip("Optional relaxed colors per launch force level.")]
     public Color[] relaxedColorsByLevel;
@@ -177,35 +187,80 @@ public class RubberBandVisual : MonoBehaviour
 
     public IEnumerator PlayUpgradePulse(float duration = 0.35f)
     {
+        // Keep for compatibility; prefer PlayUpgradeGlow for slingshot upgrades.
+        yield return PlayUpgradeGlow(duration);
+    }
+
+    /// <summary>
+    /// Swaps the rubber band to the emissive glow material, widens it, pulses, then restores level look.
+    /// </summary>
+    public IEnumerator PlayUpgradeGlow(float duration = -1f)
+    {
+        if (lineRenderer == null)
+            lineRenderer = GetComponent<LineRenderer>();
         if (lineRenderer == null)
             yield break;
 
-        Color start = relaxedColor;
-        Color pulse = Color.Lerp(start, Color.white, 0.65f);
-        float half = Mathf.Max(0.05f, duration * 0.5f);
-        float elapsed = 0f;
+        if (duration <= 0f)
+            duration = upgradeGlowDuration;
 
-        while (elapsed < half)
+        Material previousMaterial = lineRenderer.sharedMaterial;
+        float previousStartWidth = lineRenderer.startWidth;
+        float previousEndWidth = lineRenderer.endWidth;
+
+        Material glowMat = upgradeGlowMaterial != null ? upgradeGlowMaterial : previousMaterial;
+        Material runtimeGlow = glowMat != null ? new Material(glowMat) : null;
+
+        if (runtimeGlow != null)
+            lineRenderer.material = runtimeGlow;
+
+        float glowWidth = Mathf.Max(previousStartWidth, relaxedWidth) * Mathf.Max(1f, upgradeGlowWidthMultiplier);
+        lineRenderer.startWidth = glowWidth;
+        lineRenderer.endWidth = glowWidth;
+
+        float baseEmission = runtimeGlow != null && runtimeGlow.HasProperty("_EmissionStrength")
+            ? runtimeGlow.GetFloat("_EmissionStrength")
+            : 3f;
+        int pulses = Mathf.Max(1, upgradeGlowPulseCount);
+        float pulseDuration = duration / pulses;
+
+        for (int i = 0; i < pulses; i++)
         {
-            elapsed += Time.deltaTime;
-            Color c = Color.Lerp(start, pulse, elapsed / half);
-            lineRenderer.startColor = c;
-            lineRenderer.endColor = c;
-            yield return null;
+            float half = pulseDuration * 0.5f;
+            float elapsed = 0f;
+
+            while (elapsed < half)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / half);
+                ApplyGlowEmission(runtimeGlow, Mathf.Lerp(baseEmission, baseEmission * 1.75f, t));
+                yield return null;
+            }
+
+            elapsed = 0f;
+            while (elapsed < half)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / half);
+                ApplyGlowEmission(runtimeGlow, Mathf.Lerp(baseEmission * 1.75f, baseEmission, t));
+                yield return null;
+            }
         }
 
-        elapsed = 0f;
-        while (elapsed < half)
-        {
-            elapsed += Time.deltaTime;
-            Color c = Color.Lerp(pulse, relaxedColor, elapsed / half);
-            lineRenderer.startColor = c;
-            lineRenderer.endColor = c;
-            yield return null;
-        }
+        if (runtimeGlow != null)
+            Destroy(runtimeGlow);
 
-        lineRenderer.startColor = relaxedColor;
-        lineRenderer.endColor = relaxedColor;
+        lineRenderer.startWidth = previousStartWidth;
+        lineRenderer.endWidth = previousEndWidth;
+        ApplyLaunchForceLevel(currentLevel);
+    }
+
+    private static void ApplyGlowEmission(Material mat, float strength)
+    {
+        if (mat == null || !mat.HasProperty("_EmissionStrength"))
+            return;
+
+        mat.SetFloat("_EmissionStrength", strength);
     }
 
     private static Color GetLevelColor(Color[] customColors, Color[] defaults, int level)
