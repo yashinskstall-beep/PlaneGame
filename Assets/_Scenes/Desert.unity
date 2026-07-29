@@ -680,6 +680,16 @@ PrefabInstance:
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
       value: BoostButton
       objectReference: {fileID: 0}
+    - target: {fileID: 8538007969759051235, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: target
+      value: 
+      objectReference: {fileID: 549470088}
+    - target: {fileID: 8538007969759051235, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: maxSpeed
+      value: 100
+      objectReference: {fileID: 0}
     - target: {fileID: 9005714955667767510, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
       propertyPath: m_AnchorMax.y
@@ -1017,6 +1027,8 @@ MonoBehaviour:
   markerSFX: {fileID: 1543565042}
   coinSfx: {fileID: 1167166743}
   boostSFX: {fileID: 1356659949}
+  rubberSfx: {fileID: 0}
+  planeSfx: {fileID: 0}
 --- !u!1 &335360467
 GameObject:
   m_ObjectHideFlags: 0
@@ -1725,10 +1737,12 @@ MonoBehaviour:
   leftWing: {fileID: 4220416054550377262}
   rightWing: {fileID: 5326808498593282766}
   tail: {fileID: 3412660896574745274}
-  wingDamageRollMultiplier: 15
+  wingDamageRollMultiplier: 1.35
   tailDamagePitchMultiplier: 3.5
   additionalDragPerMissingPart: 0.5
-  wingTiltStrength: 150
+  singleWingTargetBankDegrees: 25
+  singleWingRollTorque: 2.4
+  singleWingCounterSteerAssist: 0.65
   leftWingMissingResistance: 0.09
   rightWingMissingResistance: 0.09
   bothWingsMissingResistance: 0.1

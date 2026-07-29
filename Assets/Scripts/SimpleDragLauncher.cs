@@ -94,6 +94,7 @@ public class SimpleDragLauncher : MonoBehaviour
         boostElapsed = 0f;
         pendingBoostImpulse = 0f;
 
+        ResolveRubberAudioSources();
         if (rubberSource != null && rubberSource.isPlaying)
             rubberSource.Stop();
 
@@ -169,11 +170,8 @@ public class SimpleDragLauncher : MonoBehaviour
         else if (PlayerPrefs.HasKey("LaunchForceMultiplier"))
             launchForceMultiplier = PlayerPrefs.GetFloat("LaunchForceMultiplier", launchForceMultiplier);
 
-        // AudioSource fallback
-        if (rubberSource == null)
-        {
-            rubberSource = GetComponent<AudioSource>();
-        }
+        // Prefer the living AudioManager rubber/wind sources (survives Continue).
+        ResolveRubberAudioSources();
         if (rubberSource != null)
         {
             rubberSource.playOnAwake = false;
@@ -183,6 +181,19 @@ public class SimpleDragLauncher : MonoBehaviour
             rubberSource.volume = minVolume;
             rubberSource.pitch = minPitch;
         }
+    }
+
+    private void ResolveRubberAudioSources()
+    {
+        AudioSource liveRubber = AudioManager.GetRubberSource();
+        if (liveRubber != null)
+            rubberSource = liveRubber;
+        else if (rubberSource == null)
+            rubberSource = GetComponent<AudioSource>();
+
+        AudioSource liveWind = AudioManager.GetPlaneWindSource();
+        if (liveWind != null)
+            windSource = liveWind;
     }
 
     void Update()
@@ -512,7 +523,14 @@ public class SimpleDragLauncher : MonoBehaviour
 
     private void StartRubberSound()
     {
-        if (rubberSource == null || rubberClip == null) return;
+        ResolveRubberAudioSources();
+        if (rubberSource == null || !SettingsManager.IsAudioEnabled)
+            return;
+
+        if (rubberClip != null)
+            rubberSource.clip = rubberClip;
+        if (rubberSource.clip == null)
+            return;
 
         if (rubberFadeCoroutine != null)
         {
@@ -531,6 +549,7 @@ public class SimpleDragLauncher : MonoBehaviour
 
     private void StopRubberSound()
     {
+        ResolveRubberAudioSources();
         if (rubberSource == null) return;
 
         // fade out
@@ -565,7 +584,9 @@ public class SimpleDragLauncher : MonoBehaviour
     /// <param name="normalized">0..1</param>
     private void UpdateRubberSfx(float normalized)
     {
-        if (rubberSource == null || rubberClip == null) return;
+        ResolveRubberAudioSources();
+        if (rubberSource == null || rubberSource.clip == null || !SettingsManager.IsAudioEnabled)
+            return;
 
         normalized = Mathf.Clamp01(normalized);
         float targetVolume = Mathf.Lerp(minVolume, maxVolume, normalized);

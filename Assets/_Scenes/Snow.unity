@@ -1147,6 +1147,8 @@ MonoBehaviour:
   markerSFX: {fileID: 1543565042}
   coinSfx: {fileID: 1167166743}
   boostSFX: {fileID: 1356659949}
+  rubberSfx: {fileID: 0}
+  planeSfx: {fileID: 0}
 --- !u!1 &335360467
 GameObject:
   m_ObjectHideFlags: 0
@@ -1902,10 +1904,12 @@ MonoBehaviour:
   leftWing: {fileID: 557507800}
   rightWing: {fileID: 557507798}
   tail: {fileID: 557507797}
-  wingDamageRollMultiplier: 15
+  wingDamageRollMultiplier: 1.35
   tailDamagePitchMultiplier: 3.5
   additionalDragPerMissingPart: 0.5
-  wingTiltStrength: 150
+  singleWingTargetBankDegrees: 25
+  singleWingRollTorque: 2.4
+  singleWingCounterSteerAssist: 0.65
   leftWingMissingResistance: 0.09
   rightWingMissingResistance: 0.09
   bothWingsMissingResistance: 0.1
@@ -2277,6 +2281,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 1297618337}
+    - targetCorrespondingSourceObject: {fileID: -3071180390171350127, guid: ebda6b6efdf7e7c40be8609a5e5855fe,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1760209255}
     - targetCorrespondingSourceObject: {fileID: 7215070700453021156, guid: ebda6b6efdf7e7c40be8609a5e5855fe,
         type: 3}
       insertIndex: -1
@@ -5929,6 +5937,38 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 557507795}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1760209255
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1297618333}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7e4c91a2f6d4e8a9c1d0e3f5a6b7c8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  propeller: {fileID: 1760209250}
+  dragLauncher: {fileID: 549470095}
+  planeController: {fileID: 549470094}
+  localSpinAxis: {x: 0, y: 0, z: 0}
+  recenterPivotOnHub: 0
+  minSpinSpeed: 180
+  maxSpinSpeed: 2200
+  spinAcceleration: 8
+  crashSpinDownDuration: 1.75
+  propellerAudio: {fileID: 0}
+  propellerClip: {fileID: 0}
+  minVolume: 0.05
+  maxVolume: 0.85
+  minPitch: 0.75
+  maxPitch: 1.45
+  audioSmoothing: 6
+  respectAudioSettings: 1
+  debugPropeller: 0
+  debugLogInterval: 0.25
+  recordManualPose: 0
 --- !u!1001 &1775678646
 PrefabInstance:
   m_ObjectHideFlags: 0

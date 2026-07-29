@@ -12,8 +12,8 @@ public class PlaneDamageHandler : MonoBehaviour
     public GameObject tail;
     
     [Header("Damage Effect Settings")]
-    [Tooltip("How much faster the plane will roll when a wing is disabled")]
-    public float wingDamageRollMultiplier = 2.0f;
+    [Tooltip("How much stronger roll input becomes toward the missing-wing side.")]
+    public float wingDamageRollMultiplier = 1.35f;
     
     [Tooltip("How much faster the plane will pitch down when the tail is disabled")]
     public float tailDamagePitchMultiplier = 2.0f;
@@ -21,8 +21,15 @@ public class PlaneDamageHandler : MonoBehaviour
     [Tooltip("Additional drag applied when parts are missing")]
     public float additionalDragPerMissingPart = 0.5f;
     
-    [Tooltip("How much the plane tilts to the side when a wing is missing")]
-    public float wingTiltStrength = 10.0f;
+    [Tooltip("How far the plane leans toward the empty wing side (degrees).")]
+    public float singleWingTargetBankDegrees = 25f;
+
+    [Tooltip("How strongly the plane pulls toward that lean. Keep modest so it does not dig into the shed.")]
+    public float singleWingRollTorque = 2.4f;
+
+    [Tooltip("Extra help when counter-steering against the missing-wing lean (0 = none).")]
+    [Range(0f, 1.5f)]
+    public float singleWingCounterSteerAssist = 0.55f;
     
     [Header("Air Resistance Settings")]
     [Tooltip("Additional air resistance when left wing is missing")]
@@ -168,7 +175,8 @@ public class PlaneDamageHandler : MonoBehaviour
     }
     
     /// <summary>
-    /// Extra torque from missing parts, applied on the plane's local roll/pitch axes.
+    /// Extra torque from missing / locked parts.
+    /// One wing missing → gentle lean toward the empty side; player must counter-steer.
     /// </summary>
     public Vector3 GetAdditionalDamageTorque(Transform planeTransform, float horizontalInput, float verticalInput)
     {
@@ -177,33 +185,49 @@ public class PlaneDamageHandler : MonoBehaviour
 
         Vector3 additionalTorque = Vector3.zero;
 
-        bool leftWingDisabled = IsFlightDamageMissing(leftWing);
-        bool rightWingDisabled = IsFlightDamageMissing(rightWing);
+        // Use activeSelf so never-unlocked wings also cause lean (not only mid-flight breakoffs).
+        bool leftWingDisabled = IsLeftWingMissing();
+        bool rightWingDisabled = IsRightWingMissing();
         bool tailDisabled = IsFlightDamageMissing(tail);
         bool singleWingMissing = leftWingDisabled != rightWingDisabled;
         float pitchInput = Mathf.Abs(verticalInput);
 
-        float tiltAmount = wingTiltStrength * 0.03f;
+        // Never apply asymmetric roll while still on/over the launch shed.
+        bool suppressWingLean = planeController.ShouldSuppressSingleWingLean;
 
-        if (leftWingDisabled && !rightWingDisabled)
+        if (singleWingMissing && !suppressWingLean)
         {
-            additionalTorque += planeTransform.forward * tiltAmount;
-
-            if (horizontalInput < 0f)
+            Vector3 levelUp = Vector3.ProjectOnPlane(Vector3.up, planeTransform.forward);
+            if (levelUp.sqrMagnitude > 0.001f)
             {
-                float rollBoost = -horizontalInput * tiltAmount * wingDamageRollMultiplier;
-                additionalTorque += planeTransform.forward * rollBoost;
-            }
-        }
+                levelUp.Normalize();
+                float bankFromLevel = Vector3.SignedAngle(levelUp, planeTransform.up, planeTransform.forward);
+                // Missing left → lean left; missing right → lean right.
+                float desiredBank = leftWingDisabled
+                    ? singleWingTargetBankDegrees
+                    : -singleWingTargetBankDegrees;
+                float bankError = desiredBank - bankFromLevel;
 
-        if (rightWingDisabled && !leftWingDisabled)
-        {
-            additionalTorque -= planeTransform.forward * tiltAmount;
+                additionalTorque += planeTransform.forward * (bankError * singleWingRollTorque * 0.12f);
 
-            if (horizontalInput > 0f)
-            {
-                float rollBoost = horizontalInput * tiltAmount * wingDamageRollMultiplier;
-                additionalTorque -= planeTransform.forward * rollBoost;
+                if (leftWingDisabled)
+                {
+                    if (horizontalInput > 0.01f)
+                        additionalTorque -= planeTransform.forward
+                            * (horizontalInput * singleWingRollTorque * singleWingCounterSteerAssist);
+                    else if (horizontalInput < -0.01f)
+                        additionalTorque += planeTransform.forward
+                            * (-horizontalInput * singleWingRollTorque * (wingDamageRollMultiplier - 1f));
+                }
+                else
+                {
+                    if (horizontalInput < -0.01f)
+                        additionalTorque += planeTransform.forward
+                            * (-horizontalInput * singleWingRollTorque * singleWingCounterSteerAssist);
+                    else if (horizontalInput > 0.01f)
+                        additionalTorque -= planeTransform.forward
+                            * (horizontalInput * singleWingRollTorque * (wingDamageRollMultiplier - 1f));
+                }
             }
         }
 
@@ -213,9 +237,8 @@ public class PlaneDamageHandler : MonoBehaviour
             additionalTorque -= planeTransform.right * pitchAdjustment;
         }
 
-        // Pitching with one wing used to fight constant roll torque and caused stumble/wobble.
         if (singleWingMissing && pitchInput > 0.05f)
-            additionalTorque *= Mathf.Lerp(1f, 0.25f, Mathf.Clamp01(pitchInput));
+            additionalTorque *= Mathf.Lerp(1f, 0.55f, Mathf.Clamp01(pitchInput));
 
         return additionalTorque;
     }

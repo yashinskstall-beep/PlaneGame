@@ -39,6 +39,7 @@ public class ZAxisProgressTracker : MonoBehaviour
     private bool pointsReady;
     private RectTransform percentRect;
     private RectTransform handleRect;
+    private bool percentVisible;
 
     void Start()
     {
@@ -76,6 +77,11 @@ public class ZAxisProgressTracker : MonoBehaviour
 
         slider.value = displayedValue;
         UpdatePercentText(displayedValue);
+    }
+
+    void LateUpdate()
+    {
+        // After UI layout so the label never flashes at canvas-center before the handle moves.
         UpdatePercentPosition();
     }
 
@@ -118,6 +124,7 @@ public class ZAxisProgressTracker : MonoBehaviour
             percentRect = percentTMP.rectTransform;
             ApplyPercentHighlight(percentTMP);
             CacheHandle();
+            SetPercentVisible(false);
             return;
         }
 
@@ -125,6 +132,7 @@ public class ZAxisProgressTracker : MonoBehaviour
         {
             percentRect = percentText.rectTransform;
             CacheHandle();
+            SetPercentVisible(false);
             return;
         }
 
@@ -146,6 +154,7 @@ public class ZAxisProgressTracker : MonoBehaviour
                 percentRect = percentTMP.rectTransform;
                 ApplyPercentHighlight(percentTMP);
                 CacheHandle();
+                SetPercentVisible(false);
                 return;
             }
         }
@@ -173,6 +182,8 @@ public class ZAxisProgressTracker : MonoBehaviour
         ApplyPercentHighlight(percentTMP);
 
         CacheHandle();
+        SetPercentVisible(false);
+        Canvas.ForceUpdateCanvases();
         UpdatePercentPosition();
     }
 
@@ -242,6 +253,7 @@ public class ZAxisProgressTracker : MonoBehaviour
     private void ResetVisuals()
     {
         displayedValue = 0f;
+        percentVisible = false;
         if (slider != null)
         {
             slider.minValue = 0f;
@@ -250,6 +262,8 @@ public class ZAxisProgressTracker : MonoBehaviour
         }
 
         UpdatePercentText(0f);
+        SetPercentVisible(false);
+        Canvas.ForceUpdateCanvases();
         UpdatePercentPosition();
     }
 
@@ -272,11 +286,28 @@ public class ZAxisProgressTracker : MonoBehaviour
         if (handleRect == null && slider != null)
             handleRect = slider.handleRect;
 
-        if (handleRect == null)
+        if (handleRect == null || !handleRect.gameObject.activeInHierarchy)
             return;
 
         // Keep label next to the moving plane/handle icon, slightly toward screen center.
-        percentRect.position = handleRect.position + new Vector3(percentOffset.x, percentOffset.y, 0f);
+        Vector3 handlePos = handleRect.position;
+        percentRect.position = handlePos + new Vector3(percentOffset.x, percentOffset.y, 0f);
         percentRect.SetAsLastSibling();
+
+        if (!percentVisible)
+            SetPercentVisible(true);
+    }
+
+    private void SetPercentVisible(bool visible)
+    {
+        percentVisible = visible;
+
+        if (percentTMP != null)
+            percentTMP.enabled = visible;
+        if (percentText != null)
+            percentText.enabled = visible;
+
+        if (percentRect != null && percentRect.gameObject.activeSelf != visible)
+            percentRect.gameObject.SetActive(visible);
     }
 }
