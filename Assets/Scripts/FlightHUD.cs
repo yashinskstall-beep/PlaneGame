@@ -95,8 +95,7 @@ public class FlightHUD : MonoBehaviour
         if (dragLauncher == null)
             dragLauncher = FindObjectOfType<SimpleDragLauncher>();
 
-        if (audioManager == null)
-            audioManager = FindObjectOfType<AudioManager>();
+        AudioManager.Get(ref audioManager);
 
         if (boosters == null && planeController != null)
         {
@@ -219,7 +218,7 @@ public class FlightHUD : MonoBehaviour
 
     public void RestartGame()
     {
-        audioManager.btnSFX();
+        AudioManager.PlayBtnSfx();
         VibrationManager.Instance.VibrateButtonClick();
 
         if (isGoalReached)
@@ -292,7 +291,7 @@ public class FlightHUD : MonoBehaviour
         float duration = 1.5f; // Animation duration in seconds
         float elapsed = 0f;
         int currentCount = 0;
-        audioManager?.CoinSFX();
+        AudioManager.PlayCoinSfx();
 
         while (elapsed < duration)
         {

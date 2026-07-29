@@ -1003,8 +1003,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (isUpgrading || IsFullyUpgraded())
             return;
 
-        if (audioManager != null)
-            audioManager.btnSFX();
+        AudioManager.PlayBtnSfx();
         if (VibrationManager.Instance != null)
             VibrationManager.Instance.VibrateButtonClick();
 
@@ -1034,8 +1033,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (isUpgrading || launchForceLevel >= maxLaunchForceLevel || dragLauncher == null)
             return;
 
-        if (audioManager != null)
-            audioManager.btnSFX();
+        AudioManager.PlayBtnSfx();
         if (VibrationManager.Instance != null)
             VibrationManager.Instance.VibrateButtonClick();
 
@@ -1063,8 +1061,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (isUpgrading || IsCoinMultiplierMax())
             return;
 
-        if (audioManager != null)
-            audioManager.btnSFX();
+        AudioManager.PlayBtnSfx();
         if (VibrationManager.Instance != null)
             VibrationManager.Instance.VibrateButtonClick();
 
@@ -1085,6 +1082,8 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     private void ResolveSceneReferences()
     {
+        AudioManager.Get(ref audioManager);
+
         if (planeUpgradeConfig == null)
             planeUpgradeConfig = FindObjectOfType<PlaneUpgradeConfig>();
 
@@ -1420,7 +1419,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (!TrySpendCoins((int)currentCost))
             return;
 
-        audioManager.btnSFX();
+        AudioManager.PlayBtnSfx();
         VibrationManager.Instance.VibrateButtonClick();
 
         // Progress and cost update
@@ -1469,7 +1468,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         // Step 2: Play upgrade VFX (unlocks part inside routine on the same frame as the effect)
         GameObject part = planeUpgradeConfig != null ? planeUpgradeConfig.GetPart(currentIndex) : null;
-        audioManager.PlanepartSFX();
+        AudioManager.PlayPlanePartSfx();
         yield return StartCoroutine(PlayPartUpgradeParticlesRoutine(currentIndex, part));
 
         partUpgrades.CompletePartUnlock();
@@ -1518,7 +1517,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
         // Step 2: Play upgrade VFX (applies slingshot level inside routine, same as part unlock)
         GameObject slingshotTarget = GetSlingshotUpgradeTarget();
-        audioManager.PlanepartSFX();
+        AudioManager.PlayPlanePartSfx();
         yield return StartCoroutine(PlaySlingshotUpgradeParticlesRoutine(slingshotTarget));
 
         launchForceUpgrades.RefreshCost();
@@ -2392,6 +2391,44 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         boostButtonRestCaptured = true;
     }
 
+    private bool HasUnlockedAtLeastOneWing()
+    {
+        ResolveSceneReferences();
+
+        PlaneDamageHandler damageHandler = planeController != null
+            ? planeController.GetComponent<PlaneDamageHandler>()
+            : null;
+        if (damageHandler == null)
+            damageHandler = FindObjectOfType<PlaneDamageHandler>();
+
+        if (damageHandler != null)
+        {
+            if (IsWingPartUnlocked(damageHandler.leftWing) || IsWingPartUnlocked(damageHandler.rightWing))
+                return true;
+        }
+
+        // Fallback if damage handler refs aren't wired: match upgrade parts named like a wing.
+        if (planeUpgradeConfig != null && planeUpgradeConfig.upgradeParts != null)
+        {
+            foreach (PlaneUpgradePartEntry entry in planeUpgradeConfig.upgradeParts)
+            {
+                if (entry?.part == null)
+                    continue;
+                if (entry.part.name.IndexOf("wing", System.StringComparison.OrdinalIgnoreCase) < 0)
+                    continue;
+                if (PlaneUpgradeConfig.IsPartUnlocked(entry.part))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsWingPartUnlocked(GameObject wing)
+    {
+        return wing != null && PlaneUpgradeConfig.IsPartUnlocked(wing);
+    }
+
     private void UpdateBoostButtonInteractable()
     {
         if (boostEnableBtn == null)
@@ -2401,8 +2438,9 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (boostButtonRect == null)
             return;
 
+        bool hasWing = HasUnlockedAtLeastOneWing();
         bool isMaxLevel = boostLevel >= maxBoostLevel;
-        bool canUpgrade = !isMaxLevel;
+        bool canUpgrade = hasWing && !isMaxLevel;
         boostEnableBtn.interactable = canUpgrade;
         boostEnableBtn.transition = canUpgrade ? upgradeButtonTransition : Selectable.Transition.None;
 
@@ -2410,7 +2448,12 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (scaleAnim != null)
             scaleAnim.enabled = canUpgrade;
 
-        if (!isMaxLevel)
+        if (!hasWing)
+        {
+            CancelBoostButtonMaxLevelHide();
+            HideBoostButtonInstant();
+        }
+        else if (!isMaxLevel)
         {
             CancelBoostButtonMaxLevelHide();
             ShowBoostButtonSlideIn();
@@ -2806,7 +2849,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public void BoostEnableBtn()
     {
-        if (boostLevel >= maxBoostLevel)
+        if (!HasUnlockedAtLeastOneWing() || boostLevel >= maxBoostLevel)
             return;
 
         TryShowBoostRewardedAd();
@@ -2817,7 +2860,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (isUpgrading || isShowingUpgradeAd || isWaitingForRewardedAd)
             return;
 
-        if (boostLevel >= maxBoostLevel)
+        if (!HasUnlockedAtLeastOneWing() || boostLevel >= maxBoostLevel)
             return;
 
         EnsureRewardedAdManager();
@@ -2860,8 +2903,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (boostLevel >= maxBoostLevel)
             return;
 
-        if (audioManager != null)
-            audioManager.btnSFX();
+        AudioManager.PlayBtnSfx();
         if (VibrationManager.Instance != null)
             VibrationManager.Instance.VibrateButtonClick();
 
@@ -2908,7 +2950,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
         if (!TrySpendCoins(clickCost))
             return;
 
-        audioManager.btnSFX();
+        AudioManager.PlayBtnSfx();
         VibrationManager.Instance.VibrateButtonClick();
         UpdateCoinUI();
 
@@ -2954,7 +2996,7 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
             return;
         }
 
-        audioManager.btnSFX();
+        AudioManager.PlayBtnSfx();
         VibrationManager.Instance.VibrateButtonClick();
 
         if (!TrySpendCoins(cost))
@@ -2982,14 +3024,14 @@ public class MainMenu : MonoBehaviour, IPointerClickHandler
 
     public void SettingBtn(){
 
-        audioManager.btnSFX();
+        AudioManager.PlayBtnSfx();
         VibrationManager.Instance.VibrateButtonClick();
         SettingTab.SetActive(true);
     }
        
     public void LevelBtn()
     {
-        audioManager.btnSFX();
+        AudioManager.PlayBtnSfx();
         VibrationManager.Instance.VibrateButtonClick();
         SetLevelsPanelOpen(true);
     }

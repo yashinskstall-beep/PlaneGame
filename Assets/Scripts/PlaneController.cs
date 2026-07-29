@@ -219,6 +219,12 @@ public class PlaneController : MonoBehaviour
         return hit.collider.CompareTag("Shed ground");
     }
 
+    /// <summary>
+    /// True while still on the ramp or over the shed floor — single-wing lean must not run here.
+    /// </summary>
+    public bool ShouldSuppressSingleWingLean =>
+        (rampAligner != null && rampAligner.IsAligning) || IsOverShedGround();
+
     void Start()
     {
        
@@ -241,6 +247,7 @@ public class PlaneController : MonoBehaviour
         rampAligner ??= GetComponent<PlaneRampAligner>() ?? FindObjectOfType<PlaneRampAligner>();
         cameraFollow ??= FindObjectOfType<SimpleCameraFollow>();
         uiManager ??= FindObjectOfType<FlightHUD>();
+        AudioManager.Get(ref audioManager);
 
         if (cameraFollow == null)
         {
@@ -535,12 +542,17 @@ public class PlaneController : MonoBehaviour
 
         bool hasInput = !Mathf.Approximately(horizontalInput, 0f) || !Mathf.Approximately(verticalInput, 0f);
         bool bodyOnly = damageHandler != null && damageHandler.IsBodyOnly();
+        bool singleWingMissing = damageHandler != null && damageHandler.HasSingleWingMissing();
         blockForwardForceFromInput = bodyOnly && hasInput;
+
+        // With one wing, blend lean-correction with normal turning (not pure roll-only).
+        float singleWingYawScale = singleWingMissing ? 0.55f : 1f;
+        float singleWingBankScale = singleWingMissing ? 1.1f : 1f;
 
         // Calculate torque
         Vector3 torque = Vector3.zero;
-        torque += transform.up * (horizontalInput * turnSpeed * torqueResponseMultiplier);         // Yaw
-        torque += transform.forward * (-horizontalInput * bankAngle * torqueResponseMultiplier);   // Roll
+        torque += transform.up * (horizontalInput * turnSpeed * torqueResponseMultiplier * singleWingYawScale);         // Yaw
+        torque += transform.forward * (-horizontalInput * bankAngle * torqueResponseMultiplier * singleWingBankScale);   // Roll
         if (!blockForwardForceFromInput)
             torque += transform.right * (verticalInput * pitchSpeed * torqueResponseMultiplier);   // Pitch
 
@@ -559,7 +571,9 @@ public class PlaneController : MonoBehaviour
         if (rollAngle > 180f) rollAngle -= 360f; // Normalize to -180 to 180
         bool isUpsideDownOrExtreme = Mathf.Abs(rollAngle) > 90f;
         
-        bool shouldAutoLevel = autoLevelWhenNoInput && !hasInput && !(disableAutoLevelWhenDragging && isBeingDragged) && !isUpsideDownOrExtreme && !isOnRamp;
+        // With one wing missing the plane should keep leaning — auto-level would cancel that challenge.
+        bool shouldAutoLevel = autoLevelWhenNoInput && !hasInput && !singleWingMissing
+            && !(disableAutoLevelWhenDragging && isBeingDragged) && !isUpsideDownOrExtreme && !isOnRamp;
         if (shouldAutoLevel)
         {
             Vector3 projectedUp = Vector3.ProjectOnPlane(Vector3.up, transform.forward).normalized;
@@ -598,7 +612,24 @@ public class PlaneController : MonoBehaviour
                 alignmentStrength *= Mathf.Lerp(1f, 0.15f, pitchSoftFactor);
             }
 
-            Vector3 targetVelocity = transform.forward * rb.velocity.magnitude;
+            Vector3 alignForward = transform.forward;
+            // Blend: keep some banked path curve, but not a full sideways yank from the lean alone.
+            if (singleWingMissing)
+            {
+                Vector3 flatForward = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+                if (flatForward.sqrMagnitude > 0.001f)
+                {
+                    flatForward.Normalize();
+                    Vector3 headingForward = flatForward + Vector3.up * transform.forward.y;
+                    if (headingForward.sqrMagnitude > 0.001f)
+                    {
+                        headingForward.Normalize();
+                        alignForward = Vector3.Slerp(transform.forward, headingForward, 0.55f);
+                    }
+                }
+            }
+
+            Vector3 targetVelocity = alignForward * rb.velocity.magnitude;
             rb.velocity = Vector3.Lerp(rb.velocity, targetVelocity, alignmentStrength * Time.fixedDeltaTime);
         }
 
@@ -1251,7 +1282,7 @@ public class PlaneController : MonoBehaviour
         if (marker == null)
             return;
 
-        audioManager?.MarkerSFX();
+        AudioManager.PlayMarkerSfx();
         VibrationManager.Instance?.VibrateButtonClick();
         placedMarker = marker;
 
@@ -1314,7 +1345,7 @@ public class PlaneController : MonoBehaviour
     public void BoostButton()
     {
         //uiManager.btnAudio.Play();
-        audioManager.btnSFX();
+        AudioManager.PlayBtnSfx();
         VibrationManager.Instance.VibrateButtonClick();
         
         if (!isBoosting && rb != null && boostUsesRemaining > 0)
@@ -1336,7 +1367,7 @@ public class PlaneController : MonoBehaviour
 
             boostA?.Play();
             boostB?.Play();
-            audioManager.BoostSFX();
+            AudioManager.PlayBoostSfx();
 
             boostUsesRemaining--;
             Debug.Log($"Boost active: {currentSpeed:F1} -> {boostTargetSpeed:F1} for {boostDuration:F1}s. Uses left: {boostUsesRemaining}");

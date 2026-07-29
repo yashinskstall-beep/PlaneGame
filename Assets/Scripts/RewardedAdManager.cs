@@ -730,7 +730,7 @@ public class RewardedAdManager : MonoBehaviour
         Time.timeScale = 0f;
         AudioListener.pause = true;
 
-        AudioManager audioManager = FindObjectOfType<AudioManager>();
+        AudioManager audioManager = AudioManager.Get();
         if (audioManager != null)
         {
             AudioSource[] audioSources = audioManager.GetComponentsInChildren<AudioSource>(true);
@@ -749,8 +749,14 @@ public class RewardedAdManager : MonoBehaviour
 
         pausedForAd = false;
         Time.timeScale = timeScaleBeforeAd;
+        // Safety: sometimes the ad open path captures timeScale=0, leaving the game stuck.
+        // When that happens, restore normal time progression.
+        if (Time.timeScale <= 0.0001f)
+            Time.timeScale = 1f;
 
-        AudioManager audioManager = FindObjectOfType<AudioManager>();
+        AudioListener.pause = false;
+
+        AudioManager audioManager = AudioManager.Get();
         if (audioManager != null)
         {
             AudioSource[] audioSources = audioManager.GetComponentsInChildren<AudioSource>(true);

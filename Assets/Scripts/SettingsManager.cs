@@ -60,7 +60,7 @@ public class SettingsManager : MonoBehaviour
 
     public static void ApplySavedAudioState()
     {
-        AudioManager manager = FindObjectOfType<AudioManager>();
+        AudioManager manager = AudioManager.Get();
         if (manager != null)
         {
             AudioSource[] audioSources = manager.GetComponentsInChildren<AudioSource>(true);
@@ -74,7 +74,8 @@ public class SettingsManager : MonoBehaviour
                     source.Stop();
             }
 
-            // Background music was Stop()'d when muted — restart it when audio is re-enabled.
+            // Background music was Stop()'d when muted — resume it when audio is re-enabled.
+            // Do not restart from the beginning if it is already playing.
             if (IsAudioEnabled)
                 RestartBackgroundMusic(manager);
         }
@@ -88,17 +89,7 @@ public class SettingsManager : MonoBehaviour
         if (manager == null)
             return;
 
-        AudioSource bgm = manager.audioSource;
-        if (bgm == null)
-            bgm = manager.GetComponent<AudioSource>();
-
-        if (bgm == null)
-            return;
-
-        manager.audioSource = bgm;
-        bgm.mute = false;
-        if (!bgm.isPlaying)
-            bgm.Play();
+        manager.EnsureBackgroundMusicPlaying();
     }
 
     public static void ApplySavedVibrationState()
@@ -114,8 +105,7 @@ public class SettingsManager : MonoBehaviour
 
     private void Awake()
     {
-        if (audioManager == null)
-            audioManager = FindObjectOfType<AudioManager>();
+        audioManager = AudioManager.Get(ref audioManager);
 
         LoadSavedSettings();
         ApplySavedAudioState();
@@ -328,8 +318,8 @@ public class SettingsManager : MonoBehaviour
         if (IsVibrationEnabled && VibrationManager.Instance != null)
             VibrationManager.Instance.VibrateButtonClick();
 
-        if (IsAudioEnabled && audioManager != null)
-            audioManager.btnSFX();
+        if (IsAudioEnabled)
+            AudioManager.PlayBtnSfx();
 
         if (SettingsPanel != null)
             SettingsPanel.SetActive(false);
