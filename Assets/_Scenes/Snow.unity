@@ -1832,6 +1832,10 @@ MonoBehaviour:
   minDragToLaunch: 0.5
   launchForceMultiplier: 25
   aimLaunchAlongRamp: 1
+  rampLaunchStickBias: 0.08
+  rampLaunchStickDuration: 0.35
+  rampSafeForceMultiplier: 25
+  postRampBoostDuration: 1.35
   enablePostLaunchLift: 1
   verticalForceMultiplier: 5
   liftDuration: 2
@@ -1869,6 +1873,9 @@ MonoBehaviour:
   projectVelocityOnRamp: 1
   exitConfirmFrames: 4
   exitRaycastDistance: 1.25
+  intoSurfaceStickSpeed: 0.75
+  exitAlignDuration: 0.85
+  exitAlignFollowSpeed: 3.5
 --- !u!114 &549470097
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6544,6 +6551,21 @@ PrefabInstance:
         type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6788809993256736361, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_text
+      value: Winter Spirit
+      objectReference: {fileID: 0}
+    - target: {fileID: 6788809993256736361, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_fontSize
+      value: 44.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6788809993256736361, guid: c521a1009b15f344faac6b8303862c5c,
+        type: 3}
+      propertyPath: m_fontSizeBase
+      value: 44.1
       objectReference: {fileID: 0}
     - target: {fileID: 6995557172876886332, guid: c521a1009b15f344faac6b8303862c5c,
         type: 3}
