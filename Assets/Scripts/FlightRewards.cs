@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Flight payout and level-progress side effects. UI shows score; this applies rewards.
@@ -33,9 +34,11 @@ public static class FlightRewards
         }
     }
 
-    public static void OnGoalReached(int unlockLevelIndex)
+    public static void OnGoalReached()
     {
         LevelProgress.MarkSceneCompleted();
-        LevelsUI.UnlockLevel(unlockLevelIndex);
+
+        int nextLevelIndex = SceneManager.GetActiveScene().buildIndex + 1;
+        LevelsUI.UnlockLevel(nextLevelIndex);
     }
 }

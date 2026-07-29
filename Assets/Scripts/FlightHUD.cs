@@ -26,7 +26,6 @@ public class FlightHUD : MonoBehaviour
     public TextMeshProUGUI boostCounterText;
     public GameObject thisCanvas;
     public GameObject mainMenuCanvas;
-    [SerializeField] private int desertLevelIndex = 1;
 
     [Header("Use Boost Button")]
     [SerializeField] private float boostSlideOffsetX = 500f;
@@ -273,7 +272,7 @@ public class FlightHUD : MonoBehaviour
             FindObjectOfType<PlanePropeller>(true)?.NotifyCrash();
         }
 
-        FlightRewards.OnGoalReached(desertLevelIndex);
+        FlightRewards.OnGoalReached();
         ScheduleScoreUI(2f);
     }
 
