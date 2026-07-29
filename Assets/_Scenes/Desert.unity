@@ -4893,6 +4893,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: Dragonfly
       objectReference: {fileID: 0}
+    - target: {fileID: 1563320021683703038, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
+        type: 3}
+      propertyPath: m_TagString
+      value: Player
+      objectReference: {fileID: 0}
     - target: {fileID: 1614085666027269332, guid: 8fe97fa1e822e5b40a10a0a27f6b6dca,
         type: 3}
       propertyPath: m_IsActive
