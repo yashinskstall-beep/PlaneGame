@@ -235,6 +235,10 @@ public class FlightHUD : MonoBehaviour
     private void ShowLevelsPanel()
     {
         CancelPendingLevelCompleteAd();
+        AudioManager.StopFlightLoops();
+
+        if (planeController != null)
+            planeController.StopFlightAudio();
 
         if (ScoreUIScreen != null)
             ScoreUIScreen.SetActive(false);
@@ -256,6 +260,19 @@ public class FlightHUD : MonoBehaviour
     public void GoalScreen()
     {
         isGoalReached = true;
+
+        // Stop flight/engine audio when the level is completed.
+        if (planeController != null)
+        {
+            planeController.StopFlightAudio();
+            planeController.StopControlling();
+        }
+        else
+        {
+            AudioManager.StopFlightLoops();
+            FindObjectOfType<PlanePropeller>(true)?.NotifyCrash();
+        }
+
         FlightRewards.OnGoalReached(desertLevelIndex);
         ScheduleScoreUI(2f);
     }

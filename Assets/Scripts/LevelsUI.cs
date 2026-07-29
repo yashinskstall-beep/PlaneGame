@@ -138,6 +138,7 @@ public class LevelsUI : MonoBehaviour
 
     private void LoadSceneWithTransition(string sceneName, bool resetProgress, string[] upgradePartNamesForReset)
     {
+        AudioManager.StopFlightLoops();
         UICircleFadeTransition.EnsureInstance().PlayLoadScene(sceneName, () =>
         {
             if (mainMenu != null)

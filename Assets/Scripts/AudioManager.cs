@@ -2,12 +2,10 @@ using UnityEngine;
 
 /// <summary>
 /// Owns BGM (AudioSource on this object) and SFX (child AudioSources: buttonfx, etc.).
-/// Persists across Continue so music keeps playing; call PlayBtnSfx / etc. for one-shots.
+/// Scene-local — one AudioManager per scene, destroyed with the scene.
 /// </summary>
 public class AudioManager : MonoBehaviour
 {
-    public static AudioManager Instance { get; private set; }
-
     public AudioSource btnsfx;
     public AudioSource Planepartfx;
     public AudioSource audioSource;
@@ -21,43 +19,23 @@ public class AudioManager : MonoBehaviour
 
     private bool hasInitializedSfxStops;
 
+    /// <summary>Finds the AudioManager in the active scene (optional cache refresh).</summary>
     public static AudioManager Get(ref AudioManager cached)
     {
         AudioManager live = Get();
         if (live != null)
             cached = live;
-        return cached;
+        return cached != null ? cached : live;
     }
 
+    /// <summary>Finds the AudioManager in the active scene.</summary>
     public static AudioManager Get()
     {
-        if (Instance != null)
-            return Instance;
-
-        AudioManager[] found = FindObjectsOfType<AudioManager>();
-        for (int i = 0; i < found.Length; i++)
-        {
-            if (found[i] != null)
-            {
-                Instance = found[i];
-                return Instance;
-            }
-        }
-
-        return null;
+        return FindObjectOfType<AudioManager>();
     }
 
     void Awake()
     {
-        if (Instance != null && Instance != this)
-        {
-            SilenceAndDestroyDuplicate();
-            return;
-        }
-
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
-
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
 
@@ -73,9 +51,6 @@ public class AudioManager : MonoBehaviour
 
     void Start()
     {
-        if (Instance != this)
-            return;
-
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
 
@@ -91,13 +66,8 @@ public class AudioManager : MonoBehaviour
             if (boostSFX != null) boostSFX.Stop();
             if (markerSFX != null) markerSFX.Stop();
             if (rubberSfx != null) rubberSfx.Stop();
+            if (planeSfx != null) planeSfx.Stop();
         }
-    }
-
-    void OnDestroy()
-    {
-        if (Instance == this)
-            Instance = null;
     }
 
     private void ResolveChildSfxSources()
@@ -138,7 +108,6 @@ public class AudioManager : MonoBehaviour
         return null;
     }
 
-    /// <summary>Living rubber-band stretch AudioSource (under AudioManager).</summary>
     public static AudioSource GetRubberSource()
     {
         AudioManager live = Get();
@@ -149,7 +118,6 @@ public class AudioManager : MonoBehaviour
         return live.rubberSfx;
     }
 
-    /// <summary>Living wind / plane AudioSource if present.</summary>
     public static AudioSource GetPlaneWindSource()
     {
         AudioManager live = Get();
@@ -160,44 +128,38 @@ public class AudioManager : MonoBehaviour
         return live.planeSfx;
     }
 
-    private void SilenceAndDestroyDuplicate()
-    {
-        AudioSource[] sources = GetComponentsInChildren<AudioSource>(true);
-        for (int i = 0; i < sources.Length; i++)
-        {
-            AudioSource source = sources[i];
-            if (source == null)
-                continue;
-
-            source.playOnAwake = false;
-            source.Stop();
-            source.enabled = false;
-        }
-
-        Destroy(gameObject);
-    }
-
-    public void EnsureBackgroundMusicPlaying()
+    public static void StopFlightLoops()
     {
         AudioManager live = Get();
         if (live == null)
             return;
 
-        if (live.audioSource == null)
-            live.audioSource = live.GetComponent<AudioSource>();
+        live.ResolveChildSfxSources();
 
-        if (live.audioSource == null)
+        if (live.planeSfx != null && live.planeSfx.isPlaying)
+            live.planeSfx.Stop();
+
+        if (live.rubberSfx != null && live.rubberSfx.isPlaying)
+            live.rubberSfx.Stop();
+    }
+
+    public void EnsureBackgroundMusicPlaying()
+    {
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
+
+        if (audioSource == null)
             return;
 
         if (!SettingsManager.IsAudioEnabled)
         {
-            live.audioSource.mute = true;
+            audioSource.mute = true;
             return;
         }
 
-        live.audioSource.mute = false;
-        if (!live.audioSource.isPlaying)
-            live.audioSource.Play();
+        audioSource.mute = false;
+        if (!audioSource.isPlaying)
+            audioSource.Play();
     }
 
     private static bool CanPlaySfx()
@@ -240,7 +202,6 @@ public class AudioManager : MonoBehaviour
             live.boostSFX.Play();
     }
 
-    // Instance wrappers so existing inspector-wired calls still reach the living manager.
     public void btnSFX() => PlayBtnSfx();
     public void PlanepartSFX() => PlayPlanePartSfx();
     public void MarkerSFX() => PlayMarkerSfx();

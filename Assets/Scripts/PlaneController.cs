@@ -489,6 +489,16 @@ public class PlaneController : MonoBehaviour
         SimpleDragLauncher launcher = GetComponent<SimpleDragLauncher>();
         if (launcher != null && launcher.windSource != null && launcher.windSource != windSource && launcher.windSource.isPlaying)
             launcher.windSource.Stop();
+
+        // Also clear scene AudioManager wind/rubber loops if those are the assigned sources.
+        AudioManager.StopFlightLoops();
+    }
+
+    /// <summary>Stops flight/engine audio and winds down the propeller (goal / scene exit).</summary>
+    public void StopFlightAudio()
+    {
+        StopGlideSound();
+        GetComponentInChildren<PlanePropeller>(true)?.NotifyCrash();
     }
 
     private void JoystickInput(ref float horizontalInput, ref float verticalInput)

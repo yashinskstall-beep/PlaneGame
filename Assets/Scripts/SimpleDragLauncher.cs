@@ -170,7 +170,7 @@ public class SimpleDragLauncher : MonoBehaviour
         else if (PlayerPrefs.HasKey("LaunchForceMultiplier"))
             launchForceMultiplier = PlayerPrefs.GetFloat("LaunchForceMultiplier", launchForceMultiplier);
 
-        // Prefer the living AudioManager rubber/wind sources (survives Continue).
+        // Prefer scene AudioManager rubber/wind sources when assigned there.
         ResolveRubberAudioSources();
         if (rubberSource != null)
         {

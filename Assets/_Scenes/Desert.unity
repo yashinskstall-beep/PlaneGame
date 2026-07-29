@@ -1866,13 +1866,13 @@ MonoBehaviour:
     orientationResistanceFactor: 0.001
     momentumDecayRate: 0.001
     wreckDrag: 0
-  - glideDrag: 0.001
-    diveDrag: 0.001
+  - glideDrag: 0.1
+    diveDrag: 0.1
     airResistanceCoefficient: 0.001
-    velocityResistanceFactor: 0.001
+    velocityResistanceFactor: 0.002
     orientationResistanceFactor: 0.001
-    momentumDecayRate: 0.001
-    wreckDrag: 0
+    momentumDecayRate: 0.01
+    wreckDrag: 0.5
 --- !u!1 &563035415 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7879745583513211750, guid: c521a1009b15f344faac6b8303862c5c,
@@ -4513,8 +4513,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 450, y: 450, z: 2}
-  m_Center: {x: 0, y: 0, z: 0}
+  m_Size: {x: 450, y: 450, z: 18.124573}
+  m_Center: {x: 0, y: 0, z: 73.51239}
 --- !u!114 &1797748881
 MonoBehaviour:
   m_ObjectHideFlags: 0
